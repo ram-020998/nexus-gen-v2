@@ -1,0 +1,45 @@
+Using Bedrock Knowledge Base (KB ID: WAQ6NJLGKN)
+Using Bedrock Knowledge Base (KB ID: WAQ6NJLGKN)
+Using Bedrock Knowledge Base (KB ID: WAQ6NJLGKN)
+Using Bedrock Knowledge Base (KB ID: WAQ6NJLGKN)
+ * Serving Flask app 'app'
+ * Debug mode: on
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5001
+ * Running on http://192.168.1.3:5001
+[33mPress CTRL+C to quit[0m
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 846-045-200
+127.0.0.1 - - [15/Oct/2025 23:43:35] "GET /create/ HTTP/1.1" 200 -
+127.0.0.1 - - [15/Oct/2025 23:43:35] "[36mGET /static/css/docflow.css HTTP/1.1[0m" 304 -
+127.0.0.1 - - [15/Oct/2025 23:43:35] "[36mGET /static/js/main.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [15/Oct/2025 23:44:18] "POST /create/generate HTTP/1.1" 200 -
+127.0.0.1 - - [15/Oct/2025 23:44:33] "GET /create/export/5 HTTP/1.1" 200 -
+ * Detected change in '/Users/ramaswamy.u/repo/nexus-gen-v2/config.py', reloading
+Using Bedrock Knowledge Base (KB ID: WAQ6NJLGKN)
+Using Bedrock Knowledge Base (KB ID: WAQ6NJLGKN)
+Using Bedrock Knowledge Base (KB ID: WAQ6NJLGKN)
+Using Bedrock Knowledge Base (KB ID: WAQ6NJLGKN)
+CREATE DEBUG: RAG results count: 3
+CREATE DEBUG: RAG summary: Based on the retrieved results, the user can add documents for an evaluation from the summary page. 
+Q Agent error: Expecting value: line 31 column 17 (char 1556)
+ * Restarting with stat
+Traceback (most recent call last):
+  File "/Users/ramaswamy.u/repo/nexus-gen-v2/app.py", line 61, in <module>
+    app = create_app()
+  File "/Users/ramaswamy.u/repo/nexus-gen-v2/app.py", line 28, in create_app
+    register_blueprints(app)
+    ~~~~~~~~~~~~~~~~~~~^^^^^
+  File "/Users/ramaswamy.u/repo/nexus-gen-v2/app.py", line 37, in register_blueprints
+    from controllers.breakdown_controller import breakdown_bp
+  File "/Users/ramaswamy.u/repo/nexus-gen-v2/controllers/breakdown_controller.py", line 16, in <module>
+    request_service = RequestService()
+  File "/Users/ramaswamy.u/repo/nexus-gen-v2/services/request_service.py", line 12, in __init__
+    self.rag_service = DataSourceFactory.create_rag_service()
+                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/Users/ramaswamy.u/repo/nexus-gen-v2/services/data_source_factory.py", line 15, in create_rag_service
+    data_source = Config.DATA_SOURCE.upper()
+                  ^^^^^^^^^^^^^^^^^^
+AttributeError: type object 'Config' has no attribute 'DATA_SOURCE'

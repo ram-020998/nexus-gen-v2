@@ -1,0 +1,317 @@
+{% extends "base.html" %}
+
+{% block title %}AI Chat Assistant - NexusGen{% endblock %}
+
+{% block page_title %}AI Chat Assistant{% endblock %}
+{% block page_subtitle %}Ask questions and perform actions with AI help{% endblock %}
+
+{% block content %}
+<div class="chat-container">
+    <div class="chat-messages" id="chatMessages">
+        <div class="message ai-message">
+            <div class="message-avatar ai-avatar">
+                <i class="fas fa-robot"></i>
+            </div>
+            <div class="message-content">
+                <div class="message-text">
+                    Hello! I'm your AI assistant. I can help you with:
+                    <ul>
+                        <li>Uploading and parsing documents</li>
+                        <li>Verifying design documents</li>
+                        <li>Creating new design documents</li>
+                        <li>Answering questions about your projects</li>
+                    </ul>
+                    How can I help you today?
+                </div>
+            </div>
+        </div>
+        
+        {% for chat in chat_history %}
+        <div class="message user-message">
+            <div class="message-avatar user-avatar">
+                <i class="fas fa-user"></i>
+            </div>
+            <div class="message-content">
+                <div class="message-text">{{ chat.question }}</div>
+            </div>
+        </div>
+        
+        <div class="message ai-message">
+            <div class="message-avatar ai-avatar">
+                <i class="fas fa-robot"></i>
+            </div>
+            <div class="message-content">
+                <div class="message-text">{{ chat.answer }}</div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    
+    <div class="chat-input">
+        <div class="input-group">
+            <input type="text" class="form-control" placeholder="Type your message..." id="messageInput" onkeypress="handleKeyPress(event)">
+            <button class="btn btn-primary" id="sendButton" onclick="sendMessage()">
+                <i class="fas fa-paper-plane"></i>
+            </button>
+        </div>
+        <div class="input-actions">
+            <div class="input-hint">Press Enter to send • Shift + Enter for new line</div>
+            <button class="btn btn-outline-secondary btn-sm" onclick="clearChat()">
+                <i class="fas fa-trash"></i> Clear Chat
+            </button>
+        </div>
+    </div>
+</div>
+
+<style>
+.chat-container {
+    max-width: 800px;
+    margin: 0 auto;
+    height: 70vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1rem;
+    background: var(--bg-card);
+    border-radius: 12px 12px 0 0;
+    border: 1px solid #374151;
+}
+
+.message {
+    display: flex;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+}
+
+.message-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.ai-avatar {
+    background: var(--pink);
+    color: white;
+}
+
+.user-avatar {
+    background: var(--teal);
+    color: white;
+}
+
+.message-content {
+    flex: 1;
+}
+
+.message-text {
+    padding: 0.75rem 1rem;
+    border-radius: 12px;
+    color: var(--text-primary);
+    line-height: 1.5;
+}
+
+.ai-message .message-text {
+    background: rgba(236, 72, 153, 0.1);
+    border: 1px solid rgba(236, 72, 153, 0.2);
+}
+
+.user-message .message-text {
+    background: rgba(6, 182, 212, 0.1);
+    border: 1px solid rgba(6, 182, 212, 0.2);
+}
+
+.chat-input {
+    background: var(--bg-card);
+    padding: 1rem;
+    border-radius: 0 0 12px 12px;
+    border: 1px solid #374151;
+    border-top: none;
+}
+
+.input-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 0.5rem;
+}
+
+.input-hint {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+.typing-indicator {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+.typing-dots {
+    display: flex;
+    gap: 0.25rem;
+}
+
+.typing-dot {
+    width: 4px;
+    height: 4px;
+    background: var(--text-secondary);
+    border-radius: 50%;
+    animation: typing 1.4s infinite ease-in-out;
+}
+
+.typing-dot:nth-child(1) { animation-delay: -0.32s; }
+.typing-dot:nth-child(2) { animation-delay: -0.16s; }
+
+@keyframes typing {
+    0%, 80%, 100% { transform: scale(0); }
+    40% { transform: scale(1); }
+}
+</style>
+
+<script>
+function handleKeyPress(event) {
+    if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        sendMessage();
+    }
+}
+
+async function sendMessage() {
+    const input = document.getElementById('messageInput');
+    const message = input.value.trim();
+    const sendButton = document.getElementById('sendButton');
+    const chatMessages = document.getElementById('chatMessages');
+    
+    if (!message) return;
+    
+    // Add user message to chat
+    addMessage(message, 'user');
+    input.value = '';
+    
+    // Show typing indicator
+    const typingId = showTypingIndicator();
+    
+    // Disable send button
+    DocFlow.showLoading(sendButton);
+    
+    try {
+        const response = await fetch('/chat/message', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                message: message
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // Remove typing indicator and add AI response
+            removeTypingIndicator(typingId);
+            addMessage(data.answer, 'ai');
+        } else {
+            throw new Error(data.error || 'Failed to get response');
+        }
+    } catch (error) {
+        console.error('Chat error:', error);
+        removeTypingIndicator(typingId);
+        addMessage('Sorry, I encountered an error. Please try again.', 'ai');
+        DocFlow.showNotification(error.message, 'error');
+    } finally {
+        DocFlow.hideLoading(sendButton, '<i class="fas fa-paper-plane"></i>');
+    }
+}
+
+function addMessage(text, sender) {
+    const chatMessages = document.getElementById('chatMessages');
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message ${sender}-message`;
+    
+    const avatarClass = sender === 'ai' ? 'ai-avatar' : 'user-avatar';
+    const icon = sender === 'ai' ? 'fas fa-robot' : 'fas fa-user';
+    
+    messageDiv.innerHTML = `
+        <div class="message-avatar ${avatarClass}">
+            <i class="${icon}"></i>
+        </div>
+        <div class="message-content">
+            <div class="message-text">${text}</div>
+        </div>
+    `;
+    
+    chatMessages.appendChild(messageDiv);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+function showTypingIndicator() {
+    const chatMessages = document.getElementById('chatMessages');
+    const typingDiv = document.createElement('div');
+    const typingId = 'typing-' + Date.now();
+    typingDiv.id = typingId;
+    typingDiv.className = 'message ai-message';
+    
+    typingDiv.innerHTML = `
+        <div class="message-avatar ai-avatar">
+            <i class="fas fa-robot"></i>
+        </div>
+        <div class="message-content">
+            <div class="typing-indicator">
+                <span>AI is typing</span>
+                <div class="typing-dots">
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    chatMessages.appendChild(typingDiv);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+    
+    return typingId;
+}
+
+function removeTypingIndicator(typingId) {
+    const typingDiv = document.getElementById(typingId);
+    if (typingDiv) {
+        typingDiv.remove();
+    }
+}
+
+async function clearChat() {
+    if (confirm('Are you sure you want to clear the chat history?')) {
+        try {
+            const response = await fetch('/chat/clear', {
+                method: 'POST'
+            });
+            
+            if (response.ok) {
+                location.reload();
+            }
+        } catch (error) {
+            console.error('Clear chat error:', error);
+            DocFlow.showNotification('Failed to clear chat', 'error');
+        }
+    }
+}
+
+// Auto-scroll to bottom on page load
+document.addEventListener('DOMContentLoaded', function() {
+    const chatMessages = document.getElementById('chatMessages');
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+});
+</script>
+{% endblock %}
