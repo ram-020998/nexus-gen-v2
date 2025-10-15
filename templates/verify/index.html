@@ -1,0 +1,279 @@
+{% extends "base.html" %}
+
+{% block title %}Verify Design Document - NexusGen{% endblock %}
+
+{% block page_title %}Verify Design Document{% endblock %}
+{% block page_subtitle %}Paste and validate design document content{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-6">
+        <div class="input-panel">
+            <div class="panel-header">
+                <div class="panel-icon">
+                    <i class="fas fa-file-alt"></i>
+                </div>
+                <h4>Design Document Content</h4>
+                <button class="btn btn-outline-secondary btn-sm" onclick="pasteFromClipboard()">Paste</button>
+            </div>
+            <textarea class="form-control" id="designContent" rows="15" placeholder="Paste your design document content here..."></textarea>
+            <button class="btn btn-primary w-100 mt-3" id="verifyButton" onclick="verifyDocument()">
+                <i class="fas fa-check"></i> Verify Document
+            </button>
+        </div>
+    </div>
+    
+    <div class="col-lg-6">
+        <div class="results-panel">
+            <div class="panel-header">
+                <div class="panel-icon">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <h4>Verification Results</h4>
+            </div>
+            <div class="results-content" id="resultsContent">
+                <div class="empty-state">
+                    <i class="fas fa-clipboard-check"></i>
+                    <p>Paste a document and click verify to see results</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="validation-section">
+    <h4>Recent Verifications</h4>
+    <div class="recent-list">
+        {% if recent_requests %}
+            {% for req in recent_requests %}
+            <div class="recent-item">
+                <div class="item-info">
+                    <div class="item-title">Design Verification</div>
+                    <div class="item-meta">{{ req.created_at.strftime('%Y-%m-%d %H:%M') }}</div>
+                </div>
+                <div class="item-status">
+                    <span class="badge badge-{{ 'success' if req.status == 'completed' else 'warning' }}">
+                        {{ req.status }}
+                    </span>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <p class="text-muted">No recent verifications</p>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+.input-panel, .results-panel {
+    background: var(--bg-card);
+    border-radius: 12px;
+    padding: 1.5rem;
+    border: 1px solid #374151;
+    height: 100%;
+}
+
+.panel-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+    justify-content: space-between;
+}
+
+.panel-icon {
+    width: 32px;
+    height: 32px;
+    background: rgba(6, 182, 212, 0.2);
+    color: var(--teal);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.results-content {
+    min-height: 300px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.empty-state {
+    text-align: center;
+    color: var(--text-secondary);
+}
+
+.empty-state i {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    color: var(--text-secondary);
+}
+
+.validation-section {
+    margin-top: 2rem;
+    background: var(--bg-card);
+    border-radius: 12px;
+    padding: 1.5rem;
+    border: 1px solid #374151;
+}
+
+.recent-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid #374151;
+}
+
+.recent-item:last-child {
+    border-bottom: none;
+}
+
+.item-title {
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.item-meta {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+.form-control {
+    background: var(--bg-primary);
+    border: 1px solid #374151;
+    color: var(--text-primary);
+    resize: vertical;
+}
+
+.form-control:focus {
+    background: var(--bg-primary);
+    border-color: var(--teal);
+    color: var(--text-primary);
+    box-shadow: 0 0 0 0.2rem rgba(6, 182, 212, 0.25);
+}
+
+.verification-results {
+    text-align: left;
+}
+
+.result-section {
+    margin-bottom: 1.5rem;
+}
+
+.result-section h5 {
+    color: var(--teal);
+    margin-bottom: 0.5rem;
+}
+
+.result-list {
+    list-style: none;
+    padding: 0;
+}
+
+.result-list li {
+    padding: 0.25rem 0;
+    color: var(--text-secondary);
+}
+
+.result-list li:before {
+    content: "•";
+    color: var(--teal);
+    margin-right: 0.5rem;
+}
+</style>
+
+<script>
+async function pasteFromClipboard() {
+    try {
+        const text = await navigator.clipboard.readText();
+        document.getElementById('designContent').value = text;
+    } catch (err) {
+        DocFlow.showNotification('Could not paste from clipboard', 'error');
+    }
+}
+
+async function verifyDocument() {
+    const content = document.getElementById('designContent').value.trim();
+    const button = document.getElementById('verifyButton');
+    const resultsContent = document.getElementById('resultsContent');
+    
+    if (!content) {
+        DocFlow.showNotification('Please enter design document content', 'error');
+        return;
+    }
+    
+    // Show loading
+    DocFlow.showLoading(button);
+    resultsContent.innerHTML = `
+        <div class="text-center">
+            <div class="spinner-border text-primary" role="status"></div>
+            <h5 class="mt-3">Verifying Document</h5>
+            <p>Analyzing against existing designs...</p>
+        </div>
+    `;
+    
+    try {
+        const response = await fetch('/verify/process', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                design_content: content
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showVerificationResults(data.verification_data);
+            DocFlow.showNotification('Document verified successfully!', 'success');
+        } else {
+            throw new Error(data.error || 'Verification failed');
+        }
+    } catch (error) {
+        console.error('Verification error:', error);
+        DocFlow.showNotification(error.message, 'error');
+        resultsContent.innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-exclamation-triangle text-danger"></i>
+                <p>Verification failed. Please try again.</p>
+            </div>
+        `;
+    } finally {
+        DocFlow.hideLoading(button, '<i class="fas fa-check"></i> Verify Document');
+    }
+}
+
+function showVerificationResults(data) {
+    const resultsContent = document.getElementById('resultsContent');
+    
+    resultsContent.innerHTML = `
+        <div class="verification-results">
+            <div class="result-section">
+                <h5><i class="fas fa-exclamation-triangle"></i> Missing Objects</h5>
+                <ul class="result-list">
+                    ${data.missing_objects.map(obj => `<li>${obj}</li>`).join('')}
+                </ul>
+            </div>
+            
+            <div class="result-section">
+                <h5><i class="fas fa-lightbulb"></i> Recommendations</h5>
+                <ul class="result-list">
+                    ${data.recommendations.map(rec => `<li>${rec}</li>`).join('')}
+                </ul>
+            </div>
+            
+            <div class="result-section">
+                <h5><i class="fas fa-link"></i> Similar Designs</h5>
+                <ul class="result-list">
+                    ${data.similar_designs.map(design => `<li>${design}</li>`).join('')}
+                </ul>
+            </div>
+        </div>
+    `;
+}
+</script>
+{% endblock %}

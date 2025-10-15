@@ -1,0 +1,51 @@
+{
+  "design_document": {
+    "overview": "Enable users to add reference documents to an evaluation from the summary page, supporting both inherited documents from previous rounds and new document uploads with proper validation and storage management.",
+    "objects": [
+      {
+        "name": "DocumentManager",
+        "type": "Service",
+        "description": "Handles document upload, validation, and storage operations for evaluation reference documents",
+        "methods": ["uploadDocument", "validateDocument", "moveToEvaluationFolder", "removeDocument"]
+      },
+      {
+        "name": "EvaluationSummaryPage",
+        "type": "Interface",
+        "description": "Summary page UI component that displays evaluation details and allows document management",
+        "methods": ["renderDocumentSection", "handleDocumentAdd", "handleDocumentRemove", "updateReferenceDocuments"]
+      },
+      {
+        "name": "ReferenceDocumentSection",
+        "type": "Component",
+        "description": "UI component for managing reference documents with add/remove capabilities",
+        "methods": ["displayDocuments", "addNewDocument", "removeExistingDocument", "inheritFromPrevious"]
+      },
+      {
+        "name": "EvaluationService",
+        "type": "Service",
+        "description": "Core service for evaluation operations including document association and audit logging",
+        "methods": ["updateEvaluation", "associateDocuments", "createAuditEntry", "validateEvaluationState"]
+      },
+      {
+        "name": "DocumentValidator",
+        "type": Rule",
+        "description": "Validates document format, size, and content requirements for evaluation reference documents",
+        "methods": ["validateFileType", "validateFileSize", "validateContent", "checkDuplicates"]
+      }
+    ],
+    "implementation_notes": [
+      "Support both 'inherit existing' and 'start blank' modes for reference documents",
+      "Implement document folder creation and organization within evaluation structure",
+      "Ensure proper audit trail for document additions and removals",
+      "Handle GCW integration if evaluation source is GCW",
+      "Maintain document version control and access permissions"
+    ],
+    "dependencies": [
+      "File storage service for document persistence",
+      "Audit logging system for tracking changes",
+      "User authentication and authorization service",
+      "GCW integration service (conditional)",
+      "Evaluation data model and database"
+    ]
+  }
+}

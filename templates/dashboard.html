@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - NexusGen{% endblock %}
+
+{% block page_title %}Welcome back{% endblock %}
+{% block page_subtitle %}What would you like to do today?{% endblock %}
+
+{% block content %}
+<div class="action-cards">
+    <a href="{{ url_for('breakdown.index') }}" class="action-card upload">
+        <div class="card-icon">
+            <i class="fas fa-upload"></i>
+        </div>
+        <div class="card-title">Upload Documents</div>
+        <div class="card-description">Upload and parse documents into tabular format automatically</div>
+        <div class="card-action">
+            Get started <i class="fas fa-arrow-right"></i>
+        </div>
+    </a>
+    
+    <a href="{{ url_for('verify.index') }}" class="action-card verify">
+        <div class="card-icon">
+            <i class="fas fa-check-circle"></i>
+        </div>
+        <div class="card-title">Verify Design Doc</div>
+        <div class="card-description">Copy and verify design document content with AI-powered validation</div>
+        <div class="card-action">
+            Get started <i class="fas fa-arrow-right"></i>
+        </div>
+    </a>
+    
+    <a href="{{ url_for('create.index') }}" class="action-card create">
+        <div class="card-icon">
+            <i class="fas fa-file-alt"></i>
+        </div>
+        <div class="card-title">Create Design Doc</div>
+        <div class="card-description">Generate comprehensive design documents from acceptance criteria</div>
+        <div class="card-action">
+            Get started <i class="fas fa-arrow-right"></i>
+        </div>
+    </a>
+    
+    <a href="{{ url_for('chat.index') }}" class="action-card chat">
+        <div class="card-icon">
+            <i class="fas fa-comments"></i>
+        </div>
+        <div class="card-title">AI Chat Assistant</div>
+        <div class="card-description">Chat with the system to perform actions and get instant help</div>
+        <div class="card-action">
+            Get started <i class="fas fa-arrow-right"></i>
+        </div>
+    </a>
+</div>
+
+<div class="stats-section">
+    <div class="stat-item">
+        <span class="stat-number">{{ stats.documents_processed }}</span>
+        <div class="stat-label">Documents Processed</div>
+    </div>
+    <div class="stat-item">
+        <span class="stat-number">{{ stats.designs_created }}</span>
+        <div class="stat-label">Design Docs Created</div>
+    </div>
+    <div class="stat-item">
+        <span class="stat-number">{{ stats.accuracy_rate }}%</span>
+        <div class="stat-label">Accuracy Rate</div>
+    </div>
+</div>
+{% endblock %}

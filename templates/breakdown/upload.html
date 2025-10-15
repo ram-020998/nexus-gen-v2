@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+
+{% block title %}Upload Documents - NexusGen{% endblock %}
+
+{% block page_title %}Upload Documents{% endblock %}
+{% block page_subtitle %}Parse documents into structured tabular data{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8">
+        <div class="upload-zone" id="uploadZone">
+            <div class="upload-icon">
+                <i class="fas fa-upload"></i>
+            </div>
+            <h3>Drop files here</h3>
+            <p>or click to browse</p>
+            <input type="file" id="fileInput" accept=".pdf,.docx,.txt,.md" style="display: none;">
+            <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">Choose Files</button>
+            <p class="upload-info">Supports PDF, DOCX, TXT, and more</p>
+        </div>
+        
+        <div class="recent-uploads">
+            <h4>Recent Uploads</h4>
+            <div class="upload-list">
+                {% if recent_requests %}
+                    {% for req in recent_requests %}
+                    <div class="upload-item">
+                        <div class="file-icon">
+                            <i class="fas fa-file-alt"></i>
+                        </div>
+                        <div class="file-info">
+                            <div class="file-name">{{ req.filename }}</div>
+                            <div class="file-meta">{{ req.created_at.strftime('%Y-%m-%d %H:%M') }}</div>
+                        </div>
+                        <div class="file-status">
+                            <span class="badge badge-{{ 'success' if req.status == 'completed' else 'warning' }}">
+                                {{ req.status }}
+                            </span>
+                        </div>
+                        {% if req.status == 'completed' %}
+                        <a href="{{ url_for('breakdown.view_results', request_id=req.id) }}" class="btn btn-sm btn-outline-primary">
+                            View Results
+                        </a>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted">No recent uploads</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="preview-panel" id="previewPanel">
+            <div class="preview-icon">
+                <i class="fas fa-table"></i>
+            </div>
+            <h4>Parsed Data Preview</h4>
+            <p>Upload a document to see parsed data</p>
+        </div>
+    </div>
+</div>
+
+<style>
+.upload-zone {
+    background: var(--bg-card);
+    border: 2px dashed #374151;
+    border-radius: 12px;
+    padding: 3rem;
+    text-align: center;
+    margin-bottom: 2rem;
+    transition: border-color 0.2s;
+    cursor: pointer;
+}
+
+.upload-zone:hover, .upload-zone.dragover {
+    border-color: var(--purple);
+    background: rgba(139, 92, 246, 0.05);
+}
+
+.upload-icon {
+    font-size: 3rem;
+    color: var(--purple);
+    margin-bottom: 1rem;
+}
+
+.upload-info {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    margin-top: 1rem;
+}
+
+.recent-uploads {
+    background: var(--bg-card);
+    border-radius: 12px;
+    padding: 1.5rem;
+    border: 1px solid #374151;
+}
+
+.upload-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid #374151;
+}
+
+.upload-item:last-child {
+    border-bottom: none;
+}
+
+.file-icon {
+    color: var(--purple);
+    font-size: 1.25rem;
+}
+
+.file-info {
+    flex: 1;
+}
+
+.file-name {
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.file-meta {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+.badge {
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.badge-success {
+    background: rgba(16, 185, 129, 0.2);
+    color: var(--green);
+}
+
+.badge-warning {
+    background: rgba(245, 158, 11, 0.2);
+    color: #f59e0b;
+}
+
+.preview-panel {
+    background: var(--bg-card);
+    border-radius: 12px;
+    padding: 2rem;
+    text-align: center;
+    border: 1px solid #374151;
+    height: fit-content;
+}
+
+.preview-icon {
+    font-size: 2rem;
+    color: var(--teal);
+    margin-bottom: 1rem;
+}
+
+.processing {
+    text-align: center;
+    padding: 2rem;
+}
+
+.breakdown-preview {
+    text-align: left;
+}
+
+.breakdown-table {
+    width: 100%;
+    margin-top: 1rem;
+}
+
+.breakdown-table th,
+.breakdown-table td {
+    padding: 0.5rem;
+    border-bottom: 1px solid #374151;
+    font-size: 0.875rem;
+}
+
+.breakdown-table th {
+    background: rgba(139, 92, 246, 0.1);
+    color: var(--purple);
+    font-weight: 600;
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/upload.js') }}"></script>
+{% endblock %}
