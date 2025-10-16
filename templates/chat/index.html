@@ -65,9 +65,7 @@
 
 <style>
 .chat-container {
-    max-width: 800px;
-    margin: 0 auto;
-    height: 70vh;
+    height: 80vh;
     display: flex;
     flex-direction: column;
 }
@@ -76,20 +74,28 @@
     flex: 1;
     overflow-y: auto;
     padding: 1rem;
-    background: var(--bg-card);
-    border-radius: 12px 12px 0 0;
-    border: 1px solid #374151;
+    background: var(--bg-primary);
 }
 
 .message {
     display: flex;
     gap: 0.75rem;
     margin-bottom: 1.5rem;
+    max-width: 80%;
+}
+
+.user-message {
+    margin-left: auto;
+    flex-direction: row-reverse;
+}
+
+.ai-message {
+    margin-right: auto;
 }
 
 .message-avatar {
-    width: 32px;
-    height: 32px;
+    width: 40px;
+    height: 40px;
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -112,28 +118,77 @@
 }
 
 .message-text {
-    padding: 0.75rem 1rem;
-    border-radius: 12px;
+    padding: 1rem 1.25rem;
+    border-radius: 20px;
     color: var(--text-primary);
     line-height: 1.5;
+    word-wrap: break-word;
 }
 
 .ai-message .message-text {
-    background: rgba(236, 72, 153, 0.1);
-    border: 1px solid rgba(236, 72, 153, 0.2);
+    background: rgba(236, 72, 153, 0.15);
+    border-radius: 20px 20px 20px 5px;
 }
 
 .user-message .message-text {
-    background: rgba(6, 182, 212, 0.1);
-    border: 1px solid rgba(6, 182, 212, 0.2);
+    background: var(--purple);
+    color: white;
+    border-radius: 20px 20px 5px 20px;
+    text-align: left;
 }
 
 .chat-input {
+    background: var(--bg-primary);
+    padding: 1.5rem;
+    border-top: 1px solid #374151;
+    position: sticky;
+    bottom: 0;
+}
+
+.input-group {
+    max-width: 100%;
+}
+
+.form-control {
     background: var(--bg-card);
-    padding: 1rem;
-    border-radius: 0 0 12px 12px;
     border: 1px solid #374151;
-    border-top: none;
+    color: var(--text-primary);
+    height: 60px;
+    border-radius: 30px 0 0 30px;
+    padding: 0 20px;
+    font-size: 16px;
+}
+
+.form-control::placeholder {
+    color: var(--text-secondary);
+    opacity: 0.8;
+}
+
+.form-control:focus {
+    background: var(--bg-card);
+    border-color: var(--purple);
+    color: var(--text-primary);
+    box-shadow: 0 0 0 0.2rem rgba(139, 92, 246, 0.25);
+    outline: none;
+}
+
+.btn-primary {
+    width: 60px;
+    height: 60px;
+    border-radius: 0 30px 30px 0;
+    border: 1px solid #374151;
+    border-left: none;
+    background: var(--pink);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+
+.btn-primary:hover {
+    background: #e91e63;
+    border-color: var(--purple);
 }
 
 .input-actions {

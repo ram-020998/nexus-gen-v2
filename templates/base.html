@@ -11,7 +11,7 @@
 <body>
     <div class="app-container">
         <!-- Sidebar -->
-        <nav class="sidebar">
+        <nav class="sidebar" id="sidebar">
             <div class="sidebar-header">
                 <div class="logo">
                     <div class="logo-icon"></div>
@@ -41,10 +41,16 @@
                     <span>AI Chat</span>
                 </a>
             </div>
+            
+            <div class="sidebar-footer">
+                <button class="sidebar-toggle" id="sidebarToggle">
+                    <i class="fas fa-chevron-left"></i>
+                </button>
+            </div>
         </nav>
         
         <!-- Main Content -->
-        <main class="main-content">
+        <main class="main-content" id="mainContent">
             <div class="content-header">
                 <h1>{% block page_title %}{% endblock %}</h1>
                 <p class="content-subtitle">{% block page_subtitle %}{% endblock %}</p>

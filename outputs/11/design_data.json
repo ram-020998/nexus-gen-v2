@@ -1,0 +1,59 @@
+{
+  "design_document": {
+    "overview": "Enable RFI text generation to dynamically switch between Azure AI and native Appian AI based on configuration. The system will use an XOR decision node to route requests to the appropriate AI service based on the output of AS_RM_EnableOrDisableAppianAIForSummarization_wrapper rule.",
+    "objects": [
+      {
+        "name": "AS_RM_Get_AI_RFI_Response",
+        "type": "Process Model",
+        "description": "Main process model that orchestrates RFI generation using either Azure or Appian AI based on configuration",
+        "methods": ["executeAIDecisionLogic", "invokeAzureAI", "invokeAppianAI", "handleAIResponse", "manageErrorHandling"]
+      },
+      {
+        "name": "AS_RM_EnableOrDisableAppianAIForSummarization_wrapper",
+        "type": "Expression Rule",
+        "description": "Configuration rule that determines which AI service to use for RFI generation",
+        "methods": ["evaluateAIConfiguration", "returnBooleanFlag"]
+      },
+      {
+        "name": "AS_RM_AI_generateRFITextFromDescription",
+        "type": "AI Skill",
+        "description": "Appian native AI skill for generating RFI content from requirement descriptions",
+        "methods": ["processDescription", "generateRFIContent", "returnFormattedResponse"]
+      },
+      {
+        "name": "Azure_Integration_Object",
+        "type": "Integration",
+        "description": "Azure AI service integration for RFI text generation when Appian AI is disabled",
+        "methods": ["callAzureAPI", "processAzureResponse", "handleAzureErrors"]
+      },
+      {
+        "name": "AS_RM_FM_GenerateAIRfi",
+        "type": "Interface/Form",
+        "description": "User interface form for initiating RFI generation with cleaned up test fields",
+        "methods": ["displayGenerateButton", "captureUserInput", "triggerRFIGeneration"]
+      },
+      {
+        "name": "XOR_Decision_Node",
+        "type": "Process Node",
+        "description": "Decision gateway that routes to appropriate AI service based on configuration rule output",
+        "methods": ["evaluateCondition", "routeToAppianAI", "routeToAzureAI"]
+      }
+    ],
+    "implementation_notes": [
+      "Configure XOR node at process start to check AI configuration using AS_RM_EnableOrDisableAppianAIForSummarization_wrapper",
+      "Route to Appian AI path when rule returns true, Azure AI path when false",
+      "Store AI responses in aiRequestForInfo variable for consistent handling",
+      "Remove test fields from AS_RM_FM_GenerateAIRfi form (empty text and paragraph fields)",
+      "Implement error handling for both AI service paths",
+      "Ensure response format consistency between Azure and Appian AI outputs"
+    ],
+    "dependencies": [
+      "AS_RM_EnableOrDisableAppianAIForSummarization_wrapper rule",
+      "AS_RM_AI_generateRFITextFromDescription AI skill",
+      "Azure AI service integration",
+      "Requirement summary page with Generate RFI action",
+      "aiRequestForInfo process variable",
+      "Error handling mechanisms for both AI services"
+    ]
+  }
+}
