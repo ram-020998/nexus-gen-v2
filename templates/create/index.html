@@ -15,7 +15,7 @@
                 </div>
                 <h4>Acceptance Criteria</h4>
             </div>
-            <textarea class="form-control" id="acceptanceCriteria" rows="10" placeholder="Enter your acceptance criteria here...
+            <textarea class="form-control" id="acceptanceCriteria" placeholder="Enter your acceptance criteria here...
 
 Example:
 - User should be able to login
@@ -35,7 +35,7 @@ Example:
                 </div>
                 <h4>Generated Document</h4>
                 <button class="btn btn-outline-secondary btn-sm" id="exportButton" onclick="exportDesign()" style="display: none;">
-                    <i class="fas fa-download"></i> Export
+                    <i class="fas fa-download"></i> Export Word
                 </button>
             </div>
             <div class="results-content" id="resultsContent">
@@ -48,36 +48,15 @@ Example:
     </div>
 </div>
 
-<div class="templates-section">
-    <h4>Recent Generations</h4>
-    <div class="recent-list">
-        {% if recent_requests %}
-            {% for req in recent_requests %}
-            <div class="recent-item">
-                <div class="item-info">
-                    <div class="item-title">Design Document</div>
-                    <div class="item-meta">{{ req.created_at.strftime('%Y-%m-%d %H:%M') }}</div>
-                </div>
-                <div class="item-status">
-                    <span class="badge badge-{{ 'success' if req.status == 'completed' else 'warning' }}">
-                        {{ req.status }}
-                    </span>
-                </div>
-            </div>
-            {% endfor %}
-        {% else %}
-            <p class="text-muted">No recent generations</p>
-        {% endif %}
-    </div>
-</div>
-
 <style>
 .input-panel, .results-panel {
     background: var(--bg-card);
     border-radius: 12px;
     padding: 1.5rem;
     border: 1px solid #374151;
-    height: 100%;
+    height: 600px;
+    display: flex;
+    flex-direction: column;
 }
 
 .panel-header {
@@ -86,6 +65,7 @@ Example:
     gap: 0.75rem;
     margin-bottom: 1rem;
     justify-content: space-between;
+    flex-shrink: 0;
 }
 
 .panel-icon {
@@ -100,10 +80,16 @@ Example:
 }
 
 .results-content {
-    min-height: 300px;
+    flex: 1;
     display: flex;
     align-items: center;
     justify-content: center;
+    overflow-y: auto;
+}
+
+#acceptanceCriteria {
+    flex: 1;
+    resize: none;
 }
 
 .empty-state {
@@ -117,40 +103,29 @@ Example:
     color: var(--text-secondary);
 }
 
-.templates-section {
-    margin-top: 2rem;
-    background: var(--bg-card);
-    border-radius: 12px;
-    padding: 1.5rem;
-    border: 1px solid #374151;
-}
-
-.recent-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0.75rem 0;
-    border-bottom: 1px solid #374151;
-}
-
-.recent-item:last-child {
-    border-bottom: none;
-}
-
-.item-title {
-    font-weight: 500;
-    color: var(--text-primary);
-}
-
-.item-meta {
-    font-size: 0.75rem;
-    color: var(--text-secondary);
-}
-
 .design-results {
     text-align: left;
-    max-height: 400px;
+    max-height: 500px;
     overflow-y: auto;
+}
+
+.form-control {
+    background: var(--bg-primary);
+    border: 1px solid #374151;
+    color: var(--text-primary);
+    resize: vertical;
+}
+
+.form-control::placeholder {
+    color: var(--text-primary);
+    opacity: 0.7;
+}
+
+.form-control:focus {
+    background: var(--bg-primary);
+    border-color: var(--purple);
+    color: var(--text-primary);
+    box-shadow: 0 0 0 0.2rem rgba(139, 92, 246, 0.25);
 }
 
 .design-section {
@@ -312,7 +287,7 @@ function exportDesign() {
     const downloadUrl = `/create/export/${currentRequestId}`;
     window.location.href = downloadUrl;
     
-    DocFlow.showNotification('Excel file download started!', 'success');
+    DocFlow.showNotification('Word document download started!', 'success');
 }
 </script>
 {% endblock %}

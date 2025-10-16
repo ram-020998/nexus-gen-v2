@@ -1,0 +1,65 @@
+{
+  "epic": "ProcureSight+ Integration into Appian Solutions",
+  "stories": [
+    {
+      "story_name": "Refactor ProcureSight Site Tab Search Functionality",
+      "acceptance_criteria": "**GIVEN**: User is on the ProcureSight Site tab **WHEN**: User enters search terms and clicks search button **THEN**: Results are displayed using the new ProcureSight+ Module interface with procurement results and expanded filter set",
+      "issue_type": "User Story",
+      "points": ""
+    },
+    {
+      "story_name": "Enable Add to Collection and Save to Requirement Actions",
+      "acceptance_criteria": "**GIVEN**: User views procurement search results **WHEN**: User clicks 'Add to Collection' or 'Save to Requirement' action **THEN**: The procurement is saved to the selected collection or requirement with confirmation",
+      "issue_type": "User Story",
+      "points": ""
+    },
+    {
+      "story_name": "Implement Procurement Summary View Navigation",
+      "acceptance_criteria": "**GIVEN**: User views search results **WHEN**: User clicks on a result card **THEN**: Procurement Summary displays with all data and links to Vendor Summary and Codes Summary",
+      "issue_type": "User Story",
+      "points": ""
+    },
+    {
+      "story_name": "Enable Native AI Document Chat",
+      "acceptance_criteria": "**GIVEN**: User is viewing procurement documents **WHEN**: User clicks on a document from search results **THEN**: Native AI Chat interface opens allowing user to chat with the document",
+      "issue_type": "User Story",
+      "points": ""
+    },
+    {
+      "story_name": "Restructure Requirement Summary Insights Tab",
+      "acceptance_criteria": "**GIVEN**: User accesses Requirement Summary **WHEN**: User navigates to the insights section **THEN**: Tabs are reorganized as Research, Bookmarks, Search, Documents, and Best in Class",
+      "issue_type": "Task",
+      "points": ""
+    },
+    {
+      "story_name": "Implement Search Tab in Requirement Summary",
+      "acceptance_criteria": "**GIVEN**: User is on the Search tab in Requirement Summary **WHEN**: User performs a search **THEN**: Global search interface displays with recent searches and procurement results with Save to Requirement action",
+      "issue_type": "User Story",
+      "points": ""
+    },
+    {
+      "story_name": "Create Bookmarks Tab for Saved Procurements",
+      "acceptance_criteria": "**GIVEN**: User has saved procurements to requirement **WHEN**: User clicks on Bookmarks tab **THEN**: All saved procurements are displayed with ability to view details and remove items",
+      "issue_type": "User Story",
+      "points": ""
+    },
+    {
+      "story_name": "Update Collections Grid UX",
+      "acceptance_criteria": "**GIVEN**: User accesses ProcureSight Collections **WHEN**: User views the collections grid **THEN**: Updated UX displays as per mockup specifications",
+      "issue_type": "Task",
+      "points": ""
+    },
+    {
+      "story_name": "Implement Collection Summary with Three Tabs",
+      "acceptance_criteria": "**GIVEN**: User opens a collection **WHEN**: User views collection summary **THEN**: Three tabs are available: Bookmarks, Documents, and Insights with respective content",
+      "issue_type": "User Story",
+      "points": ""
+    },
+    {
+      "story_name": "Enable Collection Management Operations",
+      "acceptance_criteria": "**GIVEN**: User has access to collections **WHEN**: User performs create, update, or view operations **THEN**: Collection operations complete successfully with appropriate feedback",
+      "issue_type": "User Story",
+      "points": ""
+    }
+  ]
+}

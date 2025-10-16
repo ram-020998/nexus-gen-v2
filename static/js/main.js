@@ -114,6 +114,9 @@ window.addEventListener('unhandledrejection', function(e) {
 document.addEventListener('DOMContentLoaded', function() {
     console.log('DocFlow initialized');
     
+    // Initialize sidebar toggle
+    initSidebarToggle();
+    
     // Add loading states to all forms
     document.querySelectorAll('form').forEach(form => {
         form.addEventListener('submit', function(e) {
@@ -135,3 +138,51 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 });
+
+// Sidebar toggle functionality
+function initSidebarToggle() {
+    const sidebarToggle = document.getElementById('sidebarToggle');
+    const sidebar = document.getElementById('sidebar');
+    const mainContent = document.getElementById('mainContent');
+    
+    if (sidebarToggle && sidebar && mainContent) {
+        // Disable transitions temporarily
+        sidebar.classList.add('no-transition');
+        mainContent.classList.add('no-transition');
+        
+        // Load saved state immediately
+        const isCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
+        if (isCollapsed) {
+            sidebar.classList.add('collapsed');
+            mainContent.classList.add('collapsed');
+        } else {
+            sidebar.classList.remove('collapsed');
+            mainContent.classList.remove('collapsed');
+        }
+        
+        // Re-enable transitions after a brief delay
+        setTimeout(() => {
+            sidebar.classList.remove('no-transition');
+            mainContent.classList.remove('no-transition');
+        }, 50);
+        
+        // Toggle functionality
+        sidebarToggle.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const willBeCollapsed = !sidebar.classList.contains('collapsed');
+            
+            if (willBeCollapsed) {
+                sidebar.classList.add('collapsed');
+                mainContent.classList.add('collapsed');
+            } else {
+                sidebar.classList.remove('collapsed');
+                mainContent.classList.remove('collapsed');
+            }
+            
+            // Save state
+            localStorage.setItem('sidebarCollapsed', willBeCollapsed);
+        });
+    }
+}

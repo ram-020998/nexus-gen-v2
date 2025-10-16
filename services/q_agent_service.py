@@ -108,7 +108,7 @@ class QAgentService:
             capture_output=True,
             text=True,
             cwd=str(self.config.BASE_DIR),
-            timeout=30,
+            timeout=60,  # Increased from 30 to 60 seconds
             input='\n'  # Send newline to handle any interactive prompts
         )
         
@@ -116,19 +116,33 @@ class QAgentService:
     
     def _create_breakdown_prompt(self, file_path: str, output_path: str, bedrock_context: dict) -> str:
         """Create breakdown prompt with Bedrock context"""
+        # Simplify bedrock context to avoid long prompts
+        context_summary = bedrock_context.get('summary', 'No context available')[:200]
+        
         return f"""
-Please analyze the specification document at: {file_path}
+Analyze the spec document at: {file_path}
 
-Bedrock Context (similar breakdowns):
-{json.dumps(bedrock_context, indent=2)}
+Context: {context_summary}
 
-Generate a spec breakdown following the patterns shown in the Bedrock context.
-Save the JSON output to: {output_path}
+Create a JSON breakdown with this EXACT structure and save to: {output_path}
 
-Focus on:
-1. Creating clear user stories
-2. Using GIVEN/WHEN/THEN format for acceptance criteria
-3. Following the epic/story structure from similar examples
+{{
+  "epic": "Epic Name Here",
+  "stories": [
+    {{
+      "story_name": "Story Name",
+      "acceptance_criteria": "**GIVEN**: condition **WHEN**: action **THEN**: result",
+      "issue_type": "User Story",
+      "points": ""
+    }}
+  ]
+}}
+
+Requirements:
+- Create 5-8 user stories
+- Use GIVEN/WHEN/THEN format
+- Output ONLY valid JSON
+- No explanations or extra text
 """
     
     def _create_verification_prompt(self, design_content: str, output_path: str, bedrock_context: dict) -> str:

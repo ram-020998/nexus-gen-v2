@@ -4,7 +4,7 @@ Create Controller - Handle design document creation
 from flask import Blueprint, render_template, request, jsonify, send_file
 from services.request_service import RequestService
 from services.q_agent_service import QAgentService
-from services.excel_service import ExcelService
+from services.word_service import WordService
 import json
 from pathlib import Path
 
@@ -12,7 +12,7 @@ create_bp = Blueprint('create', __name__, url_prefix='/create')
 
 request_service = RequestService()
 q_agent_service = QAgentService()
-excel_service = ExcelService()
+word_service = WordService()
 
 @create_bp.route('/')
 def index():
@@ -56,8 +56,8 @@ def generate_design():
         return jsonify({'error': str(e)}), 500
 
 @create_bp.route('/export/<int:request_id>')
-def export_excel(request_id):
-    """Export design document to Excel"""
+def export_word(request_id):
+    """Export design document to Word"""
     try:
         req = request_service.get_request(request_id)
         if not req or not req.final_output:
@@ -65,22 +65,22 @@ def export_excel(request_id):
         
         design_data = json.loads(req.final_output)
         
-        # Generate Excel file
-        excel_path = excel_service.create_design_excel(
+        # Generate Word document
+        word_path = word_service.create_design_document(
             request_id, 
             design_data
         )
         
         # Update request with export path
-        req.export_path = excel_path
+        req.export_path = word_path
         request_service.update_request_status(request_id, 'completed')
         
         # Send file
         return send_file(
-            excel_path,
+            word_path,
             as_attachment=True,
-            download_name=Path(excel_path).name,
-            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            download_name=Path(word_path).name,
+            mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
         )
         
     except Exception as e:
