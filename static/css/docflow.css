@@ -10,6 +10,7 @@
     --pink: #ec4899;
     --green: #10b981;
     --sidebar-width: 250px;
+    --sidebar-collapsed-width: 60px;
 }
 
 * {
@@ -40,6 +41,15 @@ body {
     position: fixed;
     height: 100vh;
     z-index: 1000;
+    transition: width 0.3s ease;
+}
+
+.sidebar.no-transition {
+    transition: none !important;
+}
+
+.sidebar.collapsed {
+    width: var(--sidebar-collapsed-width);
 }
 
 .sidebar-header {
@@ -47,10 +57,60 @@ body {
     border-bottom: 1px solid #374151;
 }
 
+.sidebar.collapsed .sidebar-header {
+    padding: 1rem;
+}
+
+.sidebar-footer {
+    padding: 1rem;
+    border-top: 1px solid #374151;
+    display: flex;
+    justify-content: center;
+}
+
+.sidebar.collapsed .sidebar-footer {
+    padding: 0.75rem;
+}
+
+.sidebar-toggle {
+    width: 32px;
+    height: 32px;
+    background: rgba(139, 92, 246, 0.1);
+    border: 1px solid rgba(139, 92, 246, 0.3);
+    border-radius: 50%;
+    color: var(--purple);
+    font-size: 0.875rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+
+.sidebar-toggle:hover {
+    background: rgba(139, 92, 246, 0.2);
+    border-color: var(--purple);
+    transform: scale(1.1);
+}
+
+.sidebar.collapsed .sidebar-toggle {
+    width: 32px;
+    height: 32px;
+}
+
+.sidebar.collapsed .sidebar-toggle i {
+    transform: rotate(180deg);
+}
+
 .logo {
     display: flex;
     align-items: center;
     gap: 0.75rem;
+}
+
+.sidebar.collapsed .logo-text {
+    display: none;
 }
 
 .logo-icon {
@@ -64,6 +124,7 @@ body {
     font-size: 1.25rem;
     font-weight: 600;
     color: var(--text-primary);
+    transition: opacity 0.3s ease;
 }
 
 .sidebar-menu {
@@ -80,6 +141,20 @@ body {
     text-decoration: none;
     transition: all 0.2s;
     border-left: 3px solid transparent;
+    position: relative;
+}
+
+.sidebar.collapsed .menu-item {
+    padding: 0.75rem;
+    justify-content: center;
+}
+
+.sidebar.collapsed .menu-item span {
+    display: none;
+}
+
+.sidebar.collapsed .menu-item i {
+    font-size: 1.2rem;
 }
 
 .menu-item:hover {
@@ -132,6 +207,15 @@ body {
     flex: 1;
     margin-left: var(--sidebar-width);
     padding: 2rem;
+    transition: margin-left 0.3s ease;
+}
+
+.main-content.no-transition {
+    transition: none !important;
+}
+
+.main-content.collapsed {
+    margin-left: var(--sidebar-collapsed-width);
 }
 
 .content-header {
