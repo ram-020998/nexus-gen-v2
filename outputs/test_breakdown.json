@@ -1,0 +1,53 @@
+{
+  "epic": "User Management System",
+  "stories": [
+    {
+      "story_name": "User Registration",
+      "acceptance_criteria": "**GIVEN**: A new user wants to create an account **WHEN**: They provide a valid email and password that meets security requirements **THEN**: Their account is created and email validation is triggered",
+      "issue_type": "User Story",
+      "points": ""
+    },
+    {
+      "story_name": "Email Validation",
+      "acceptance_criteria": "**GIVEN**: A user has registered with an email address **WHEN**: They click the validation link sent to their email **THEN**: Their email is marked as verified and account is activated",
+      "issue_type": "User Story",
+      "points": ""
+    },
+    {
+      "story_name": "User Login",
+      "acceptance_criteria": "**GIVEN**: A registered user with valid credentials **WHEN**: They enter their email and password **THEN**: They are authenticated and a session is created",
+      "issue_type": "User Story",
+      "points": ""
+    },
+    {
+      "story_name": "Failed Login Tracking",
+      "acceptance_criteria": "**GIVEN**: A user enters incorrect login credentials **WHEN**: They attempt to login **THEN**: The failed attempt is recorded and appropriate security measures are applied",
+      "issue_type": "User Story",
+      "points": ""
+    },
+    {
+      "story_name": "Profile Viewing",
+      "acceptance_criteria": "**GIVEN**: An authenticated user **WHEN**: They navigate to their profile page **THEN**: They can view their current profile information",
+      "issue_type": "User Story",
+      "points": ""
+    },
+    {
+      "story_name": "Profile Editing",
+      "acceptance_criteria": "**GIVEN**: An authenticated user viewing their profile **WHEN**: They modify their profile information and save changes **THEN**: Their profile is updated with the new information",
+      "issue_type": "User Story",
+      "points": ""
+    },
+    {
+      "story_name": "Profile Picture Upload",
+      "acceptance_criteria": "**GIVEN**: An authenticated user on their profile page **WHEN**: They upload a valid image file as their profile picture **THEN**: The image is stored and displayed as their profile picture",
+      "issue_type": "User Story",
+      "points": ""
+    },
+    {
+      "story_name": "Account Deletion",
+      "acceptance_criteria": "**GIVEN**: An authenticated user wants to delete their account **WHEN**: They confirm the deletion request **THEN**: Their account and associated data are permanently removed from the system",
+      "issue_type": "User Story",
+      "points": ""
+    }
+  ]
+}

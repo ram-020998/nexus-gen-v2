@@ -1,0 +1,20 @@
+User Management System Specification
+
+Overview:
+The system should allow users to register, login, and manage their profiles.
+
+Requirements:
+1. User Registration
+   - Users can create accounts with email and password
+   - Email validation is required
+   - Password must meet security requirements
+
+2. User Login
+   - Users can authenticate with email/password
+   - Failed login attempts should be tracked
+   - Session management for authenticated users
+
+3. Profile Management
+   - Users can view and edit their profile information
+   - Profile picture upload functionality
+   - Account deletion option

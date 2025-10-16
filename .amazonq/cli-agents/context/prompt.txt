@@ -1,0 +1,77 @@
+No we are going to create a new version of this applicaiton with few modifications. Ill explain in detail in multiple prompts below
+
+We are going to use s3 and bedrock as our source of information. I have uploaded required documents in S3 and use bedrock knowledgebase and
+embeddings to query informaiton from KB's. This setup is called RAG system.
+
+Application use cases:
+1. This applicaiton will act as a hub where we can perform multiple actions on the data set available.
+2. This application will host four functionalities as of now. They are
+    a. Spec document breakdown
+    b. Design document review
+    c. Design document generation
+    d. Chat with documents
+3. This applicaiton will be a web application similar what we already have.
+4. For each action we will ahve a refined and clear prompt template.
+5. Based on the action and document/text provided by the user, the prompt from the template will be modified and then passed to the API to
+fetch the relevant information.
+
+The role of amazon q will be as follows
+1. Based on the action selected by the user, amazon q should process the document/text and then update the prompt from the template 
+to a valid one.
+2. Once the data is retrived from the API, amazon q will use this data and do the final transformaiton of the data based on the action
+selected.
+
+The detailed functionality of each action will be explained below.
+
+1. Spec document breakdown
+    a. For a given spec document, the content should be read first and then with the content the data from RAG should be queried.
+    b. The query should be based on: We need to look at similar functionalities that have been already broken and we need the details on
+    how that spec has been broke. We need to identify patterns in how the existing documents are broken down and the new spec has to be broken
+    down in a similar manner.
+    c. The columns for the spec brekdown should include the below columns
+        1. Epic
+        2. Story Name
+        3. Acceptance Criteria
+        4. Issue Type (User Story/Task)
+        5. Points - leave this column as empty.
+    d. The acceptance criteria column should be as below:
+        1. Focus on breaking down the feature into atomic, user-centric actions and verifiable outcomes.
+        2. For each major requirement or user flow identified in the mockup, create a separate set of GIVEN/WHEN/THEN criteria.
+        3. Structure the output clearly, using bold formatting or line breaks to delineate the GIVEN, WHEN, and THEN clauses.
+        4. Ensure the THEN clause is measurable and specifies the expected result precisely (e.g., 'THEN the button changes color to blue,' not 'THEN the button looks right').
+        5. If assumptions are made due to ambiguity in the mockup, state them clearly (e.g., 'Assuming the user must be logged in...').
+        Example Format Enforcement:
+            **GIVEN**: [The initial state or context]
+            **WHEN**: [The user action or system event]
+            **THEN**: [The verifiable outcome]
+    
+2. Review Design Document:
+    a. A design document is a document which the developer creates when he starts any story or task in appian development. He will mention 
+    the complete details of all the objects that he is about to create/update/deprecate in this current work.
+    b. We have a knowledge base where all the design documents of the applicaiton are stored.
+    c. When an user selects this action in the applicaiton, he will provide a the design which he has come up with for a new story. With that informaitonw
+    we have to query the knowledge base through the RAG API and find any relevant objects/functionalies mentioned in the existing design docs.
+    d. We need to verify if the new design which he has proposed is missing any objects/ areas which will be affected.
+
+3. Create Design Document
+    a. This is similar to the review design document. But here the user provides an AC or description of the change which he is gonna change.
+    b. We need to identofy if there are any designs in the KB which has informaiton relvant to the funcitonality that he has mentioned.
+    c. If we find matching information, we need to provide him with the changes taht needs to be made on the objects related to that functionality.
+    d. If no relevant information is shown we can just show that message to the user that no informaiton is available for the provided fucntionality.
+
+4. Chat with documents
+    a. This is just a simple chat functionality for the user to chat with the documents available in KB.
+    c. User will have a paragraph field and the user can ask quesitons and we need to pass that and fetch the informaiton from RAG.
+    c. Finally we will summarise the ifnormation fetched and display it to the user.
+
+
+Important Notes:
+1. I want the applicaiton to be built with proper OOPS concepts.
+2. I want everythingh to be modular and clean.
+3. The prompt templates should be kept separately for each use case.
+4. Each action should be provided in four differnt cards in the landing page of the applicaiton.
+5. Except for chat with documents, the rest of the actions should have a request file locally and each request should be logged and informaiton
+should be stored. The user can anytime look at requests and look at its details.
+6. Use SQLite to store the requests related all information. USe this as the primary database. This should have all details that needs to be 
+displayed in the applicaiton. Liek requests, output etc.
+7. Create me a project implementation plan first. After reviewing it, we can start with the actual development.

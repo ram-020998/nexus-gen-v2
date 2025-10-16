@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+
+{% block title %}Design Creation Results - NexusGen{% endblock %}
+
+{% block page_title %}Design Creation Results{% endblock %}
+{% block page_subtitle %}Generated Design Document{% endblock %}
+
+{% block content %}
+<div class="results-header">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <span class="badge badge-{{ 'success' if request.status == 'completed' else 'warning' }}">
+                {{ request.status.title() }}
+            </span>
+            <span class="text-muted ms-2">{{ request.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+        </div>
+        <div>
+            <a href="{{ url_for('create.index') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> Back to Create
+            </a>
+            {% if design_data %}
+            <a href="{{ url_for('create.export_excel', request_id=request.id) }}" class="btn btn-primary ms-2">
+                <i class="fas fa-download"></i> Export to Excel
+            </a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{% if design_data %}
+<div class="design-content">
+    <div class="overview-section mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-info-circle"></i> Overview</h5>
+            </div>
+            <div class="card-body">
+                <p>{{ design_data.get('design_document', {}).get('overview', 'Design document generated successfully') }}</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="objects-section mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-cubes"></i> Objects & Components</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-dark table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Type</th>
+                                <th>Description</th>
+                                <th>Methods</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for obj in design_data.get('design_document', {}).get('objects', []) %}
+                            <tr>
+                                <td><strong>{{ obj.get('name', 'Unknown') }}</strong></td>
+                                <td>
+                                    <span class="badge badge-primary">{{ obj.get('type', 'Component') }}</span>
+                                </td>
+                                <td>{{ obj.get('description', 'No description') }}</td>
+                                <td>
+                                    {% for method in obj.get('methods', []) %}
+                                        <code>{{ method }}</code>{% if not loop.last %}, {% endif %}
+                                    {% endfor %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="implementation-section mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-code"></i> Implementation Notes</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled">
+                    {% for note in design_data.get('design_document', {}).get('implementation_notes', []) %}
+                    <li><i class="fas fa-check text-success me-2"></i>{{ note }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+    
+    <div class="dependencies-section">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-link"></i> Dependencies</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled">
+                    {% for dep in design_data.get('design_document', {}).get('dependencies', []) %}
+                    <li><i class="fas fa-arrow-right text-info me-2"></i>{{ dep }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="alert alert-warning">
+    <i class="fas fa-exclamation-triangle"></i>
+    No design data available for this request.
+</div>
+{% endif %}
+
+<style>
+.card {
+    background: var(--bg-card);
+    border: 1px solid #374151;
+    border-radius: 12px;
+}
+
+.card-header {
+    background: rgba(139, 92, 246, 0.1);
+    border-bottom: 1px solid #374151;
+    padding: 1rem 1.5rem;
+}
+
+.card-header h5 {
+    margin: 0;
+    color: var(--purple);
+    font-weight: 600;
+}
+
+.card-body {
+    padding: 1.5rem;
+}
+
+.table-dark {
+    --bs-table-bg: transparent;
+    --bs-table-striped-bg: rgba(255, 255, 255, 0.05);
+    --bs-table-hover-bg: rgba(255, 255, 255, 0.075);
+    --bs-table-border-color: #374151;
+}
+
+.table th {
+    background: rgba(139, 92, 246, 0.1);
+    color: var(--purple);
+    font-weight: 600;
+    border-bottom: 2px solid #374151;
+    padding: 1rem 0.75rem;
+}
+
+.table td {
+    padding: 1rem 0.75rem;
+    vertical-align: top;
+    border-bottom: 1px solid #374151;
+}
+
+.badge {
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.badge-success {
+    background: rgba(16, 185, 129, 0.2);
+    color: var(--green);
+}
+
+.badge-warning {
+    background: rgba(245, 158, 11, 0.2);
+    color: #f59e0b;
+}
+
+.badge-primary {
+    background: rgba(139, 92, 246, 0.2);
+    color: var(--purple);
+}
+
+.alert {
+    background: rgba(245, 158, 11, 0.1);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    color: #f59e0b;
+    border-radius: 8px;
+    padding: 1rem;
+}
+
+code {
+    background: rgba(139, 92, 246, 0.1);
+    color: var(--purple);
+    padding: 0.2rem 0.4rem;
+    border-radius: 4px;
+    font-size: 0.875rem;
+}
+</style>
+{% endblock %}

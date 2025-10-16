@@ -11,7 +11,7 @@ from models import Request, ChatSession
 class TestEndToEndWorkflows(BaseTestCase):
     """Test complete workflows"""
     
-    @patch('services.data_source_factory.create_bedrock_service')
+    @patch('services.data_source_factory.DataSourceFactory.create_rag_service')
     @patch('services.q_agent_service.QAgentService.process_breakdown')
     def test_complete_breakdown_workflow(self, mock_process, mock_service):
         """Test complete breakdown workflow"""
@@ -44,7 +44,7 @@ class TestEndToEndWorkflows(BaseTestCase):
         response = self.client.get(f'/breakdown/results/{request_id}')
         self.assertEqual(response.status_code, 200)
     
-    @patch('services.data_source_factory.create_bedrock_service')
+    @patch('services.data_source_factory.DataSourceFactory.create_rag_service')
     @patch('services.q_agent_service.QAgentService.process_creation')
     def test_complete_creation_workflow(self, mock_process, mock_service):
         """Test complete creation workflow"""
@@ -74,7 +74,7 @@ class TestEndToEndWorkflows(BaseTestCase):
         response = self.client.get(f'/create/results/{request_id}')
         self.assertEqual(response.status_code, 200)
     
-    @patch('services.data_source_factory.create_bedrock_service')
+    @patch('services.data_source_factory.DataSourceFactory.create_rag_service')
     @patch('services.q_agent_service.QAgentService.process_chat')
     def test_complete_chat_workflow(self, mock_process, mock_service):
         """Test complete chat workflow"""

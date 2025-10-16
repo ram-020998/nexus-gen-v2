@@ -15,12 +15,15 @@ class TestBreakdownController(BaseTestCase):
         response = self.client.get('/breakdown/')
         self.assertEqual(response.status_code, 200)
     
-    @patch('services.data_source_factory.create_bedrock_service')
+    @patch('services.data_source_factory.DataSourceFactory.create_rag_service')
     @patch('services.q_agent_service.QAgentService.process_breakdown')
     def test_file_upload(self, mock_process, mock_service):
         """Test file upload for breakdown"""
         mock_service.return_value = MockBedrockService()
-        mock_process.return_value = {'epics': [], 'stories': []}
+        mock_process.return_value = {
+            'epic': 'Test Epic',
+            'stories': [{'story_name': 'Test Story', 'acceptance_criteria': 'Test criteria', 'issue_type': 'User Story', 'points': ''}]
+        }
         
         data = {
             'file': (io.BytesIO(b'Test document content'), 'test.txt')
@@ -34,6 +37,34 @@ class TestBreakdownController(BaseTestCase):
         data = json.loads(response.data)
         self.assertTrue(data['success'])
         self.assertIn('request_id', data)
+    
+    def test_view_results(self):
+        """Test viewing breakdown results"""
+        # Create a test request first
+        from services.request_service import RequestService
+        with patch('services.data_source_factory.DataSourceFactory.create_rag_service', return_value=MockBedrockService()):
+            service = RequestService()
+            request = service.create_request('breakdown', 'test.txt')
+            service.update_request_status(request.id, 'completed', '{"epic": "Test", "stories": []}')
+        
+        response = self.client.get(f'/breakdown/results/{request.id}')
+        self.assertEqual(response.status_code, 200)
+    
+    def test_export_excel(self):
+        """Test Excel export"""
+        from services.request_service import RequestService
+        with patch('services.data_source_factory.DataSourceFactory.create_rag_service', return_value=MockBedrockService()):
+            service = RequestService()
+            request = service.create_request('breakdown', 'test.txt')
+            breakdown_data = {
+                "epic": "Test Epic",
+                "stories": [{"story_name": "Test", "acceptance_criteria": "Test", "issue_type": "Story", "points": ""}]
+            }
+            service.update_request_status(request.id, 'completed', json.dumps(breakdown_data))
+        
+        response = self.client.get(f'/breakdown/export/{request.id}')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content_type, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
 
 class TestVerifyController(BaseTestCase):
     """Test verify controller"""
@@ -43,12 +74,12 @@ class TestVerifyController(BaseTestCase):
         response = self.client.get('/verify/')
         self.assertEqual(response.status_code, 200)
     
-    @patch('services.data_source_factory.create_bedrock_service')
+    @patch('services.data_source_factory.DataSourceFactory.create_rag_service')
     @patch('services.q_agent_service.QAgentService.process_verification')
     def test_process_verification(self, mock_process, mock_service):
         """Test design verification"""
         mock_service.return_value = MockBedrockService()
-        mock_process.return_value = {'missing_objects': [], 'recommendations': []}
+        mock_process.return_value = {'status': 'verified', 'missing_objects': [], 'recommendations': []}
         
         data = {'design_content': 'Test design document content'}
         
@@ -68,12 +99,12 @@ class TestCreateController(BaseTestCase):
         response = self.client.get('/create/')
         self.assertEqual(response.status_code, 200)
     
-    @patch('services.data_source_factory.create_bedrock_service')
+    @patch('services.data_source_factory.DataSourceFactory.create_rag_service')
     @patch('services.q_agent_service.QAgentService.process_creation')
     def test_generate_design(self, mock_process, mock_service):
         """Test design generation"""
         mock_service.return_value = MockBedrockService()
-        mock_process.return_value = {'objects': [], 'implementation': {}}
+        mock_process.return_value = {'design_document': {'objects': [], 'implementation_notes': []}}
         
         data = {'acceptance_criteria': 'Test acceptance criteria'}
         
@@ -93,7 +124,7 @@ class TestChatController(BaseTestCase):
         response = self.client.get('/chat/')
         self.assertEqual(response.status_code, 200)
     
-    @patch('services.data_source_factory.create_bedrock_service')
+    @patch('services.data_source_factory.DataSourceFactory.create_rag_service')
     @patch('services.q_agent_service.QAgentService.process_chat')
     def test_send_message(self, mock_process, mock_service):
         """Test sending chat message"""

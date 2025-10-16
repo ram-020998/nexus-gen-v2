@@ -10,5 +10,6 @@ class DataSourceFactory:
     @staticmethod
     def create_rag_service():
         """Create RAG service instance - only Bedrock supported"""
+        data_source = Config.DATA_SOURCE
         print(f"Using Bedrock Knowledge Base (KB ID: {Config.BEDROCK_KB_ID})")
         return BedrockRAGService()
