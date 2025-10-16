@@ -16,7 +16,7 @@
                 <h4>Design Document Content</h4>
                 <button class="btn btn-outline-secondary btn-sm" onclick="pasteFromClipboard()">Paste</button>
             </div>
-            <textarea class="form-control" id="designContent" rows="15" placeholder="Paste your design document content here..."></textarea>
+            <textarea class="form-control" id="designContent" placeholder="Paste your design document content here..."></textarea>
             <button class="btn btn-primary w-100 mt-3" id="verifyButton" onclick="verifyDocument()">
                 <i class="fas fa-check"></i> Verify Document
             </button>
@@ -41,36 +41,15 @@
     </div>
 </div>
 
-<div class="validation-section">
-    <h4>Recent Verifications</h4>
-    <div class="recent-list">
-        {% if recent_requests %}
-            {% for req in recent_requests %}
-            <div class="recent-item">
-                <div class="item-info">
-                    <div class="item-title">Design Verification</div>
-                    <div class="item-meta">{{ req.created_at.strftime('%Y-%m-%d %H:%M') }}</div>
-                </div>
-                <div class="item-status">
-                    <span class="badge badge-{{ 'success' if req.status == 'completed' else 'warning' }}">
-                        {{ req.status }}
-                    </span>
-                </div>
-            </div>
-            {% endfor %}
-        {% else %}
-            <p class="text-muted">No recent verifications</p>
-        {% endif %}
-    </div>
-</div>
-
 <style>
 .input-panel, .results-panel {
     background: var(--bg-card);
     border-radius: 12px;
     padding: 1.5rem;
     border: 1px solid #374151;
-    height: 100%;
+    height: 600px;
+    display: flex;
+    flex-direction: column;
 }
 
 .panel-header {
@@ -79,6 +58,7 @@
     gap: 0.75rem;
     margin-bottom: 1rem;
     justify-content: space-between;
+    flex-shrink: 0;
 }
 
 .panel-icon {
@@ -93,10 +73,16 @@
 }
 
 .results-content {
-    min-height: 300px;
+    flex: 1;
     display: flex;
     align-items: center;
     justify-content: center;
+    overflow-y: auto;
+}
+
+#designContent {
+    flex: 1;
+    resize: none;
 }
 
 .empty-state {
@@ -110,41 +96,16 @@
     color: var(--text-secondary);
 }
 
-.validation-section {
-    margin-top: 2rem;
-    background: var(--bg-card);
-    border-radius: 12px;
-    padding: 1.5rem;
-    border: 1px solid #374151;
-}
-
-.recent-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0.75rem 0;
-    border-bottom: 1px solid #374151;
-}
-
-.recent-item:last-child {
-    border-bottom: none;
-}
-
-.item-title {
-    font-weight: 500;
-    color: var(--text-primary);
-}
-
-.item-meta {
-    font-size: 0.75rem;
-    color: var(--text-secondary);
-}
-
 .form-control {
     background: var(--bg-primary);
     border: 1px solid #374151;
     color: var(--text-primary);
     resize: vertical;
+}
+
+.form-control::placeholder {
+    color: var(--text-primary);
+    opacity: 0.7;
 }
 
 .form-control:focus {
