@@ -34,7 +34,7 @@ Example:
                     <i class="fas fa-file-alt"></i>
                 </div>
                 <h4>Generated Document</h4>
-                <button class="btn btn-outline-secondary btn-sm" id="exportButton" onclick="exportDesign()" style="display: none;">
+                <button class="btn btn-outline-secondary btn-sm ms-auto" id="exportButton" onclick="exportDesign()" style="display: none;">
                     <i class="fas fa-download"></i> Export Word
                 </button>
             </div>
@@ -244,9 +244,28 @@ function showDesignResults(data) {
                 <p>${design.overview}</p>
             </div>
             
+            ${design.existing_objects_to_modify && design.existing_objects_to_modify.length > 0 ? `
             <div class="design-section">
-                <h5><i class="fas fa-cubes"></i> Objects & Components</h5>
-                ${design.objects.map(obj => `
+                <h5><i class="fas fa-edit"></i> Objects to Modify</h5>
+                ${design.existing_objects_to_modify.map(obj => `
+                    <div class="object-item">
+                        <div class="object-name">${obj.name}</div>
+                        <div class="object-type">${obj.type}</div>
+                        <div class="object-description">${obj.proposed_changes || obj.current_description}</div>
+                        ${obj.new_methods && obj.new_methods.length > 0 ? `
+                            <div class="methods-list">
+                                ${obj.new_methods.map(method => `<span class="method-tag">${method}</span>`).join('')}
+                            </div>
+                        ` : ''}
+                    </div>
+                `).join('')}
+            </div>
+            ` : ''}
+            
+            ${design.new_objects && design.new_objects.length > 0 ? `
+            <div class="design-section">
+                <h5><i class="fas fa-plus-circle"></i> New Objects</h5>
+                ${design.new_objects.map(obj => `
                     <div class="object-item">
                         <div class="object-name">${obj.name}</div>
                         <div class="object-type">${obj.type}</div>
@@ -259,6 +278,7 @@ function showDesignResults(data) {
                     </div>
                 `).join('')}
             </div>
+            ` : ''}
             
             <div class="design-section">
                 <h5><i class="fas fa-lightbulb"></i> Implementation Notes</h5>

@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Theme Toggle Test</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="static/css/docflow.css" rel="stylesheet">
+</head>
+<body>
+    <!-- Theme Toggle -->
+    <button class="theme-toggle" id="themeToggle" title="Toggle theme">
+        <i class="fas fa-sun"></i>
+    </button>
+
+    <div class="app-container">
+        <nav class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <div class="logo-icon"></div>
+                    <span class="logo-text">NexusGen</span>
+                </div>
+            </div>
+            
+            <div class="sidebar-menu">
+                <a href="#" class="menu-item active">
+                    <i class="fas fa-home"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="#" class="menu-item">
+                    <i class="fas fa-upload"></i>
+                    <span>Upload Documents</span>
+                </a>
+            </div>
+        </nav>
+        
+        <main class="main-content">
+            <div class="content-header">
+                <h1>Theme Toggle Test</h1>
+                <p class="content-subtitle">Testing light and dark theme switching</p>
+            </div>
+            
+            <div class="content-body">
+                <div class="action-cards">
+                    <div class="action-card upload">
+                        <div class="card-icon">
+                            <i class="fas fa-upload"></i>
+                        </div>
+                        <h3 class="card-title">Upload Documents</h3>
+                        <p class="card-description">Upload and analyze your documents</p>
+                    </div>
+                    <div class="action-card verify">
+                        <div class="card-icon">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <h3 class="card-title">Verify Design</h3>
+                        <p class="card-description">Verify your design documents</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <script src="static/js/main.js"></script>
+</body>
+</html>

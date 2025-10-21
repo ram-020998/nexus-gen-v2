@@ -185,4 +185,34 @@ function initSidebarToggle() {
             localStorage.setItem('sidebarCollapsed', willBeCollapsed);
         });
     }
+
+    // Theme toggle functionality
+    const themeToggle = document.getElementById('themeToggle');
+    
+    function updateThemeIcon(theme) {
+        const icon = themeToggle.querySelector('i');
+        if (theme === 'dark') {
+            icon.className = 'fas fa-sun';
+            themeToggle.title = 'Switch to light mode';
+        } else {
+            icon.className = 'fas fa-moon';
+            themeToggle.title = 'Switch to dark mode';
+        }
+    }
+    
+    if (themeToggle) {
+        // Load saved theme
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+        updateThemeIcon(savedTheme);
+        
+        themeToggle.addEventListener('click', function() {
+            const currentTheme = document.documentElement.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            
+            document.documentElement.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+            updateThemeIcon(newTheme);
+        });
+    }
 }
