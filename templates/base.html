@@ -9,6 +9,11 @@
     <link href="{{ url_for('static', filename='css/docflow.css') }}" rel="stylesheet">
 </head>
 <body>
+    <!-- Theme Toggle -->
+    <button class="theme-toggle" id="themeToggle" title="Toggle theme">
+        <i class="fas fa-sun"></i>
+    </button>
+
     <div class="app-container">
         <!-- Sidebar -->
         <nav class="sidebar" id="sidebar">
@@ -28,13 +33,13 @@
                     <i class="fas fa-upload"></i>
                     <span>Upload Documents</span>
                 </a>
-                <a href="{{ url_for('verify.index') }}" class="menu-item {% if request.endpoint == 'verify.index' %}active{% endif %}">
-                    <i class="fas fa-check-circle"></i>
-                    <span>Verify Design Doc</span>
-                </a>
                 <a href="{{ url_for('create.index') }}" class="menu-item {% if request.endpoint == 'create.index' %}active{% endif %}">
                     <i class="fas fa-file-alt"></i>
                     <span>Create Design Doc</span>
+                </a>
+                <a href="{{ url_for('verify.index') }}" class="menu-item {% if request.endpoint == 'verify.index' %}active{% endif %}">
+                    <i class="fas fa-check-circle"></i>
+                    <span>Review Design Doc</span>
                 </a>
                 <a href="{{ url_for('chat.index') }}" class="menu-item {% if request.endpoint == 'chat.index' %}active{% endif %}">
                     <i class="fas fa-comments"></i>

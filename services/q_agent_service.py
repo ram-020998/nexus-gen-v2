@@ -72,16 +72,26 @@ class QAgentService:
             output_path.parent.mkdir(parents=True, exist_ok=True)
             
             prompt = self._create_creation_prompt(acceptance_criteria, str(output_path), bedrock_context)
+            print(f"CREATE DEBUG: Bedrock context keys: {list(bedrock_context.keys())}")
+            print(f"CREATE DEBUG: Bedrock summary: {bedrock_context.get('summary', 'No summary')}")
+            print(f"CREATE DEBUG: Full prompt sent to Q agent:\n{'-'*50}\n{prompt}\n{'-'*50}")
+            
             result = self._execute_q_agent("create-agent", prompt)
+            
+            print(f"CREATE DEBUG: Q agent return code: {result.returncode}")
+            print(f"CREATE DEBUG: Output file exists: {output_path.exists()}")
             
             if output_path.exists():
                 with open(output_path, 'r') as f:
-                    return json.load(f)
+                    data = json.load(f)
+                    print(f"CREATE DEBUG: Successfully loaded JSON with keys: {list(data.keys())}")
+                    return data
             else:
+                print("CREATE DEBUG: Using fallback - no output file")
                 return self._generate_fallback_creation()
                 
         except Exception as e:
-            print(f"Q Agent error: {e}")
+            print(f"CREATE DEBUG: Exception occurred: {e}")
             return self._generate_fallback_creation()
     
     def process_chat(self, question: str, bedrock_context: dict) -> str:
@@ -165,20 +175,61 @@ Save the JSON output to: {output_path}
     
     def _create_creation_prompt(self, acceptance_criteria: str, output_path: str, bedrock_context: dict) -> str:
         """Create design creation prompt with Bedrock context"""
+        context_summary = bedrock_context.get('summary', 'No relevant context found')
+        context_results = bedrock_context.get('results', [])
+        
+        context_info = "BEDROCK CONTEXT - EXISTING OBJECTS TO MODIFY:\n"
+        if context_results:
+            context_info += f"Summary: {context_summary}\n\n"
+            context_info += "Specific objects and components found:\n"
+            for i, result in enumerate(context_results[:5]):  # Show top 5 results
+                content = result.get('content', '')
+                if content:
+                    context_info += f"{i+1}. {content[:300]}...\n\n"
+        else:
+            context_info += "No existing components found in knowledge base.\n"
+        
         return f"""
-Please create a design document from these acceptance criteria:
-
+ACCEPTANCE CRITERIA TO IMPLEMENT:
 {acceptance_criteria}
 
-Bedrock Context (similar designs):
-{json.dumps(bedrock_context, indent=2)}
+{context_info}
 
-Generate a comprehensive design document including:
-1. Objects and components needed
-2. Implementation approach
-3. Dependencies and considerations
+INSTRUCTIONS:
+1. Based on the acceptance criteria, identify EXACTLY which objects need to be modified
+2. Use the Bedrock context to find specific component names, forms, rules, and services
+3. For each object to modify, specify:
+   - Current description/purpose
+   - Proposed changes needed
+   - New methods or properties to add
+4. Only create new objects if no existing ones can handle the requirement
+5. Be specific about object names and types (Form, Rule, Service, Component, etc.)
 
-Save the JSON output to: {output_path}
+OUTPUT FORMAT: Save as JSON to {output_path} with this structure:
+{{
+  "design_document": {{
+    "overview": "Brief description of changes needed",
+    "existing_objects_to_modify": [
+      {{
+        "name": "Exact object name from context",
+        "type": "Object type (Form/Rule/Service/etc)",
+        "current_description": "What it currently does",
+        "proposed_changes": "Specific changes needed",
+        "new_methods": ["method1", "method2"]
+      }}
+    ],
+    "new_objects": [
+      {{
+        "name": "New object name",
+        "type": "Object type",
+        "description": "Purpose and functionality",
+        "methods": ["method1", "method2"]
+      }}
+    ],
+    "implementation_notes": ["Note 1", "Note 2"],
+    "dependencies": ["Dependency 1", "Dependency 2"]
+  }}
+}}
 """
     
     def _create_chat_prompt(self, question: str, bedrock_context: dict) -> str:
@@ -221,8 +272,9 @@ Please answer the user's question based on the available context. Be helpful and
         """Generate fallback creation data"""
         return {
             "design_document": {
-                "overview": "Design document generated from acceptance criteria",
-                "objects": [
+                "overview": "Design document generated from acceptance criteria (fallback mode)",
+                "existing_objects_to_modify": [],
+                "new_objects": [
                     {
                         "name": "MainService",
                         "type": "Service",
@@ -236,9 +288,8 @@ Please answer the user's question based on the available context. Be helpful and
                     "Add logging and monitoring"
                 ],
                 "dependencies": [
-                    "Database connection",
-                    "Authentication service",
-                    "Logging framework"
+                    "Database service",
+                    "Validation framework"
                 ]
             }
         }

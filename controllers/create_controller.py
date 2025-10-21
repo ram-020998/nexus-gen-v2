@@ -33,8 +33,8 @@ def generate_design():
         # Create request
         req = request_service.create_request('create', input_text=acceptance_criteria)
         
-        # Process with Bedrock to get context
-        query_text = f"Find design patterns for functionality: {acceptance_criteria[:500]}..."
+        # Process with Bedrock to get context - ask specifically for objects to modify
+        query_text = f"What objects need to be modified for: {acceptance_criteria}? List the specific components, forms, rules, and services that require changes."
         bedrock_response = request_service.process_with_bedrock(req, query_text)
         print(f"CREATE DEBUG: Bedrock results count: {len(bedrock_response.get('results', []))}")
         print(f"CREATE DEBUG: Bedrock summary: {bedrock_response.get('summary', '')[:100]}")
