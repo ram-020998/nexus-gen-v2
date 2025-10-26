@@ -1,59 +1,47 @@
 {
   "design_document": {
-    "overview": "User authentication system enabling secure login with username and password credentials, including session management and security controls",
-    "objects": [
+    "overview": "Modify evaluation creation form to hide/show specific fields based on LPTA evaluation method selection",
+    "existing_objects_to_modify": [
       {
-        "name": "AuthenticationService",
-        "type": "Service",
-        "description": "Core service handling user credential validation and authentication flow",
-        "methods": ["authenticate", "validateCredentials", "generateSession"]
+        "name": "Evaluation Creation Form",
+        "type": "Form",
+        "current_description": "Form that allows CO to create evaluations with evaluation method selection (LPTA or Best value)",
+        "proposed_changes": "Add conditional field visibility logic - when LPTA is selected, hide weighted factors, consensus report signatures, on-the-spot consensus, and mask evaluators fields while showing evaluators field in personnel section",
+        "new_methods": ["toggleFieldVisibilityOnLPTA", "showEvaluatorsField", "hideWeightedFactors"]
       },
       {
-        "name": "UserRepository",
-        "type": "Repository",
-        "description": "Data access layer for user credential storage and retrieval",
-        "methods": ["findByUsername", "validatePassword", "updateLastLogin"]
+        "name": "Evaluation Method Selection Component",
+        "type": "Component",
+        "current_description": "Component that provides option to select between LPTA or Best value evaluation methods",
+        "proposed_changes": "Add event handler to trigger field visibility changes when LPTA is selected",
+        "new_methods": ["onEvaluationMethodChange", "triggerFieldVisibilityUpdate"]
       },
       {
-        "name": "SessionManager",
-        "type": "Service",
-        "description": "Manages user sessions and token lifecycle",
-        "methods": ["createSession", "validateSession", "expireSession"]
+        "name": "Personnel Section Component",
+        "type": "Component", 
+        "current_description": "Section containing evaluator-related fields including mask evaluators and evaluators field",
+        "proposed_changes": "Implement conditional rendering to show evaluators field and hide mask evaluators field when LPTA is selected",
+        "new_methods": ["renderEvaluatorsForLPTA", "hideMaskEvaluators"]
       },
       {
-        "name": "LoginController",
-        "type": "Controller",
-        "description": "HTTP endpoint handler for login requests and responses",
-        "methods": ["handleLogin", "handleLogout", "validateInput"]
-      },
-      {
-        "name": "PasswordHasher",
-        "type": "Utility",
-        "description": "Secure password hashing and verification utility",
-        "methods": ["hashPassword", "verifyPassword"]
-      },
-      {
-        "name": "SecurityValidator",
-        "type": "Service",
-        "description": "Input validation and security checks for authentication",
-        "methods": ["validateInput", "checkRateLimit", "detectBruteForce"]
+        "name": "Column Layout Visibility Rule",
+        "type": "Rule",
+        "current_description": "Controls visibility of column layout display",
+        "proposed_changes": "Update visibility logic to handle LPTA-specific field hiding requirements",
+        "new_methods": ["applyLPTAVisibilityRules"]
       }
     ],
+    "new_objects": [],
     "implementation_notes": [
-      "Use bcrypt or Argon2 for password hashing",
-      "Implement rate limiting to prevent brute force attacks",
-      "Store sessions securely with appropriate expiration",
-      "Validate and sanitize all user inputs",
-      "Use HTTPS for all authentication endpoints",
-      "Implement proper error handling without information leakage"
+      "Use existing evaluation method change detection to trigger field visibility updates",
+      "Leverage existing sourceEvaluationTeams for LPTA evaluator field population",
+      "Maintain existing form validation while hiding/showing fields"
     ],
     "dependencies": [
-      "Database or user store",
-      "Session storage (Redis/database)",
-      "Cryptographic library for hashing",
-      "HTTP framework for endpoints",
-      "Logging service for audit trails",
-      "Rate limiting service"
+      "Evaluation Method Selection Component",
+      "Personnel Section Component", 
+      "sourceEvaluationTeams data source",
+      "Column Layout Visibility Rule"
     ]
   }
 }

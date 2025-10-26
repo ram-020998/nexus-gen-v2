@@ -1,28 +1,28 @@
 {
   "status": "verified",
   "missing_objects": [
-    "Specific UI mockups or wireframes - The content appears to be repetitive test data without actual design specifications",
-    "User flow diagrams - No clear user journey or interaction patterns defined",
-    "Component specifications - Missing detailed component definitions and behaviors",
-    "Data models - No clear data structure or entity definitions",
-    "Success criteria and metrics - No measurable outcomes or KPIs defined",
-    "Technical requirements - Missing implementation details and constraints",
-    "Error handling scenarios - No error states or edge cases addressed",
-    "Accessibility requirements - No mention of accessibility compliance standards"
+    "Developer and Peer Reviewer assignments - Standard design docs include specific developer and peer reviewer names",
+    "Detailed Design Notes section - Missing structured implementation details with interface specifications",
+    "Translation bundle entries - No internationalization considerations mentioned",
+    "Rule inputs and parameters - Missing specific technical interface definitions",
+    "UI pattern/map configuration references - No links to common design patterns",
+    "Async process patterns - No reference to standard async processing documentation",
+    "Before Development section - Missing pre-development checklist and requirements"
   ],
   "recommendations": [
-    "Structure the document with clear sections like the existing designs (KPIs, Evaluation factors, User flow)",
-    "Include specific mockups and visual designs as referenced in the SS Evaluation Summary Page Revamp",
-    "Define clear user flows similar to the AI pricing extraction feature documentation",
-    "Add success criteria and metrics sections following the template structure found in existing designs",
-    "Include decision points and open questions sections as seen in the Source Selection template",
-    "Specify technical implementation details and constraints",
-    "Add validation and testing approaches similar to the AI extraction POC methodology",
-    "Define clear feature boundaries and use cases not supported"
+    "Add structured header with Developer and Peer Reviewer assignments following the pattern: Developer: [Name], Peer Reviewer: [Name]",
+    "Include reference links to common patterns like Async process documentation and UI pattern/map configuration",
+    "Add Detailed Design Notes section with specific interface names (AS_[MODULE]_[TYPE]_[NAME] format)",
+    "Include translation bundle considerations for any user-facing text",
+    "Add Before Development section with technical prerequisites and design validation steps",
+    "Structure content using standard table format with clear sections for design specifications",
+    "Include references to similar existing design documents for consistency"
   ],
   "similar_designs": [
-    "SS Evaluation Summary Page Revamp - Shows proper UI update documentation with mockups and section-wise changes",
-    "GSS 2.6 Extract Pricing Information using AI - Demonstrates clear user flow documentation and POC validation approach",
-    "Source Selection Spec Document - Provides template structure with guiding use cases, success criteria, and decision tracking"
+    "GAM-16761 Create Evaluation Pop Up from GCW action - Shows proper developer assignment and detailed interface specifications",
+    "GAM-15164 GSS Assignment Redesign - Demonstrates translation bundle entries and structured design notes",
+    "GAM-15498 GSS Landing Page Navigation - Shows proper interface naming conventions and rule input specifications",
+    "GAMS-4088 Display search results - Vendor cards - Illustrates UI pattern references and pagination implementation",
+    "GAM-17105 Capture Audit For Reference Documents - Shows proper rule creation and parameter definitions"
   ]
 }

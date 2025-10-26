@@ -4,33 +4,35 @@ Main Flask Application
 """
 from flask import Flask, render_template
 from config import Config
-from models import db, Request, ChatSession
+from models import db, Request
+
 
 def create_app():
     """Application factory"""
     app = Flask(__name__)
     app.config.from_object(Config)
-    
+
     # Enable sessions for chat
     app.config['SECRET_KEY'] = Config.SECRET_KEY
-    
+
     # Initialize extensions
     db.init_app(app)
-    
+
     # Initialize directories
     Config.init_directories()
-    
+
     # Create database tables
     with app.app_context():
         db.create_all()
-    
+
     # Register blueprints
     register_blueprints(app)
-    
+
     # Register routes
     register_routes(app)
-    
+
     return app
+
 
 def register_blueprints(app):
     """Register application blueprints"""
@@ -43,9 +45,10 @@ def register_blueprints(app):
     app.register_blueprint(create_bp)
     app.register_blueprint(chat_bp)
 
+
 def register_routes(app):
     """Register application routes"""
-    
+
     @app.route('/')
     def dashboard():
         """Dashboard with 4 action cards and statistics"""
@@ -56,6 +59,7 @@ def register_routes(app):
             'accuracy_rate': 98  # Mock for now
         }
         return render_template('dashboard.html', stats=stats)
+
 
 if __name__ == '__main__':
     app = create_app()
