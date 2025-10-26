@@ -16,11 +16,14 @@ class TestEndToEndWorkflows(BaseTestCase):
     @patch('services.q_agent_service.QAgentService.process_breakdown')
     def test_complete_breakdown_workflow(self, mock_process, mock_service):
         """Test complete breakdown workflow"""
+        from services.process_tracker import ProcessTracker
+        
         mock_service.return_value = MockBedrockService()
-        mock_process.return_value = {
+        mock_tracker = ProcessTracker(1, 'breakdown')
+        mock_process.return_value = ({
             'epics': [{'title': 'Test Epic', 'stories': []}],
             'stories': [{'title': 'Test Story', 'acceptance_criteria': []}]
-        }
+        }, mock_tracker)
 
         # Upload file
         data = {
@@ -49,11 +52,14 @@ class TestEndToEndWorkflows(BaseTestCase):
     @patch('services.q_agent_service.QAgentService.process_creation')
     def test_complete_creation_workflow(self, mock_process, mock_service):
         """Test complete creation workflow"""
+        from services.process_tracker import ProcessTracker
+        
         mock_service.return_value = MockBedrockService()
-        mock_process.return_value = {
+        mock_tracker = ProcessTracker(1, 'creation')
+        mock_process.return_value = ({
             'objects': [{'name': 'TestObject', 'type': 'Entity'}],
             'implementation': {'approach': 'Test approach'}
-        }
+        }, mock_tracker)
 
         # Generate design
         data = {'acceptance_criteria': 'As a user, I want to test the system'}

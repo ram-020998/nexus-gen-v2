@@ -96,14 +96,36 @@ class TestQAgentService(BaseTestCase):
         self.service = QAgentService()
 
     @patch('services.q_agent_service.subprocess.run')
-    def test_process_breakdown(self, mock_run):
-        """Test breakdown processing"""
-        mock_run.return_value = MagicMock(returncode=1)  # Simulate failure to test fallback
+    def test_process_breakdown_success(self, mock_run):
+        """Test successful breakdown processing with Q CLI output"""
+        # Mock realistic Q CLI output with ANSI codes
+        mock_stderr = '''
+\x1b[38;5;10m> \x1b[0m{"epics": [{"name": "Test Epic", "stories": []}]}\x1b[0m
+'''
+        mock_run.return_value = MagicMock(
+            returncode=0, 
+            stdout="", 
+            stderr=mock_stderr
+        )
 
-        result = self.service.process_breakdown(1, "Test content", {"results": []})
+        result, tracker = self.service.process_breakdown(1, "Test content", {"results": []})
 
-        self.assertIn('epic', result)
-        self.assertIn('stories', result)
+        self.assertIn('epics', result)
+        self.assertEqual(len(result['epics']), 1)
+        self.assertEqual(result['epics'][0]['name'], "Test Epic")
+
+    def test_extract_agent_response(self):
+        """Test Q CLI output parsing with ANSI codes"""
+        mock_result = MagicMock()
+        mock_result.stderr = '''
+\x1b[36mQ CLI Header\x1b[0m
+\x1b[38;5;10m> \x1b[0m{"test": "success"}\x1b[0m
+\x1b[1G\x1b[0m\x1b[?25h
+'''
+        mock_result.stdout = ""
+        
+        extracted = self.service._extract_agent_response(mock_result)
+        self.assertEqual(extracted, '{"test": "success"}')
 
     @patch('services.q_agent_service.subprocess.run')
     def test_process_chat(self, mock_run):

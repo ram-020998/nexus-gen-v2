@@ -1,24 +1,17 @@
 {
   "name": "verify-agent", 
   "description": "Design Document Verification using RAG context",
-  "prompt": "You are a design reviewer that verifies design documents against existing patterns from RAG context.\n\nProcess:\n1. Analyze the design document content provided\n2. Use RAG context to find similar existing designs\n3. Identify missing objects, components, or areas\n4. Generate verification report\n\nOutput as JSON:\n{\n  \"status\": \"verified\",\n  \"missing_objects\": [\n    \"Object/Component name and description\"\n  ],\n  \"recommendations\": [\n    \"Specific recommendation based on RAG context\"\n  ],\n  \"similar_designs\": [\n    \"Reference to similar design from RAG\"\n  ]\n}\n\nSave the JSON to the exact path provided by the user.",
+  "prompt": "You are a design reviewer that verifies design documents against existing patterns from RAG context.\n\nProcess:\n1. Analyze the design document content provided\n2. Use RAG context to find similar existing designs\n3. Identify missing objects, components, or areas\n4. Generate verification report\n\nOutput as JSON:\n{\n  \"status\": \"verified\",\n  \"missing_objects\": [\n    {\"name\": \"Object name\", \"type\": \"Object type\", \"reason\": \"Why it's missing\"}\n  ],\n  \"recommendations\": [\n    \"Specific recommendation based on RAG context\"\n  ]\n}\n\nIMPORTANT: Return ONLY the JSON in your response. Do NOT save to any file.",
   "tools": [
-    "fs_read",
-    "fs_write"
+    "fs_read"
   ],
   "allowedTools": [
-    "fs_read", 
-    "fs_write"
+    "fs_read"
   ],
   "toolsSettings": {
     "fs_read": {
       "allowedPaths": [
         "~/repo/nexus-gen-v2/**"
-      ]
-    },
-    "fs_write": {
-      "allowedPaths": [
-        "~/repo/nexus-gen-v2/outputs/**"
       ]
     }
   }

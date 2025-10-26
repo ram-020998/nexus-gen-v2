@@ -1,0 +1,304 @@
+{% extends "base.html" %}
+
+{% block title %}Process Details - {{ request.reference_id }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>Process Details</h2>
+                <span class="badge bg-primary fs-6">{{ request.reference_id }}</span>
+            </div>
+
+            <!-- 1. Processing Timeline Section -->
+            <div class="section-card mb-4">
+                <h5>🧭 Processing Timeline</h5>
+                {% if timeline_data %}
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Step</th>
+                                <th>Start Time</th>
+                                <th>End Time</th>
+                                <th>Duration (sec)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for step in timeline_data %}
+                            <tr>
+                                <td>{{ step.step }}</td>
+                                <td>{{ step.start_time }}</td>
+                                <td>{{ step.end_time }}</td>
+                                <td>{{ step.duration }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted">No timeline data available</p>
+                {% endif %}
+            </div>
+
+            <!-- 2. Agent Metadata Section -->
+            <div class="section-card mb-4">
+                <h5>⚙️ Agent Metadata</h5>
+                <div class="metadata-grid">
+                    <div><strong>Agent:</strong> {{ request.agent_name or 'N/A' }}</div>
+                    <div><strong>Model:</strong> {{ request.model_name or 'N/A' }}</div>
+                    {% if request.parameters %}
+                        {% set params = request.parameters | from_json %}
+                        <div><strong>Temperature:</strong> {{ params.temperature or 'N/A' }}</div>
+                        <div><strong>Top P:</strong> {{ params.topP or 'N/A' }}</div>
+                        <div><strong>Max Tokens:</strong> {{ params.maxTokens or 'N/A' }}</div>
+                    {% endif %}
+                    <div><strong>KB ID:</strong> WAQ6NJLGKN</div>
+                </div>
+            </div>
+
+            <!-- 3. Result Confidence Indicators -->
+            <div class="section-card mb-4">
+                <h5>📊 Result Confidence Indicators</h5>
+                <div class="confidence-badges">
+                    {% if request.rag_similarity_avg %}
+                    <span class="badge bg-secondary">RAG Similarity: {{ "%.2f"|format(request.rag_similarity_avg) }} {% if request.rag_similarity_avg > 0.7 %}✅{% elif request.rag_similarity_avg > 0.4 %}⚠️{% else %}❌{% endif %}</span>
+                    {% endif %}
+                    
+                    <span class="badge bg-secondary">Output Format: {% if request.json_valid %}Valid JSON ✅{% else %}Invalid JSON ❌{% endif %}</span>
+                    
+                    {% if request.total_time %}
+                    <span class="badge bg-secondary">Processing Time: {{ request.total_time }}s ⚙️</span>
+                    {% endif %}
+                    
+                    <span class="badge bg-secondary">Error Recovery: {% if request.error_log %}Yes{% else %}No{% endif %}</span>
+                </div>
+            </div>
+
+            <!-- 4. Raw vs Processed Output Comparison -->
+            <div class="section-card mb-4">
+                <h5>🔍 Raw vs Processed Output Comparison</h5>
+                <div class="row">
+                    {% if request.raw_agent_output %}
+                    <div class="col-md-6">
+                        <h6>Raw Agent Output</h6>
+                        <div class="output-container">
+                            {% if request.raw_agent_output.strip().startswith('{') %}
+                                <pre class="json-output">{{ request.raw_agent_output | format_json }}</pre>
+                            {% else %}
+                                <pre>{{ request.raw_agent_output }}</pre>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% if request.final_output %}
+                    <div class="col-md-6">
+                        <h6>Parsed Output</h6>
+                        <div class="output-container">
+                            {% if request.final_output.strip().startswith('{') %}
+                                <pre class="json-output">{{ request.final_output | format_json }}</pre>
+                            {% else %}
+                                <pre>{{ request.final_output }}</pre>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- 5. Error & Retry Logs -->
+            {% if request.error_log %}
+            <div class="section-card mb-4">
+                <h5>🧠 Error & Retry Logs</h5>
+                <div class="error-log">
+                    <pre>{{ request.error_log }}</pre>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- 6. Download Process Artifacts -->
+            <div class="section-card mb-4">
+                <h5>💾 Download Process Artifacts</h5>
+                <div class="artifact-buttons">
+                    {% if request.rag_response %}
+                    <button class="btn btn-outline-primary btn-sm" onclick="downloadArtifact('bedrock', {{ request.id }})">
+                        Raw Bedrock JSON
+                    </button>
+                    {% endif %}
+                    {% if request.raw_agent_output %}
+                    <button class="btn btn-outline-primary btn-sm" onclick="downloadArtifact('agent', {{ request.id }})">
+                        Q Agent Response
+                    </button>
+                    {% endif %}
+                    {% if request.export_path %}
+                    <a href="{{ url_for('breakdown.export_excel', request_id=request.id) }}" class="btn btn-outline-primary btn-sm">
+                        Generated Excel/Word Output
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- 7. Re-run Option -->
+            <div class="section-card mb-4">
+                <h5>📘 Re-run Option</h5>
+                <button class="btn btn-warning btn-sm" onclick="reprocessRequest({{ request.id }})">
+                    ↻ Reprocess Request
+                </button>
+                <small class="text-muted d-block mt-2">Reloads the same input and triggers reprocessing with latest prompt/version</small>
+            </div>
+
+            <!-- Additional Request Information -->
+            <div class="section-card mb-4">
+                <h5>📋 Request Information</h5>
+                <div class="metadata-grid">
+                    <div><strong>Type:</strong> {{ request.action_type.title() }}</div>
+                    <div><strong>Status:</strong> {{ request.status.title() }}</div>
+                    {% if request.filename %}
+                    <div><strong>File:</strong> {{ request.filename }}</div>
+                    {% endif %}
+                    <div><strong>Created:</strong> {{ request.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</div>
+                    <div><strong>Updated:</strong> {{ request.updated_at.strftime('%Y-%m-%d %H:%M:%S') }}</div>
+                </div>
+            </div>
+
+            <!-- RAG Query & Response -->
+            {% if request.rag_query or request.rag_response %}
+            <div class="section-card mb-4">
+                <h5>🔍 RAG Query & Response</h5>
+                <div class="row">
+                    {% if request.rag_query %}
+                    <div class="col-md-6">
+                        <h6>Query Sent to Bedrock</h6>
+                        <div class="output-container">
+                            <pre>{{ request.rag_query }}</pre>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% if request.rag_response %}
+                    <div class="col-md-6">
+                        <h6>Bedrock Response</h6>
+                        <div class="output-container">
+                            {% if request.rag_response.strip().startswith('{') %}
+                                <pre class="json-output">{{ request.rag_response | format_json }}</pre>
+                            {% else %}
+                                <pre>{{ request.rag_response }}</pre>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Actions -->
+            <div class="d-flex gap-2">
+                {% if request.action_type == 'breakdown' %}
+                <a href="{{ url_for('breakdown.view_results', request_id=request.id) }}" class="btn btn-primary">
+                    View Results
+                </a>
+                {% endif %}
+                <a href="{{ url_for('process.history') }}" class="btn btn-secondary">
+                    ← Back to History
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.section-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1.5rem;
+}
+
+.metadata-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 0.5rem;
+}
+
+.confidence-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.output-container {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    padding: 1rem;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.json-output {
+    margin: 0;
+    font-family: 'Courier New', monospace;
+    font-size: 0.875rem;
+    white-space: pre-wrap;
+}
+
+.error-log {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    padding: 1rem;
+}
+
+.artifact-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.table {
+    margin-bottom: 0;
+}
+
+pre {
+    margin: 0;
+    font-size: 0.875rem;
+    white-space: pre-wrap;
+}
+</style>
+
+<script>
+function downloadArtifact(type, requestId) {
+    const url = `/process/download/${type}/${requestId}`;
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${type}_artifact_${requestId}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+function reprocessRequest(requestId) {
+    if (confirm('Are you sure you want to reprocess this request? This will create a new request with the same input.')) {
+        fetch(`/process/reprocess/${requestId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Request reprocessing started. You will be redirected to the new request.');
+                window.location.href = `/process/details/${data.new_request_id}`;
+            } else {
+                alert('Error: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while reprocessing the request.');
+        });
+    }
+}
+</script>
+{% endblock %}

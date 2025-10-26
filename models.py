@@ -23,6 +23,18 @@ class Request(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     export_path = db.Column(db.String(500))  # Excel file path (breakdown only)
+    
+    # Step 9 additions
+    reference_id = db.Column(db.String(20))  # RQ_ND_001 format
+    agent_name = db.Column(db.String(50))  # breakdown-agent, verify-agent, etc.
+    model_name = db.Column(db.String(100))  # amazon.nova-pro-v1:0
+    parameters = db.Column(db.Text)  # JSON string of model parameters
+    total_time = db.Column(db.Integer)  # Total processing time in seconds
+    step_durations = db.Column(db.Text)  # JSON string of step timings
+    raw_agent_output = db.Column(db.Text)  # Raw Q agent response before cleaning
+    rag_similarity_avg = db.Column(db.Float)  # Average RAG similarity score
+    json_valid = db.Column(db.Boolean, default=True)  # JSON validity flag
+    error_log = db.Column(db.Text)  # Error messages and retry attempts
 
     def to_dict(self):
         return {
@@ -32,7 +44,13 @@ class Request(db.Model):
             'status': self.status,
             'created_at': self.created_at.isoformat(),
             'updated_at': self.updated_at.isoformat(),
-            'export_path': self.export_path
+            'export_path': self.export_path,
+            'reference_id': self.reference_id,
+            'agent_name': self.agent_name,
+            'model_name': self.model_name,
+            'total_time': self.total_time,
+            'rag_similarity_avg': self.rag_similarity_avg,
+            'json_valid': self.json_valid
         }
 
 

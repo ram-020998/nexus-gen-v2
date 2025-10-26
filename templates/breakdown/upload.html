@@ -1,66 +1,86 @@
 {% extends "base.html" %}
 
-{% block title %}Upload Documents - NexusGen{% endblock %}
+{% block title %}Spec Breakdown - NexusGen{% endblock %}
 
-{% block page_title %}Upload Documents{% endblock %}
-{% block page_subtitle %}Parse documents into structured tabular data{% endblock %}
+{% block page_title %}Spec Breakdown{% endblock %}
+{% block page_subtitle %}Upload documents and generate structured user stories{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-lg-10">
-        <div class="upload-zone" id="uploadZone">
-            <div class="upload-content" id="uploadContent">
-                <div class="upload-icon">
+<div class="row">
+    <div class="col-lg-6">
+        <div class="input-panel">
+            <div class="panel-header">
+                <div class="panel-icon">
                     <i class="fas fa-upload"></i>
                 </div>
-                <h3>Drop files here</h3>
-                <p>or click to browse</p>
-                <input type="file" id="fileInput" accept=".pdf,.docx,.txt,.md" style="display: none;">
-                <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">Choose Files</button>
-                <p class="upload-info">Supports PDF, DOCX, TXT, and more</p>
+                <h4>Document Upload</h4>
             </div>
-            
-            <div class="processing-content" id="processingContent" style="display: none;">
-                <div class="processing-icon">
-                    <div class="spinner-border text-primary" role="status">
-                        <span class="visually-hidden">Loading...</span>
+            <div class="upload-zone" id="uploadZone">
+                <div class="upload-content" id="uploadContent">
+                    <div class="upload-icon">
+                        <i class="fas fa-file-upload"></i>
                     </div>
+                    <h5>Drop files here</h5>
+                    <p>or click to browse</p>
+                    <input type="file" id="fileInput" accept=".pdf,.docx,.txt,.md" style="display: none;">
+                    <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">Choose Files</button>
+                    <p class="upload-info">Supports PDF, DOCX, TXT, MD</p>
                 </div>
-                <h3>Processing Document</h3>
-                <p id="processingText">Analyzing content and generating breakdown...</p>
-                <div class="progress mt-3">
-                    <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 100%"></div>
+                
+                <div class="processing-content" id="processingContent" style="display: none;">
+                    <div class="processing-icon">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                    <h5>Processing Document</h5>
+                    <p id="processingText">Analyzing content and generating breakdown...</p>
+                    <div class="progress mt-3">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 100%"></div>
+                    </div>
                 </div>
             </div>
         </div>
-        
-        <div class="recent-uploads">
-            <h4>Recent Uploads</h4>
-            <div class="upload-list">
+    </div>
+    
+    <div class="col-lg-6">
+        <div class="results-panel">
+            <div class="panel-header">
+                <div class="panel-icon">
+                    <i class="fas fa-list-alt"></i>
+                </div>
+                <h4>Recent Breakdowns</h4>
+            </div>
+            <div class="results-content" id="resultsContent">
                 {% if recent_requests %}
-                    {% for req in recent_requests %}
-                    <div class="upload-item">
-                        <div class="file-icon">
-                            <i class="fas fa-file-alt"></i>
+                    <div class="upload-list">
+                        {% for req in recent_requests %}
+                        <div class="upload-item">
+                            <div class="file-icon">
+                                <i class="fas fa-file-alt"></i>
+                            </div>
+                            <div class="file-info">
+                                <div class="file-name">{{ req.filename }}</div>
+                                <div class="file-meta">{{ req.created_at.strftime('%Y-%m-%d %H:%M') }}</div>
+                            </div>
+                            <div class="file-status">
+                                <span class="badge badge-{{ 'success' if req.status == 'completed' else 'warning' }}">
+                                    {{ req.status }}
+                                </span>
+                            </div>
+                            {% if req.status == 'completed' %}
+                            <a href="{{ url_for('breakdown.view_results', request_id=req.id) }}" class="btn btn-sm btn-outline-primary">
+                                View Results
+                            </a>
+                            {% endif %}
                         </div>
-                        <div class="file-info">
-                            <div class="file-name">{{ req.filename }}</div>
-                            <div class="file-meta">{{ req.created_at.strftime('%Y-%m-%d %H:%M') }}</div>
-                        </div>
-                        <div class="file-status">
-                            <span class="badge badge-{{ 'success' if req.status == 'completed' else 'warning' }}">
-                                {{ req.status }}
-                            </span>
-                        </div>
-                        {% if req.status == 'completed' %}
-                        <a href="{{ url_for('breakdown.view_results', request_id=req.id) }}" class="btn btn-sm btn-outline-primary">
-                            View Results
-                        </a>
-                        {% endif %}
+                        {% endfor %}
                     </div>
-                    {% endfor %}
                 {% else %}
-                    <p class="text-muted">No recent uploads</p>
+                    <div class="empty-state">
+                        <i class="fas fa-file-upload"></i>
+                        <p>Upload a document to see breakdown results</p>
+                    </div>
                 {% endif %}
             </div>
         </div>
@@ -68,34 +88,70 @@
 </div>
 
 <style>
-.upload-zone {
+.input-panel, .results-panel {
     background: var(--bg-card);
-    border: 2px dashed #374151;
     border-radius: 12px;
-    padding: 3rem;
-    text-align: center;
-    margin-bottom: 2rem;
-    transition: all 0.3s ease;
-    cursor: pointer;
-    min-height: 300px;
+    padding: 1.5rem;
+    border: 1px solid #374151;
+    height: 600px;
+    display: flex;
+    flex-direction: column;
+}
+
+.panel-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+    justify-content: space-between;
+    flex-shrink: 0;
+}
+
+.panel-icon {
+    width: 32px;
+    height: 32px;
+    background: rgba(139, 92, 246, 0.2);
+    color: var(--purple);
+    border-radius: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
 }
 
+.results-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+}
+
+.upload-zone {
+    flex: 1;
+    border: 2px dashed #374151;
+    border-radius: 12px;
+    padding: 2rem;
+    text-align: center;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(139, 92, 246, 0.05);
+}
+
 .upload-zone:hover, .upload-zone.dragover {
     border-color: var(--purple);
-    background: rgba(139, 92, 246, 0.05);
+    background: rgba(139, 92, 246, 0.1);
 }
 
 .upload-zone.processing {
     border-color: var(--purple);
-    background: rgba(139, 92, 246, 0.1);
+    background: rgba(139, 92, 246, 0.15);
     cursor: default;
 }
 
 .upload-icon {
-    font-size: 3rem;
+    font-size: 2.5rem;
     color: var(--purple);
     margin-bottom: 1rem;
 }
@@ -105,8 +161,8 @@
 }
 
 .processing-icon .spinner-border {
-    width: 3rem;
-    height: 3rem;
+    width: 2.5rem;
+    height: 2.5rem;
 }
 
 .upload-info {
@@ -126,19 +182,20 @@
     background: linear-gradient(90deg, var(--purple), var(--teal));
 }
 
-.recent-uploads {
-    background: var(--bg-card);
-    border-radius: 12px;
-    padding: 1.5rem;
-    border: 1px solid #374151;
+.upload-list {
+    flex: 1;
+    overflow-y: auto;
 }
 
 .upload-item {
     display: flex;
     align-items: center;
     gap: 1rem;
-    padding: 0.75rem 0;
+    padding: 0.75rem;
     border-bottom: 1px solid #374151;
+    border-radius: 8px;
+    margin-bottom: 0.5rem;
+    background: rgba(139, 92, 246, 0.05);
 }
 
 .upload-item:last-child {
@@ -179,6 +236,22 @@
 .badge-warning {
     background: rgba(245, 158, 11, 0.2);
     color: #f59e0b;
+}
+
+.empty-state {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    color: var(--text-secondary);
+}
+
+.empty-state i {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    color: var(--text-secondary);
 }
 </style>
 {% endblock %}

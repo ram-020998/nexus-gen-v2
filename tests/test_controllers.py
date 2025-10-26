@@ -20,8 +20,11 @@ class TestBreakdownController(BaseTestCase):
     @patch('services.q_agent_service.QAgentService.process_breakdown')
     def test_file_upload(self, mock_process, mock_service):
         """Test file upload for breakdown"""
+        from services.process_tracker import ProcessTracker
+        
         mock_service.return_value = MockBedrockService()
-        mock_process.return_value = {'epics': [], 'stories': []}
+        mock_tracker = ProcessTracker(1, 'breakdown')
+        mock_process.return_value = ({'epics': [], 'stories': []}, mock_tracker)
 
         data = {
             'file': (io.BytesIO(b'Test document content'), 'test.txt')
@@ -49,8 +52,11 @@ class TestVerifyController(BaseTestCase):
     @patch('services.q_agent_service.QAgentService.process_verification')
     def test_process_verification(self, mock_process, mock_service):
         """Test design verification"""
+        from services.process_tracker import ProcessTracker
+        
         mock_service.return_value = MockBedrockService()
-        mock_process.return_value = {'missing_objects': [], 'recommendations': []}
+        mock_tracker = ProcessTracker(1, 'verification')
+        mock_process.return_value = ({'missing_objects': [], 'recommendations': []}, mock_tracker)
 
         data = {'design_content': 'Test design document content'}
 
@@ -75,8 +81,11 @@ class TestCreateController(BaseTestCase):
     @patch('services.q_agent_service.QAgentService.process_creation')
     def test_generate_design(self, mock_process, mock_service):
         """Test design generation"""
+        from services.process_tracker import ProcessTracker
+        
         mock_service.return_value = MockBedrockService()
-        mock_process.return_value = {'objects': [], 'implementation': {}}
+        mock_tracker = ProcessTracker(1, 'creation')
+        mock_process.return_value = ({'objects': [], 'implementation': {}}, mock_tracker)
 
         data = {'acceptance_criteria': 'Test acceptance criteria'}
 

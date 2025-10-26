@@ -1,0 +1,15 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 14
+    },
+    "auditLog": "/Users/ramaswamy.u/repo/nexus-gen-v2/logs/.7e9f2adb2526fe42139e76470177179932c8cbfc-audit.json",
+    "files": [
+        {
+            "date": 1761498986268,
+            "name": "/Users/ramaswamy.u/repo/nexus-gen-v2/logs/mcp-puppeteer-2025-10-26.log",
+            "hash": "dab71898d641b36cc1cbd0cdce0257e6cf3cde288c2122d205c4cd4636433801"
+        }
+    ],
+    "hashType": "sha256"
+}
