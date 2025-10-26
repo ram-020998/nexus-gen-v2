@@ -2,9 +2,10 @@
 Mock Bedrock Service for Testing
 """
 
+
 class MockBedrockService:
     """Mock Bedrock service for testing"""
-    
+
     def query(self, action_type, query_text):
         """Mock query method"""
         return {

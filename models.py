@@ -7,10 +7,11 @@ import uuid
 
 db = SQLAlchemy()
 
+
 class Request(db.Model):
     """Main requests table for breakdown, verify, create actions"""
     __tablename__ = 'requests'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     action_type = db.Column(db.String(20), nullable=False)  # 'breakdown', 'verify', 'create'
     filename = db.Column(db.String(255))  # for breakdown (uploaded file)
@@ -22,7 +23,7 @@ class Request(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     export_path = db.Column(db.String(500))  # Excel file path (breakdown only)
-    
+
     def to_dict(self):
         return {
             'id': self.id,
@@ -34,17 +35,18 @@ class Request(db.Model):
             'export_path': self.export_path
         }
 
+
 class ChatSession(db.Model):
     """Chat sessions for AI assistant"""
     __tablename__ = 'chat_sessions'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     session_id = db.Column(db.String(36), default=lambda: str(uuid.uuid4()))
     question = db.Column(db.Text, nullable=False)
     rag_response = db.Column(db.Text)
     answer = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
+
     def to_dict(self):
         return {
             'id': self.id,
