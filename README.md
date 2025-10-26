@@ -1,10 +1,10 @@
 # NexusGen Document Intelligence Hub
 
-> **Version 1.2.0** | A comprehensive Flask-based document intelligence application with AI-powered analysis and generation capabilities.
+> **Version 2.0.0** | A comprehensive Flask-based document intelligence application with AI-powered analysis and generation capabilities.
 
 ## 🚀 Overview
 
-NexusGen is a modern document intelligence platform that leverages Amazon Q CLI agents and AWS Bedrock Knowledge Base to provide intelligent document processing, verification, and creation capabilities. Built with Flask and featuring a sleek dark-themed UI, it offers four core functionalities through an intuitive web interface.
+NexusGen is a modern document intelligence platform that leverages Amazon Q CLI agents and AWS Bedrock Knowledge Base to provide intelligent document processing, verification, and creation capabilities. Built with Flask and featuring a sleek dark-themed UI, it offers four core functionalities through an intuitive web interface with complete process transparency and database-first architecture.
 
 ### ✨ Key Features
 
@@ -12,6 +12,8 @@ NexusGen is a modern document intelligence platform that leverages Amazon Q CLI 
 - **✅ Design Verification**: Paste design documents for AI-powered validation and recommendations
 - **🎨 Design Creation**: Generate comprehensive design documents from acceptance criteria
 - **💬 AI Chat Assistant**: Interactive chat interface for document-related queries and assistance
+- **📊 Process History**: Complete transparency with timeline tracking, confidence metrics, and debugging info
+- **🔍 Database-First Architecture**: All data stored in database with no file dependencies for core operations
 
 ## 🏗️ Architecture Overview
 
@@ -23,33 +25,38 @@ nexus-gen-v2/
 │   ├── breakdown_controller.py    # Spec breakdown functionality
 │   ├── verify_controller.py       # Design verification
 │   ├── create_controller.py       # Design document creation
-│   └── chat_controller.py         # AI chat interface
+│   ├── chat_controller.py         # AI chat interface
+│   └── process_controller.py      # Process history and details
 ├── ⚙️ services/            # Business logic layer
 │   ├── request_service.py         # Request management
-│   ├── q_agent_service.py         # Q CLI agent integration
+│   ├── q_agent_service.py         # Q CLI agent integration (database-first)
 │   ├── bedrock_rag_service.py     # AWS Bedrock integration
 │   ├── data_source_factory.py     # RAG service factory
 │   ├── file_service.py            # File handling
-│   ├── document_service.py        # Document processing
+│   ├── document_service.py        # Document processing with text normalization
 │   ├── excel_service.py           # Excel generation
-│   └── word_service.py            # Word document generation
+│   ├── word_service.py            # Word document generation
+│   └── process_tracker.py         # Timeline and metadata tracking
 ├── 🎨 templates/           # Jinja2 HTML templates
 │   ├── breakdown/         # Spec breakdown pages
 │   ├── verify/            # Design verification pages
 │   ├── create/            # Design creation pages
 │   ├── chat/              # AI chat interface
+│   ├── process/           # Process history pages
+│   ├── process_details.html # Detailed process view
 │   └── base.html          # Base template with navigation
 ├── 📁 static/             # Frontend assets
 │   ├── css/docflow.css    # Custom dark theme styles
 │   ├── js/main.js         # Core JavaScript utilities
 │   └── js/upload.js       # File upload functionality
-├── 🗄️ models.py           # SQLAlchemy database models
+├── 🗄️ models.py           # SQLAlchemy database models with Step 9 tracking
 ├── ⚙️ config.py           # Application configuration
 ├── 🧪 tests/              # Comprehensive test suite
-└── 📊 outputs/            # Generated files and exports
+├── 📊 outputs/            # Temporary export files only (no JSON dependencies)
+└── 🔧 .amazonq/cli-agents/ # Q CLI agent configurations (database-first)
 ```
 
-## 🔄 Data Flow Architecture
+## 🔄 Data Flow Architecture (Database-First)
 
 ### 1. Spec Breakdown Workflow
 ```mermaid
@@ -57,18 +64,19 @@ graph LR
     A[User Upload] --> B[File Processing]
     B --> C[Bedrock Query]
     C --> D[Q Agent Analysis]
-    D --> E[JSON Parsing]
+    D --> E[Database Storage]
     E --> F[Results Display]
     F --> G[Excel Export]
 ```
 
 **Process Details:**
 - **FileService**: Validates file types (PDF, DOCX, TXT, MD) and saves uploads
-- **DocumentService**: Extracts content using appropriate parsers
-- **BedrockRAGService**: Queries KB ID `WAQ6NJLGKN` for similar breakdowns
-- **QAgentService**: Processes with `breakdown-agent` using Bedrock context
-- **Enhanced JSON Parsing**: Robust error recovery and content cleaning
-- **ExcelService**: Generates professional Excel reports with metrics
+- **DocumentService**: Extracts and normalizes content using text cleaning
+- **BedrockRAGService**: Queries KB ID `WAQ6NJLGKN` with summary-first approach and similarity filtering
+- **QAgentService**: Processes with `breakdown-agent` returning JSON directly (no file dependencies)
+- **ProcessTracker**: Tracks timeline, confidence metrics, and error recovery
+- **Database Storage**: All data stored in requests table with complete process metadata
+- **ExcelService**: Generates professional Excel reports on-demand
 
 ### 2. Design Verification Workflow
 ```mermaid
@@ -76,49 +84,68 @@ graph LR
     A[User Input] --> B[Content Analysis]
     B --> C[Bedrock Query]
     C --> D[Q Agent Verification]
-    D --> E[Results Display]
+    D --> E[Database Storage]
+    E --> F[Results Display]
 ```
 
 **Process Details:**
-- **RequestService**: Manages verification requests and status tracking
-- **BedrockRAGService**: Finds similar design documents for comparison
-- **QAgentService**: Analyzes with `verify-agent` for missing objects and recommendations
-- **Real-time Results**: Displays missing components, suggestions, and similar designs
+- **RequestService**: Manages verification requests with process tracking
+- **BedrockRAGService**: Finds similar design documents with relevance filtering
+- **QAgentService**: Analyzes with `verify-agent` returning structured JSON directly
+- **ProcessTracker**: Captures timeline, RAG similarity scores, and confidence indicators
+- **Database Storage**: Complete verification data with process transparency
 
 ### 3. Design Creation Workflow
 ```mermaid
 graph LR
     A[Acceptance Criteria] --> B[Bedrock Context]
     B --> C[Q Agent Generation]
-    C --> D[Word Document]
-    D --> E[Professional Export]
+    C --> D[Database Storage]
+    D --> E[Word Document Export]
 ```
 
 **Process Details:**
-- **RequestService**: Handles creation requests with input validation
-- **BedrockRAGService**: Provides design templates and architectural patterns
-- **QAgentService**: Generates comprehensive designs with `create-agent`
-- **WordService**: Creates structured Word documents with proper formatting
+- **RequestService**: Handles creation requests with comprehensive tracking
+- **BedrockRAGService**: Provides design templates with high-quality matches only
+- **QAgentService**: Generates designs with `create-agent` using database-first approach
+- **ProcessTracker**: Monitors generation timeline and output quality
+- **WordService**: Creates structured Word documents on-demand from database
 
 ### 4. AI Chat Workflow
 ```mermaid
 graph LR
     A[User Message] --> B[Bedrock Context]
     B --> C[Q Agent Response]
-    C --> D[Chat Display]
-    D --> E[Session Storage]
+    C --> D[Database Storage]
+    D --> E[Chat Display]
 ```
 
 **Process Details:**
 - **ChatSession**: Persistent conversation tracking with UUID sessions
-- **BedrockRAGService**: Contextual document retrieval for relevant responses
-- **QAgentService**: Conversational AI with `chat-agent`
-- **Real-time Interface**: Modern chat bubbles with typing indicators
+- **BedrockRAGService**: Contextual document retrieval with summary queries
+- **QAgentService**: Conversational AI with `chat-agent` (no file operations)
+- **Database Storage**: All chat history and context stored in database
 
-## 🗄️ Database Schema
+### 5. Process History & Transparency
+```mermaid
+graph LR
+    A[Any Request] --> B[ProcessTracker]
+    B --> C[Timeline Capture]
+    C --> D[Confidence Metrics]
+    D --> E[Database Storage]
+    E --> F[Process History UI]
+```
+
+**Process Details:**
+- **ProcessTracker**: Captures step-by-step timing and metadata
+- **Confidence Indicators**: RAG similarity, JSON validity, processing time badges
+- **Error Recovery**: Tracks fallbacks and retry attempts
+- **Process History**: Filterable view with reference IDs and detailed metrics
+
+## 🗄️ Database Schema (Enhanced with Process Tracking)
 
 ### Request Model
-Tracks all breakdown, verification, and creation operations:
+Tracks all breakdown, verification, and creation operations with complete process transparency:
 
 ```sql
 CREATE TABLE requests (
@@ -132,7 +159,19 @@ CREATE TABLE requests (
     final_output TEXT,                    -- Q Agent result (JSON format)
     export_path VARCHAR(500),             -- path to generated export file
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    
+    -- Step 9: Process Tracking Fields
+    reference_id VARCHAR(20),             -- RQ_BR_001 format
+    agent_name VARCHAR(50),               -- breakdown-agent, verify-agent, etc.
+    model_name VARCHAR(100),              -- amazon.nova-pro-v1:0
+    parameters TEXT,                      -- JSON string of model parameters
+    total_time INTEGER,                   -- Processing time in seconds
+    step_durations TEXT,                  -- JSON timeline data
+    raw_agent_output TEXT,                -- Raw Q agent response
+    rag_similarity_avg REAL,              -- Average RAG similarity score
+    json_valid BOOLEAN DEFAULT 1,         -- JSON validity flag
+    error_log TEXT                        -- Error messages and retry attempts
 );
 ```
 
@@ -149,6 +188,26 @@ CREATE TABLE chat_sessions (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 ```
+
+## 🔧 Key Architectural Improvements
+
+### Database-First Approach
+- **Single Source of Truth**: All data stored in database, no file dependencies for core operations
+- **Process Transparency**: Complete timeline tracking with confidence metrics
+- **Error Recovery**: Robust JSON parsing with AI self-validation
+- **Performance Optimization**: Reduced I/O operations, faster response times
+
+### Enhanced Q Agent Integration
+- **Direct JSON Returns**: Agents return structured data directly (no file saving)
+- **Improved Prompts**: Role-based prompts with explicit schemas
+- **Model Parameter Tuning**: Optimized temperature, tokens, and topP settings
+- **Auto-Review**: AI validates and corrects its own JSON outputs
+
+### Advanced RAG Processing
+- **Summary-First Queries**: Focused queries for better relevance
+- **Similarity Filtering**: Only high-quality matches (>0.6 threshold)
+- **Text Normalization**: Clean document processing with noise reduction
+- **Contextual Grounding**: Better integration of knowledge base content
 
 ## 🛠️ Service Layer Details
 

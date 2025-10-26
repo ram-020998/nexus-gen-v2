@@ -27,17 +27,28 @@
     </div>
 </div>
 
-{% if breakdown_data %}
+{% if breakdown_data and breakdown_data.epics %}
 <div class="breakdown-content">
     <div class="summary-section mb-4">
         <div class="row">
             <div class="col-md-4">
                 <div class="stat-card">
                     <div class="stat-icon">
+                        <i class="fas fa-layer-group"></i>
+                    </div>
+                    <div class="stat-info">
+                        <div class="stat-number">{{ breakdown_data.epics|length }}</div>
+                        <div class="stat-label">Epics</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stat-card">
+                    <div class="stat-icon">
                         <i class="fas fa-list-ul"></i>
                     </div>
                     <div class="stat-info">
-                        <div class="stat-number">{{ breakdown_data.stories|length }}</div>
+                        <div class="stat-number">{{ breakdown_data.epics|map(attribute='stories')|map('length')|sum }}</div>
                         <div class="stat-label">Total Stories</div>
                     </div>
                 </div>
@@ -45,57 +56,61 @@
             <div class="col-md-4">
                 <div class="stat-card">
                     <div class="stat-icon">
-                        <i class="fas fa-user"></i>
+                        <i class="fas fa-check-circle"></i>
                     </div>
                     <div class="stat-info">
-                        <div class="stat-number">{{ breakdown_data.stories|selectattr('issue_type', 'equalto', 'User Story')|list|length }}</div>
-                        <div class="stat-label">User Stories</div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="stat-card">
-                    <div class="stat-icon">
-                        <i class="fas fa-tasks"></i>
-                    </div>
-                    <div class="stat-info">
-                        <div class="stat-number">{{ breakdown_data.stories|selectattr('issue_type', 'equalto', 'Task')|list|length }}</div>
-                        <div class="stat-label">Tasks</div>
+                        <div class="stat-number">
+                            {% set total_criteria = 0 %}
+                            {% for epic in breakdown_data.epics %}
+                                {% for story in epic.stories %}
+                                    {% set total_criteria = total_criteria + story.acceptance_criteria|length %}
+                                {% endfor %}
+                            {% endfor %}
+                            {{ total_criteria }}
+                        </div>
+                        <div class="stat-label">Acceptance Criteria</div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
     
-    <div class="stories-section">
-        <div class="card">
-            <div class="card-header">
-                <h5><i class="fas fa-list"></i> User Stories & Tasks</h5>
+    <div class="epics-section">
+        {% for epic in breakdown_data.epics %}
+        <div class="epic-card mb-4">
+            <div class="epic-header">
+                <h5><i class="fas fa-layer-group"></i> {{ epic.name }}</h5>
             </div>
-            <div class="card-body p-0">
+            <div class="epic-body">
                 <div class="table-responsive">
                     <table class="table table-dark table-hover mb-0">
                         <thead>
                             <tr>
-                                <th>Epic</th>
-                                <th>Story Name</th>
+                                <th>Story ID</th>
+                                <th>Description</th>
                                 <th>Acceptance Criteria</th>
-                                <th>Issue Type</th>
                                 <th>Points</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {% for story in breakdown_data.stories %}
+                            {% for story in epic.stories %}
                             <tr>
-                                <td>{{ breakdown_data.epic }}</td>
-                                <td>{{ story.story_name }}</td>
-                                <td class="acceptance-criteria">{{ story.acceptance_criteria | safe }}</td>
+                                <td><span class="badge bg-primary">{{ story.id }}</span></td>
+                                <td>{{ story.description }}</td>
                                 <td>
-                                    <span class="badge badge-{{ 'primary' if story.issue_type == 'User Story' else 'secondary' }}">
-                                        {{ story.issue_type }}
-                                    </span>
+                                    <ul class="list-unstyled mb-0">
+                                        {% for criteria in story.acceptance_criteria %}
+                                        <li><small>{{ criteria }}</small></li>
+                                        {% endfor %}
+                                    </ul>
                                 </td>
-                                <td>{{ story.points or '-' }}</td>
+                                <td>
+                                    {% if story.points %}
+                                        <span class="badge bg-info">{{ story.points }}</span>
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -103,132 +118,59 @@
                 </div>
             </div>
         </div>
+        {% endfor %}
     </div>
 </div>
 {% else %}
 <div class="alert alert-warning">
     <i class="fas fa-exclamation-triangle"></i>
-    No breakdown data available for this request.
+    No breakdown data available. The processing may have failed or is still in progress.
 </div>
 {% endif %}
 
+{% if request.status == 'processing' %}
+<div class="alert alert-info">
+    <i class="fas fa-spinner fa-spin"></i>
+    Processing in progress... This page will refresh automatically.
+</div>
+
+<script>
+// Auto-refresh for processing requests
+setTimeout(function() {
+    location.reload();
+}, 5000);
+</script>
+{% endif %}
+
 <style>
-.card {
+.epic-card {
     background: var(--bg-card);
     border: 1px solid #374151;
     border-radius: 12px;
+    overflow: hidden;
 }
 
-.card-header {
+.epic-header {
     background: rgba(139, 92, 246, 0.1);
     border-bottom: 1px solid #374151;
     padding: 1rem 1.5rem;
 }
 
-.card-header h5 {
+.epic-header h5 {
     margin: 0;
-    color: var(--text-secondary);
-    font-weight: 600;
-}
-
-.card-body {
-    padding: 1.5rem;
-}
-
-.table-dark {
-    --bs-table-bg: transparent;
-    --bs-table-striped-bg: rgba(255, 255, 255, 0.05);
-    --bs-table-hover-bg: rgba(255, 255, 255, 0.075);
-    --bs-table-border-color: #374151;
-}
-
-.table th {
-    background: rgba(139, 92, 246, 0.1);
-    color: var(--text-secondary);
-    font-weight: 600;
-    border-bottom: 2px solid #374151;
-    padding: 1rem 0.75rem;
-}
-
-.table td {
-    padding: 1rem 0.75rem;
-    vertical-align: top;
-    border-bottom: 1px solid #374151;
-}
-
-.acceptance-criteria {
-    max-width: 300px;
-    white-space: pre-line;
-    font-size: 0.875rem;
-    line-height: 1.4;
-}
-
-.badge {
-    padding: 0.25rem 0.5rem;
-    border-radius: 4px;
-    font-size: 0.75rem;
-    font-weight: 500;
-}
-
-.badge-success {
-    background: rgba(16, 185, 129, 0.2);
-    color: var(--green);
-}
-
-.badge-warning {
-    background: rgba(245, 158, 11, 0.2);
-    color: #f59e0b;
-}
-
-.badge-primary {
-    background: rgba(139, 92, 246, 0.2);
-    color: var(--purple);
-}
-
-.badge-secondary {
-    background: rgba(148, 163, 184, 0.2);
-    color: var(--text-secondary);
-}
-
-.alert {
-    background: rgba(245, 158, 11, 0.1);
-    border: 1px solid rgba(245, 158, 11, 0.3);
-    color: #f59e0b;
-    border-radius: 8px;
-    padding: 1rem;
-}
-
-.stat-card {
-    background: var(--bg-card);
-    border: 1px solid #374151;
-    border-radius: 12px;
-    padding: 1.5rem;
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-}
-
-.stat-icon {
-    width: 48px;
-    height: 48px;
-    background: rgba(139, 92, 246, 0.2);
-    color: var(--purple);
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.5rem;
-}
-
-.stat-number {
-    font-size: 1.5rem;
-    font-weight: 700;
     color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
 }
 
-.stat-label {
-    color: var(--text-secondary);
-    font-size: 0.875rem;
+.epic-header i {
+    color: var(--purple);
+}
+
+.epic-body {
+    padding: 0;
 }
 </style>
+
 {% endblock %}

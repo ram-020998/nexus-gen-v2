@@ -2,6 +2,7 @@
 DocFlow - Document Intelligence Hub
 Main Flask Application
 """
+import json
 from flask import Flask, render_template
 from config import Config
 from models import db, Request
@@ -17,6 +18,26 @@ def create_app():
 
     # Initialize extensions
     db.init_app(app)
+    
+    # Add custom template filters
+    @app.template_filter('from_json')
+    def from_json_filter(value):
+        """Parse JSON string in templates"""
+        try:
+            return json.loads(value) if value else {}
+        except (json.JSONDecodeError, TypeError):
+            return {}
+
+    @app.template_filter('format_json')
+    def format_json_filter(value):
+        """Format JSON string with proper indentation"""
+        try:
+            if isinstance(value, str):
+                parsed = json.loads(value)
+                return json.dumps(parsed, indent=2, ensure_ascii=False)
+            return json.dumps(value, indent=2, ensure_ascii=False)
+        except (json.JSONDecodeError, TypeError):
+            return value
 
     # Initialize directories
     Config.init_directories()
@@ -40,10 +61,12 @@ def register_blueprints(app):
     from controllers.verify_controller import verify_bp
     from controllers.create_controller import create_bp
     from controllers.chat_controller import chat_bp
+    from controllers.process_controller import process_bp
     app.register_blueprint(breakdown_bp)
     app.register_blueprint(verify_bp)
     app.register_blueprint(create_bp)
     app.register_blueprint(chat_bp)
+    app.register_blueprint(process_bp)
 
 
 def register_routes(app):
@@ -63,4 +86,4 @@ def register_routes(app):
 
 if __name__ == '__main__':
     app = create_app()
-    app.run(debug=True, host='0.0.0.0', port=5001)
+    app.run(debug=True, host='0.0.0.0', port=5002)
