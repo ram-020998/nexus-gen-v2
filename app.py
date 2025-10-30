@@ -18,8 +18,8 @@ def create_app():
 
     # Initialize extensions
     db.init_app(app)
-    
-    # Add custom template filters
+
+    # Add custom template filters for process history
     @app.template_filter('from_json')
     def from_json_filter(value):
         """Parse JSON string in templates"""
@@ -33,8 +33,18 @@ def create_app():
         """Format JSON string with proper indentation"""
         try:
             if isinstance(value, str):
-                parsed = json.loads(value)
-                return json.dumps(parsed, indent=2, ensure_ascii=False)
+                # First try to parse as JSON
+                try:
+                    parsed = json.loads(value)
+                    return json.dumps(parsed, indent=2, ensure_ascii=False)
+                except json.JSONDecodeError:
+                    # If JSON parsing fails, try to evaluate as Python dict string
+                    try:
+                        import ast
+                        parsed = ast.literal_eval(value)
+                        return json.dumps(parsed, indent=2, ensure_ascii=False)
+                    except (ValueError, SyntaxError):
+                        return value
             return json.dumps(value, indent=2, ensure_ascii=False)
         except (json.JSONDecodeError, TypeError):
             return value
@@ -62,6 +72,7 @@ def register_blueprints(app):
     from controllers.create_controller import create_bp
     from controllers.chat_controller import chat_bp
     from controllers.process_controller import process_bp
+    
     app.register_blueprint(breakdown_bp)
     app.register_blueprint(verify_bp)
     app.register_blueprint(create_bp)

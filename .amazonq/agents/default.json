@@ -1,0 +1,67 @@
+{
+  "name": "q_ide_default",
+  "description": "Default agent configuration",
+  "prompt": "",
+  "mcpServers": {},
+  "tools": [
+    "fs_read",
+    "execute_bash",
+    "fs_write",
+    "report_issue",
+    "use_aws",
+    "@chrome-devtools"
+  ],
+  "toolAliases": {},
+  "allowedTools": [
+    "fs_read",
+    "report_issue",
+    "use_aws",
+    "execute_bash",
+    "fs_write",
+    "@chrome-devtools/list_console_messages",
+    "@chrome-devtools/click",
+    "@chrome-devtools/close_page",
+    "@chrome-devtools/drag",
+    "@chrome-devtools/emulate_cpu",
+    "@chrome-devtools/emulate_network",
+    "@chrome-devtools/evaluate_script",
+    "@chrome-devtools/fill",
+    "@chrome-devtools/fill_form",
+    "@chrome-devtools/get_console_message",
+    "@chrome-devtools/get_network_request",
+    "@chrome-devtools/handle_dialog",
+    "@chrome-devtools/hover",
+    "@chrome-devtools/list_network_requests",
+    "@chrome-devtools/list_pages",
+    "@chrome-devtools/navigate_page",
+    "@chrome-devtools/navigate_page_history",
+    "@chrome-devtools/new_page",
+    "@chrome-devtools/performance_analyze_insight",
+    "@chrome-devtools/performance_start_trace",
+    "@chrome-devtools/performance_stop_trace",
+    "@chrome-devtools/resize_page",
+    "@chrome-devtools/select_page",
+    "@chrome-devtools/take_screenshot",
+    "@chrome-devtools/take_snapshot",
+    "@chrome-devtools/upload_file",
+    "@chrome-devtools/wait_for"
+  ],
+  "toolsSettings": {
+    "use_aws": {
+      "preset": "readOnly"
+    },
+    "execute_bash": {
+      "preset": "readOnly"
+    }
+  },
+  "resources": [
+    "file://AmazonQ.md",
+    "file://README.md",
+    "file://.amazonq/rules/**/*.md"
+  ],
+  "hooks": {
+    "agentSpawn": [],
+    "userPromptSubmit": []
+  },
+  "useLegacyMcpJson": true
+}

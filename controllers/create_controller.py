@@ -40,22 +40,16 @@ def generate_design():
                       "List the specific components, forms, rules, and services that require changes.")
         bedrock_response = request_service.process_with_bedrock(req, query_text)
 
-        # Process with Q agent (now returns result and tracker)
-        design_data, tracker = q_agent_service.process_creation(req.id, acceptance_criteria, bedrock_response)
+        # Process with Q agent
+        design_data = q_agent_service.process_creation(req.id, acceptance_criteria, bedrock_response)
 
-        # Update request with results and process metadata
-        tracker_data = tracker.get_summary_data()
-        request_service.update_request_with_tracking(req.id, 'completed', json.dumps(design_data), tracker_data)
+        # Update request with results
+        request_service.update_request_status(req.id, 'completed', json.dumps(design_data))
 
         return jsonify({
             'success': True,
             'request_id': req.id,
-            'design_data': design_data,
-            'process_info': {
-                'reference_id': tracker_data['reference_id'],
-                'total_time': tracker_data['total_time'],
-                'confidence_badges': tracker.get_confidence_badges()
-            }
+            'design_data': design_data
         })
 
     except Exception as e:

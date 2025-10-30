@@ -36,22 +36,16 @@ def process_verification():
         query_text = f"Find existing design documents similar to: {design_content[:500]}..."
         bedrock_response = request_service.process_with_bedrock(req, query_text)
 
-        # Process with Q agent (now returns result and tracker)
-        verification_data, tracker = q_agent_service.process_verification(req.id, design_content, bedrock_response)
+        # Process with Q agent
+        verification_data = q_agent_service.process_verification(req.id, design_content, bedrock_response)
 
-        # Update request with results and process metadata
-        tracker_data = tracker.get_summary_data()
-        request_service.update_request_with_tracking(req.id, 'completed', json.dumps(verification_data), tracker_data)
+        # Update request with results
+        request_service.update_request_status(req.id, 'completed', json.dumps(verification_data))
 
         return jsonify({
             'success': True,
             'request_id': req.id,
-            'verification_data': verification_data,
-            'process_info': {
-                'reference_id': tracker_data['reference_id'],
-                'total_time': tracker_data['total_time'],
-                'confidence_badges': tracker.get_confidence_badges()
-            }
+            'verification_data': verification_data
         })
 
     except Exception as e:

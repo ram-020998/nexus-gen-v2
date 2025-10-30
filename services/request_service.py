@@ -39,29 +39,6 @@ class RequestService:
 
         return request
 
-    def update_request_with_tracking(self, request_id: int, status: str, output_data: str, tracking_data: dict) -> Request:
-        """Update request with status, output, and process tracking data"""
-        request = Request.query.get(request_id)
-        if request:
-            request.status = status
-            request.updated_at = datetime.utcnow()
-            request.final_output = output_data
-            
-            # Update tracking fields
-            request.reference_id = tracking_data.get('reference_id')
-            request.agent_name = tracking_data.get('agent_name')
-            request.model_name = tracking_data.get('model_name')
-            request.parameters = tracking_data.get('parameters')
-            request.total_time = tracking_data.get('total_time')
-            request.step_durations = tracking_data.get('step_durations')
-            request.rag_similarity_avg = tracking_data.get('rag_similarity_avg')
-            request.json_valid = tracking_data.get('json_valid')
-            request.error_log = tracking_data.get('error_log')
-
-            db.session.commit()
-
-        return request
-
     def get_request(self, request_id: int) -> Request:
         """Get request by ID"""
         return Request.query.get(request_id)
