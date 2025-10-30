@@ -628,6 +628,106 @@ body {
     color: #f59e0b;
 }
 
+/* Process Details Page Styles */
+.section-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.section-card .table,
+.section-card .table th,
+.section-card .table td {
+    background-color: var(--bg-card) !important;
+    color: var(--text-primary) !important;
+    border-color: var(--border-color) !important;
+}
+
+.section-card .table th {
+    background-color: rgba(139, 92, 246, 0.1) !important;
+}
+
+.section-card .table-striped tbody tr:nth-of-type(odd) {
+    background-color: rgba(139, 92, 246, 0.05) !important;
+}
+
+.section-card .table-striped tbody tr:nth-of-type(odd) td {
+    background-color: rgba(139, 92, 246, 0.05) !important;
+}
+
+.metadata-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 0.5rem;
+}
+
+.confidence-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.output-container {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 1rem;
+    max-height: 400px;
+    overflow-y: auto;
+    color: var(--text-primary);
+}
+
+.json-output {
+    margin: 0;
+    font-family: 'Courier New', monospace;
+    font-size: 0.875rem;
+    white-space: pre-wrap;
+    color: var(--text-primary);
+    background: transparent;
+}
+
+.error-log {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 1rem;
+    color: var(--text-primary);
+}
+
+.artifact-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.output-container pre {
+    margin: 0;
+    font-size: 0.875rem;
+    white-space: pre-wrap;
+    color: var(--text-primary);
+    background: transparent;
+}
+
+/* Light theme overrides for process details */
+[data-theme="light"] .output-container {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    color: #1e293b;
+}
+
+[data-theme="light"] .json-output,
+[data-theme="light"] .output-container pre {
+    color: #1e293b;
+}
+
+[data-theme="light"] .error-log {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    color: #1e293b;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     .sidebar {

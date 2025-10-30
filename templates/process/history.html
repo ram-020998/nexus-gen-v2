@@ -1,141 +1,168 @@
 {% extends "base.html" %}
 
-{% block title %}Process History{% endblock %}
+{% block title %}Process History - NexusGen{% endblock %}
+
 {% block page_title %}Process History{% endblock %}
 {% block page_subtitle %}View and analyze processing requests with detailed metrics{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <!-- Filters -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card bg-dark border-secondary">
-                <div class="card-body">
-                    <form method="GET" class="row g-3">
-                        <div class="col-md-3">
-                            <label class="form-label text-light">Type</label>
-                            <select name="type" class="form-select bg-dark text-light border-secondary">
-                                <option value="">All Types</option>
-                                <option value="breakdown" {% if current_type == 'breakdown' %}selected{% endif %}>Breakdown</option>
-                                <option value="verify" {% if current_type == 'verify' %}selected{% endif %}>Verify</option>
-                                <option value="create" {% if current_type == 'create' %}selected{% endif %}>Create</option>
-                            </select>
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label text-light">Status</label>
-                            <select name="status" class="form-select bg-dark text-light border-secondary">
-                                <option value="">All Status</option>
-                                <option value="completed" {% if current_status == 'completed' %}selected{% endif %}>Completed</option>
-                                <option value="processing" {% if current_status == 'processing' %}selected{% endif %}>Processing</option>
-                                <option value="error" {% if current_status == 'error' %}selected{% endif %}>Error</option>
-                            </select>
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label text-light">Search</label>
-                            <input type="text" name="search" class="form-control bg-dark text-light border-secondary" 
-                                   placeholder="Reference ID or filename" value="{{ current_search }}">
-                        </div>
-                        <div class="col-md-2">
-                            <label class="form-label text-light">&nbsp;</label>
-                            <div class="d-grid">
-                                <button type="submit" class="btn btn-primary">Filter</button>
-                            </div>
-                        </div>
-                    </form>
-                </div>
-            </div>
+<div class="results-header">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <span class="badge bg-info">{{ requests|length }} Total Requests</span>
+        </div>
+        <div>
+            <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> Back to Dashboard
+            </a>
         </div>
     </div>
+    
+    <!-- Integrated Filters -->
+    <div class="mb-4">
+        <form method="GET" class="row g-3">
+            <div class="col-md-3">
+                <select name="type" class="form-select bg-dark text-light border-secondary">
+                    <option value="">All Types</option>
+                    <option value="breakdown" {% if current_type == 'breakdown' %}selected{% endif %}>Breakdown</option>
+                    <option value="verify" {% if current_type == 'verify' %}selected{% endif %}>Verify</option>
+                    <option value="create" {% if current_type == 'create' %}selected{% endif %}>Create</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <select name="status" class="form-select bg-dark text-light border-secondary">
+                    <option value="">All Status</option>
+                    <option value="completed" {% if current_status == 'completed' %}selected{% endif %}>Completed</option>
+                    <option value="processing" {% if current_status == 'processing' %}selected{% endif %}>Processing</option>
+                    <option value="error" {% if current_status == 'error' %}selected{% endif %}>Error</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <input type="text" name="search" class="form-control bg-dark text-light border-secondary" 
+                       placeholder="Reference ID or filename" value="{{ current_search }}">
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary">Filter</button>
+            </div>
+        </form>
+    </div>
+</div>
 
-    <!-- Results Table -->
-    <div class="row">
-        <div class="col-12">
-            <div class="card bg-dark border-secondary">
-                <div class="card-body">
-                    {% if requests %}
-                    <div class="table-responsive">
-                        <table class="table table-dark table-hover">
-                            <thead>
-                                <tr>
-                                    <th>Reference ID</th>
-                                    <th>Type</th>
-                                    <th>Status</th>
-                                    <th>Created</th>
-                                    <th>Duration</th>
-                                    <th>Confidence</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for req in requests %}
-                                <tr>
-                                    <td>
-                                        <code class="text-primary">{{ req.reference_id or 'RQ_' + req.action_type.upper()[:2] + '_' + '%03d'|format(req.id) }}</code>
-                                    </td>
-                                    <td>
-                                        <span class="badge bg-info">{{ req.action_type.title() }}</span>
-                                    </td>
-                                    <td>
-                                        <span class="badge bg-{% if req.status == 'completed' %}success{% elif req.status == 'error' %}danger{% else %}warning{% endif %}">
-                                            {{ req.status.title() }}
-                                        </span>
-                                    </td>
-                                    <td>{{ req.created_at.strftime('%m/%d %H:%M') }}</td>
-                                    <td>
-                                        {% if req.total_time %}
-                                            {% if req.total_time < 30 %}
-                                                <span class="text-success">{{ req.total_time }}s ✅</span>
-                                            {% elif req.total_time < 60 %}
-                                                <span class="text-warning">{{ req.total_time }}s ⚠️</span>
-                                            {% else %}
-                                                <span class="text-danger">{{ req.total_time }}s ❌</span>
-                                            {% endif %}
-                                        {% else %}
-                                            <span class="text-muted">-</span>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        {% if req.rag_similarity_avg %}
-                                            {% if req.rag_similarity_avg > 0.7 %}
-                                                <span class="text-success">{{ "%.2f"|format(req.rag_similarity_avg) }} ✅</span>
-                                            {% elif req.rag_similarity_avg > 0.4 %}
-                                                <span class="text-warning">{{ "%.2f"|format(req.rag_similarity_avg) }} ⚠️</span>
-                                            {% else %}
-                                                <span class="text-danger">{{ "%.2f"|format(req.rag_similarity_avg) }} ❌</span>
-                                            {% endif %}
-                                        {% else %}
-                                            <span class="text-muted">-</span>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        <div class="btn-group btn-group-sm">
-                                            <a href="{{ url_for('process.details', request_id=req.id) }}" 
-                                               class="btn btn-outline-primary btn-sm" title="View Details">
-                                                <i class="fas fa-info-circle"></i>
-                                            </a>
-                                            {% if req.action_type == 'breakdown' %}
-                                                <a href="{{ url_for('breakdown.view_results', request_id=req.id) }}" 
-                                                   class="btn btn-outline-success btn-sm" title="View Results">
-                                                    <i class="fas fa-eye"></i>
-                                                </a>
-                                            {% endif %}
-                                        </div>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                    {% else %}
-                    <div class="text-center py-5">
-                        <i class="fas fa-history fa-3x text-muted mb-3"></i>
-                        <h5 class="text-muted">No requests found</h5>
-                        <p class="text-muted">Try adjusting your filters or create a new request.</p>
-                    </div>
-                    {% endif %}
-                </div>
+{% if requests %}
+<div class="process-content">
+    <div class="process-card mb-4">
+        <div class="process-header">
+            <h5><i class="fas fa-history"></i> Processing Requests</h5>
+        </div>
+        <div class="process-body">
+            <div class="table-responsive">
+                <table class="table table-dark table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Reference ID</th>
+                    <th>Type</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                    <th>Duration</th>
+                    <th>Confidence</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for req in requests %}
+                <tr>
+                    <td>
+                        <a href="{{ url_for('process.details', request_id=req.id) }}" class="text-decoration-none">
+                            <code class="text-primary">{{ req.reference_id or 'RQ_' + req.action_type.upper()[:2] + '_' + '%03d'|format(req.id) }}</code>
+                        </a>
+                    </td>
+                    <td>
+                        <span class="badge bg-info">{{ req.action_type.title() }}</span>
+                    </td>
+                    <td>
+                        <span class="badge badge-{% if req.status == 'completed' %}success{% elif req.status == 'error' %}danger{% else %}warning{% endif %}">
+                            {{ req.status.title() }}
+                        </span>
+                    </td>
+                    <td>{{ req.created_at.strftime('%m/%d %H:%M') }}</td>
+                    <td>
+                        {% if req.total_time %}
+                            {% if req.total_time < 30 %}
+                                <span class="text-success">{{ req.total_time }}s ✅</span>
+                            {% elif req.total_time < 60 %}
+                                <span class="text-warning">{{ req.total_time }}s ⚠️</span>
+                            {% else %}
+                                <span class="text-danger">{{ req.total_time }}s ❌</span>
+                            {% endif %}
+                        {% else %}
+                            <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if req.rag_similarity_avg %}
+                            {% if req.rag_similarity_avg > 0.7 %}
+                                <span class="text-success">{{ "%.2f"|format(req.rag_similarity_avg) }} ✅</span>
+                            {% elif req.rag_similarity_avg > 0.4 %}
+                                <span class="text-warning">{{ "%.2f"|format(req.rag_similarity_avg) }} ⚠️</span>
+                            {% else %}
+                                <span class="text-danger">{{ "%.2f"|format(req.rag_similarity_avg) }} ❌</span>
+                            {% endif %}
+                        {% else %}
+                            <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if req.action_type == 'breakdown' %}
+                            <a href="{{ url_for('breakdown.view_results', request_id=req.id) }}" 
+                               class="btn btn-outline-success btn-sm" title="View Results">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+                </table>
             </div>
         </div>
     </div>
 </div>
+
+<style>
+.process-card {
+    background: var(--bg-card);
+    border: 1px solid #374151;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.process-header {
+    background: rgba(139, 92, 246, 0.1);
+    border-bottom: 1px solid #374151;
+    padding: 1rem 1.5rem;
+}
+
+.process-header h5 {
+    margin: 0;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.process-header i {
+    color: var(--purple);
+}
+
+.process-body {
+    padding: 0;
+}
+</style>
+{% else %}
+<div class="alert alert-warning">
+    <i class="fas fa-exclamation-triangle"></i>
+    No requests found. Try adjusting your filters or create a new request.
+</div>
+{% endif %}
+
 {% endblock %}

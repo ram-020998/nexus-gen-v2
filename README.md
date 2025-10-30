@@ -1,6 +1,6 @@
 # NexusGen Document Intelligence Hub
 
-> **Version 2.0.0** | A comprehensive Flask-based document intelligence application with AI-powered analysis and generation capabilities.
+> **Version 2.1.0** | A comprehensive Flask-based document intelligence application with AI-powered analysis, generation capabilities, and professional-grade refactored architecture.
 
 ## 🚀 Overview
 
@@ -17,26 +17,44 @@ NexusGen is a modern document intelligence platform that leverages Amazon Q CLI 
 
 ## 🏗️ Architecture Overview
 
-### System Components
+### System Components (Refactored v2.1.0)
 
 ```
 nexus-gen-v2/
-├── 🎮 controllers/          # Flask route handlers
-│   ├── breakdown_controller.py    # Spec breakdown functionality
-│   ├── verify_controller.py       # Design verification
-│   ├── create_controller.py       # Design document creation
-│   ├── chat_controller.py         # AI chat interface
-│   └── process_controller.py      # Process history and details
-├── ⚙️ services/            # Business logic layer
-│   ├── request_service.py         # Request management
-│   ├── q_agent_service.py         # Q CLI agent integration (database-first)
-│   ├── bedrock_rag_service.py     # AWS Bedrock integration
+├── 🎮 controllers/          # Flask route handlers (Legacy + Refactored)
+│   ├── breakdown_controller.py         # Legacy spec breakdown
+│   ├── refactored_breakdown_controller.py # Clean architecture example
+│   ├── verify_controller.py            # Design verification
+│   ├── create_controller.py            # Design document creation
+│   ├── chat_controller.py              # AI chat interface
+│   └── process_controller.py           # Process history and details
+├── 🏛️ core/                # Clean Architecture Foundation (NEW)
+│   ├── interfaces.py       # Abstract base classes and interfaces
+│   ├── exceptions.py       # Custom exception hierarchy
+│   ├── container.py        # Dependency injection container
+│   └── service_registry.py # Service configuration and registration
+├── 🗄️ repositories/        # Data Access Layer (NEW)
+│   ├── request_repository.py # Request entity data access
+│   └── chat_repository.py    # Chat session data access
+├── ⚙️ services/            # Business Logic Layer (Legacy + Refactored)
+│   ├── processors/         # Specialized Q Agent Processors (NEW)
+│   │   ├── base_processor.py      # Base processor with common functionality
+│   │   ├── breakdown_processor.py # Specialized breakdown processing
+│   │   ├── verification_processor.py # Specialized verification processing
+│   │   └── creation_processor.py  # Specialized creation processing
+│   ├── refactored_bedrock_service.py # Clean Bedrock service
+│   ├── refactored_request_service.py # Clean request service
+│   ├── request_service.py         # Legacy request management
+│   ├── q_agent_service.py         # Legacy Q CLI agent integration
+│   ├── bedrock_rag_service.py     # Legacy AWS Bedrock integration
 │   ├── data_source_factory.py     # RAG service factory
 │   ├── file_service.py            # File handling
-│   ├── document_service.py        # Document processing with text normalization
+│   ├── document_service.py        # Document processing
 │   ├── excel_service.py           # Excel generation
 │   ├── word_service.py            # Word document generation
 │   └── process_tracker.py         # Timeline and metadata tracking
+├── 🗄️ models/              # Domain Models (Legacy + Enhanced)
+│   └── enhanced_models.py  # Rich domain models with business logic (NEW)
 ├── 🎨 templates/           # Jinja2 HTML templates
 │   ├── breakdown/         # Spec breakdown pages
 │   ├── verify/            # Design verification pages
@@ -49,11 +67,14 @@ nexus-gen-v2/
 │   ├── css/docflow.css    # Custom dark theme styles
 │   ├── js/main.js         # Core JavaScript utilities
 │   └── js/upload.js       # File upload functionality
-├── 🗄️ models.py           # SQLAlchemy database models with Step 9 tracking
-├── ⚙️ config.py           # Application configuration
 ├── 🧪 tests/              # Comprehensive test suite
-├── 📊 outputs/            # Temporary export files only (no JSON dependencies)
-└── 🔧 .amazonq/cli-agents/ # Q CLI agent configurations (database-first)
+├── 📊 outputs/            # Temporary export files (cleaned)
+├── 📁 uploads/            # File uploads (cleaned)
+├── 📝 logs/               # Application logs (cleaned)
+├── 🗄️ models.py           # Legacy SQLAlchemy models
+├── ⚙️ config.py           # Application configuration
+├── 📖 REFACTORING_GUIDE.md # Detailed refactoring documentation (NEW)
+└── 🔧 .amazonq/cli-agents/ # Q CLI agent configurations
 ```
 
 ## 🔄 Data Flow Architecture (Database-First)
@@ -191,23 +212,35 @@ CREATE TABLE chat_sessions (
 
 ## 🔧 Key Architectural Improvements
 
+### Clean Architecture Implementation (v2.1.0)
+- **SOLID Principles**: All five principles properly implemented
+- **Dependency Injection**: Professional service container with lifecycle management
+- **Repository Pattern**: Clean data access abstraction layer
+- **Interface Segregation**: Small, focused interfaces for better testability
+- **Custom Exception Hierarchy**: Structured error handling with proper exception types
+
 ### Database-First Approach
 - **Single Source of Truth**: All data stored in database, no file dependencies for core operations
 - **Process Transparency**: Complete timeline tracking with confidence metrics
 - **Error Recovery**: Robust JSON parsing with AI self-validation
 - **Performance Optimization**: Reduced I/O operations, faster response times
+- **Rich Domain Models**: Enhanced models with business logic and validation
 
 ### Enhanced Q Agent Integration
+- **Specialized Processors**: Single-responsibility processors for each agent type
+- **Base Processor Pattern**: Common functionality abstracted to base class
 - **Direct JSON Returns**: Agents return structured data directly (no file saving)
 - **Improved Prompts**: Role-based prompts with explicit schemas
 - **Model Parameter Tuning**: Optimized temperature, tokens, and topP settings
 - **Auto-Review**: AI validates and corrects its own JSON outputs
 
 ### Advanced RAG Processing
+- **Interface-Based Design**: RAG services implement common interface
 - **Summary-First Queries**: Focused queries for better relevance
 - **Similarity Filtering**: Only high-quality matches (>0.6 threshold)
 - **Text Normalization**: Clean document processing with noise reduction
 - **Contextual Grounding**: Better integration of knowledge base content
+- **Proper Error Handling**: Structured exceptions with fallback mechanisms
 
 ## 🛠️ Service Layer Details
 
@@ -545,7 +578,63 @@ def test_complete_breakdown_workflow(self):
 
 ## 🔄 Version History & Changelog
 
-### Version 1.2.0 (Current) - October 16, 2025
+### Version 2.1.0 (Current) - October 26, 2025
+
+#### 🏗️ **Major Architecture Refactoring - Clean Architecture Implementation**
+
+**Core Architecture Foundation:**
+- ✅ **Abstract Base Classes**: Created foundational interfaces (`RAGServiceInterface`, `ProcessorInterface`, `RepositoryInterface`)
+- ✅ **Dependency Injection Container**: Professional service management with singleton/transient lifecycle
+- ✅ **Custom Exception Hierarchy**: Structured error handling (`NexusGenException`, `ServiceException`, `ValidationException`)
+- ✅ **Service Registry**: Centralized service configuration and registration
+
+**Repository Pattern Implementation:**
+- ✅ **RequestRepository**: Clean data access abstraction for request entities
+- ✅ **ChatRepository**: Clean data access abstraction for chat sessions
+- ✅ **Interface-Based Design**: All repositories implement `RepositoryInterface`
+- ✅ **Proper Error Handling**: Database operations with rollback and structured exceptions
+
+**Specialized Q Agent Processors:**
+- ✅ **BaseQAgentProcessor**: Common functionality abstracted to base class
+- ✅ **BreakdownProcessor**: Specialized processor for spec breakdown operations
+- ✅ **VerificationProcessor**: Specialized processor for design verification
+- ✅ **CreationProcessor**: Specialized processor for design creation
+- ✅ **Single Responsibility**: Each processor handles one specific agent type
+
+**Enhanced Services:**
+- ✅ **RefactoredBedrockRAGService**: Clean Bedrock service implementing `RAGServiceInterface`
+- ✅ **RefactoredRequestService**: Request service with proper dependency injection
+- ✅ **Service Abstractions**: All services extend `BaseService` with common functionality
+- ✅ **Proper Logging**: Lazy logger initialization and structured logging
+
+**Rich Domain Models:**
+- ✅ **EnhancedRequest**: Rich domain model with business logic and validation
+- ✅ **RequestStatus & ActionType**: Type-safe constants with validation
+- ✅ **Business Methods**: `is_completed()`, `get_confidence_score()`, `mark_completed()`
+- ✅ **Computed Properties**: Timeline data parsing, confidence scoring
+
+**SOLID Principles Implementation:**
+- ✅ **Single Responsibility**: Each class has one clear purpose
+- ✅ **Open/Closed**: Easy to extend without modifying existing code
+- ✅ **Liskov Substitution**: All implementations are interchangeable
+- ✅ **Interface Segregation**: Small, focused interfaces
+- ✅ **Dependency Inversion**: Depend on abstractions, not concretions
+
+**Code Quality Improvements:**
+- ✅ **Repository Cleanup**: Removed obsolete files, duplicate code, and development artifacts
+- ✅ **Proper .gitignore**: Prevents accumulation of unwanted files
+- ✅ **Documentation**: Comprehensive `REFACTORING_GUIDE.md` with migration examples
+- ✅ **Migration Script**: `migrate_to_refactored.py` for testing new architecture
+- ✅ **Backward Compatibility**: Legacy code preserved for gradual migration
+
+**Professional Standards Achieved:**
+- ✅ **Testability**: Easy to mock dependencies for unit testing
+- ✅ **Maintainability**: Clear separation of concerns and clean code structure
+- ✅ **Extensibility**: New features can be added without modifying existing code
+- ✅ **Error Handling**: Structured exception hierarchy with proper error recovery
+- ✅ **Performance**: Optimized service lifecycle management
+
+### Version 1.2.0 - October 16, 2025
 
 #### 🎨 Major UI/UX Enhancements
 
@@ -652,15 +741,21 @@ def test_complete_breakdown_workflow(self):
 - ✅ **Improved**: Bedrock RAG service with comprehensive error handling and fallbacks
 - ✅ **Optimized**: Frontend JavaScript for better user interactions and state management
 
-### Breaking Changes
+### Breaking Changes (v2.1.0)
+- ⚠️ **Architecture**: New refactored services available alongside legacy code
+- ⚠️ **Dependencies**: New core modules require proper import paths
+- ⚠️ **Service Registration**: DI container must be initialized before service usage
+
+### Migration Notes (v2.1.0)
+- 🔄 **Gradual Migration**: Legacy code preserved - migrate controllers incrementally
+- 🔄 **Service Container**: Use `container.get(ServiceClass)` for dependency injection
+- 🔄 **Testing**: New architecture provides better mocking capabilities
+- 🔄 **Error Handling**: Update exception handling to use new exception hierarchy
+
+### Legacy Breaking Changes (v1.2.0)
 - ⚠️ **Export Format Change**: Design document export changed from Excel to Word format
 - ⚠️ **Sidebar Behavior**: Sidebar state now persists across browser sessions
 - ⚠️ **Chat Interface**: Complete redesign may affect users familiar with previous layout
-
-### Migration Notes
-- 🔄 **Browser Storage**: Clear localStorage if experiencing sidebar state issues
-- 🔄 **Export Automation**: Update any automation expecting Excel exports to handle Word documents
-- 🔄 **Timeout Handling**: Test Q Agent operations with new 60-second timeout limit
 
 ## 🤝 Contributing
 
@@ -668,26 +763,33 @@ def test_complete_breakdown_workflow(self):
 1. Fork the repository
 2. Create feature branch: `git checkout -b feature/amazing-feature`
 3. Install development dependencies: `pip install -r test_requirements.txt`
-4. Run tests: `python run_tests.py --type all`
-5. Commit changes: `git commit -m 'Add amazing feature'`
-6. Push to branch: `git push origin feature/amazing-feature`
-7. Open Pull Request
+4. Test refactored architecture: `python migrate_to_refactored.py`
+5. Run tests: `python run_tests.py --type all`
+6. Commit changes: `git commit -m 'Add amazing feature'`
+7. Push to branch: `git push origin feature/amazing-feature`
+8. Open Pull Request
 
-### Code Standards
-- **Python**: Follow PEP 8 style guidelines
+### Code Standards (Updated v2.1.0)
+- **Python**: Follow PEP 8 style guidelines with type hints
+- **Architecture**: Follow SOLID principles and clean architecture patterns
+- **Dependency Injection**: Use service container for all dependencies
+- **Error Handling**: Use custom exception hierarchy
 - **JavaScript**: Use ES6+ features with proper error handling
 - **HTML/CSS**: Maintain Bootstrap 5 compatibility
-- **Testing**: Add tests for new features
-- **Documentation**: Update README for significant changes
+- **Testing**: Add tests for new features with proper mocking
+- **Documentation**: Update README and REFACTORING_GUIDE for significant changes
 
-### Development Guidelines
-- Use factory pattern for data sources
-- Implement proper error handling with fallbacks
-- Follow Flask blueprint structure for new features
-- Maintain dark theme consistency in UI changes
-- Use Q CLI agents with --no-interactive flag
-- Implement proper session management
-- Follow OOP principles throughout codebase
+### Development Guidelines (Updated v2.1.0)
+- **Clean Architecture**: Follow established patterns in `core/` and `repositories/`
+- **Dependency Injection**: Register services in `core/service_registry.py`
+- **Single Responsibility**: Each class should have one clear purpose
+- **Interface Segregation**: Create focused interfaces for new components
+- **Repository Pattern**: Use repositories for all data access
+- **Service Layer**: Keep business logic in services, not controllers
+- **Error Handling**: Use structured exceptions with proper recovery
+- **Testing**: Mock dependencies using interfaces for better unit tests
+- **Migration**: Prefer refactored services for new features
+- **Legacy Support**: Maintain backward compatibility during transition
 
 ## 📞 Support & Troubleshooting
 
@@ -727,6 +829,9 @@ python -c "from app import create_app; from models import db; app = create_app()
 # Quick health check
 ./health_check.py
 
+# Test refactored architecture
+python migrate_to_refactored.py
+
 # Detailed system check
 python run_tests.py --type health
 
@@ -754,6 +859,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ---
 
-**NexusGen Document Intelligence Hub v1.2.0**  
+**NexusGen Document Intelligence Hub v2.1.0**  
 *Built with ❤️ for intelligent document processing*  
-*Last Updated: October 16, 2025*
+*Professional-grade architecture with clean code principles*  
+*Last Updated: October 26, 2025*
