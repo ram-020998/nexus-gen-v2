@@ -11,22 +11,21 @@
                 <div class="d-flex gap-2">
                     {% if request.action_type == 'breakdown' %}
                     <a href="{{ url_for('breakdown.view_results', request_id=request.id) }}" class="btn btn-outline-secondary">
-                        <i class="fas fa-eye"></i> View Results
+                        View Results
                     </a>
                     {% endif %}
                     <button class="btn btn-outline-secondary" onclick="reprocessRequest({{ request.id }})">
                         ↻ Reprocess
                     </button>
-                    <span class="badge bg-primary fs-6">{{ request.reference_id }}</span>
                 </div>
             </div>
 
             <!-- 1. Request Information & Agent Metadata -->
             <div class="section-card mb-4">
-                <h5>📋 Request Information & Agent Metadata</h5>
                 <div class="row">
                     <div class="col-md-6">
                         <h6>Request Details</h6>
+                        <hr>
                         <div class="metadata-grid">
                             <div><strong>Type:</strong> {{ request.action_type.title() }}</div>
                             <div><strong>Status:</strong> {{ request.status.title() }}</div>
@@ -39,6 +38,7 @@
                     </div>
                     <div class="col-md-6">
                         <h6>Agent Configuration</h6>
+                        <hr>
                         <div class="metadata-grid">
                             <div><strong>Agent:</strong> {{ request.agent_name or 'N/A' }}</div>
                             <div><strong>Model:</strong> {{ request.model_name or 'N/A' }}</div>
@@ -55,8 +55,9 @@
             </div>
 
             <!-- 2. Result Confidence Indicators -->
-            <div class="section-card mb-4">
+            <!-- <div class="section-card mb-4">
                 <h5>📊 Result Confidence Indicators</h5>
+                <hr>
                 <div class="confidence-badges">
                     {% if request.rag_similarity_avg %}
                     <span class="badge bg-secondary">RAG Similarity: {{ "%.2f"|format(request.rag_similarity_avg) }} {% if request.rag_similarity_avg > 0.7 %}✅{% elif request.rag_similarity_avg > 0.4 %}⚠️{% else %}❌{% endif %}</span>
@@ -70,11 +71,12 @@
                     
                     <span class="badge bg-secondary">Error Recovery: {% if request.error_log %}Yes{% else %}No{% endif %}</span>
                 </div>
-            </div>
+            </div> -->
 
             <!-- 3. Processing Timeline -->
-            <div class="section-card mb-4">
+            <!-- <div class="section-card mb-4">
                 <h5>🧭 Processing Timeline</h5>
+                <hr>
                 {% if timeline_data %}
                 <div class="table-responsive">
                     <table class="table table-striped">
@@ -101,12 +103,13 @@
                 {% else %}
                 <p class="text-muted">No timeline data available</p>
                 {% endif %}
-            </div>
+            </div> -->
 
             <!-- 4. RAG Query & Response -->
             {% if request.rag_query or request.rag_response %}
             <div class="section-card mb-4">
                 <h5>🔍 RAG Query & Response</h5>
+                <hr>
                 {% if request.rag_query %}
                 <div class="mb-3">
                     <h6>Query Sent to Bedrock</h6>
@@ -126,23 +129,40 @@
             </div>
             {% endif %}
 
-            <!-- 5. Processed Output -->
-            {% if request.final_output %}
+            <!-- 5. Q Agent Prompt & Response -->
+            {% if request.q_agent_prompt %}
             <div class="section-card mb-4">
-                <h5>🔍 Processed Output</h5>
-                <div class="output-container">
-                    {% if request.final_output.strip().startswith('{') %}
-                        <pre class="json-output">{{ request.final_output | format_json }}</pre>
-                    {% else %}
-                        <pre>{{ request.final_output }}</pre>
-                    {% endif %}
+                <h5>🤖 Q Agent Prompt & Response</h5>
+                <hr>
+                <div class="mb-3">
+                    <h6>Prompt Sent to Q Agent</h6>
+                    <div class="output-container">
+                        <pre style="max-height: 300px; overflow-y: auto; white-space: pre-wrap; word-wrap: break-word;">{{ request.q_agent_prompt }}</pre>
+                    </div>
                 </div>
+                {% if request.raw_agent_output %}
+                <div>
+                    <h6>Raw Q Agent Output</h6>
+                    <div class="output-container">
+                        <pre style="max-height: 400px; overflow-y: auto;">{{ request.raw_agent_output }}</pre>
+                    </div>
+                </div>
+                {% endif %}
+                {% if request.final_output %}
+                <div>
+                    <br>
+                    <h6>Processed Q Agent Output</h6>
+                    <div class="output-container">
+                        {% if request.final_output.strip().startswith('{') %}
+                            <pre class="json-output">{{ request.final_output | format_json }}</pre>
+                        {% else %}
+                            <pre>{{ request.final_output }}</pre>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
             </div>
             {% endif %}
-
-
-
-
         </div>
     </div>
 </div>

@@ -20,56 +20,99 @@ class QAgentService:
             # Prepare prompt with content and Bedrock context
             prompt = self._create_breakdown_prompt(file_content, bedrock_context)
 
+            # Store the prompt in database (always store, even if Q agent fails)
+            self._update_request_field(request_id, 'q_agent_prompt', prompt)
+
             # Execute Q agent and capture output
             result = self._execute_q_agent("breakdown-agent", prompt)
+            
+            # Store raw output for debugging
+            self._update_request_field(request_id, 'raw_agent_output', result.stdout)
 
             # Parse JSON from Q agent output
             json_output = self._extract_json_from_output(result)
             if json_output:
                 return json_output
             else:
-                # Fallback to mock data if Q agent fails
+                # Log the failure reason
+                error_msg = f"Q agent JSON extraction failed. Return code: {result.returncode}"
+                self._update_request_field(request_id, 'error_log', error_msg)
                 return self._generate_fallback_breakdown()
 
-        except Exception:
+        except Exception as e:
+            # Log the actual error
+            error_msg = f"Q agent execution failed: {str(e)}"
+            self._update_request_field(request_id, 'error_log', error_msg)
             return self._generate_fallback_breakdown()
+
+    def _update_request_field(self, request_id: int, field: str, value: str):
+        """Update a specific field in the request"""
+        from models import db, Request
+        request = Request.query.get(request_id)
+        if request:
+            setattr(request, field, value)
+            db.session.commit()
 
     def process_verification(self, request_id: int, design_content: str, bedrock_context: dict) -> dict:
         """Process design verification using Q agent"""
         try:
-            output_path = self.config.OUTPUT_FOLDER / str(request_id) / "verification_data.json"
-            output_path.parent.mkdir(parents=True, exist_ok=True)
+            # Prepare prompt with content and Bedrock context
+            prompt = self._create_verification_prompt(design_content, bedrock_context)
 
-            prompt = self._create_verification_prompt(design_content, str(output_path), bedrock_context)
-            _ = self._execute_q_agent("verify-agent", prompt)
+            # Store the prompt in database (always store, even if Q agent fails)
+            self._update_request_field(request_id, 'q_agent_prompt', prompt)
 
-            if output_path.exists():
-                with open(output_path, 'r') as f:
-                    return json.load(f)
+            # Execute Q agent and capture output
+            result = self._execute_q_agent("verify-agent", prompt)
+            
+            # Store raw output for debugging
+            self._update_request_field(request_id, 'raw_agent_output', result.stdout)
+
+            # Parse JSON from Q agent output
+            json_output = self._extract_json_from_output(result)
+            if json_output:
+                return json_output
             else:
+                # Log the failure reason
+                error_msg = f"Verify agent JSON extraction failed. Return code: {result.returncode}"
+                self._update_request_field(request_id, 'error_log', error_msg)
                 return self._generate_fallback_verification()
 
-        except Exception:
+        except Exception as e:
+            # Log the actual error
+            error_msg = f"Verify agent execution failed: {str(e)}"
+            self._update_request_field(request_id, 'error_log', error_msg)
             return self._generate_fallback_verification()
 
     def process_creation(self, request_id: int, acceptance_criteria: str, bedrock_context: dict) -> dict:
         """Process design document creation using Q agent"""
         try:
-            output_path = self.config.OUTPUT_FOLDER / str(request_id) / "design_data.json"
-            output_path.parent.mkdir(parents=True, exist_ok=True)
+            # Prepare prompt with content and Bedrock context
+            prompt = self._create_creation_prompt(acceptance_criteria, bedrock_context)
 
-            prompt = self._create_creation_prompt(acceptance_criteria, str(output_path), bedrock_context)
+            # Store the prompt in database (always store, even if Q agent fails)
+            self._update_request_field(request_id, 'q_agent_prompt', prompt)
 
-            _ = self._execute_q_agent("create-agent", prompt)
+            # Execute Q agent and capture output
+            result = self._execute_q_agent("create-agent", prompt)
+            
+            # Store raw output for debugging
+            self._update_request_field(request_id, 'raw_agent_output', result.stdout)
 
-            if output_path.exists():
-                with open(output_path, 'r') as f:
-                    data = json.load(f)
-                    return data
+            # Parse JSON from Q agent output
+            json_output = self._extract_json_from_output(result)
+            if json_output:
+                return json_output
             else:
+                # Log the failure reason
+                error_msg = f"Create agent JSON extraction failed. Return code: {result.returncode}"
+                self._update_request_field(request_id, 'error_log', error_msg)
                 return self._generate_fallback_creation()
 
-        except Exception:
+        except Exception as e:
+            # Log the actual error
+            error_msg = f"Create agent execution failed: {str(e)}"
+            self._update_request_field(request_id, 'error_log', error_msg)
             return self._generate_fallback_creation()
 
     def process_chat(self, question: str, bedrock_context: dict) -> str:
@@ -119,8 +162,7 @@ class QAgentService:
             ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
             clean_output = ansi_escape.sub('', output)
             
-            # Find the JSON block - look for the complete structure
-            # The JSON starts after the ">" prompt and contains epics
+            # Find the JSON block - look for any JSON structure
             lines = clean_output.split('\n')
             json_lines = []
             in_json = False
@@ -128,7 +170,8 @@ class QAgentService:
             
             for line in lines:
                 line = line.strip()
-                if line.startswith('{') and '"epics"' in clean_output:
+                # Start JSON extraction when we find an opening brace
+                if line.startswith('{') and not in_json:
                     in_json = True
                     json_lines.append(line)
                     brace_count += line.count('{') - line.count('}')
@@ -160,7 +203,7 @@ class QAgentService:
         
         return f"""
 Here is the specification content:
-{file_content[:1000]}
+{file_content}
 
 Additional context from knowledge base:
 {context_text}
@@ -182,7 +225,7 @@ Create user stories from this specification. Return only valid JSON in this exac
 }}
 """
 
-    def _create_verification_prompt(self, design_content: str, output_path: str, bedrock_context: dict) -> str:
+    def _create_verification_prompt(self, design_content: str, bedrock_context: dict) -> str:
         """Create verification prompt with Bedrock context"""
         return f"""
 Please verify this design document content:
@@ -197,10 +240,10 @@ Analyze against existing designs and identify:
 2. Areas that need attention
 3. Recommendations based on similar designs
 
-Save the JSON output to: {output_path}
+Return only valid JSON output with verification results.
 """
 
-    def _create_creation_prompt(self, acceptance_criteria: str, output_path: str, bedrock_context: dict) -> str:
+    def _create_creation_prompt(self, acceptance_criteria: str, bedrock_context: dict) -> str:
         """Create design creation prompt with Bedrock context"""
         context_summary = bedrock_context.get('summary', 'No relevant context found')
         context_results = bedrock_context.get('results', [])
@@ -209,10 +252,10 @@ Save the JSON output to: {output_path}
         if context_results:
             context_info += f"Summary: {context_summary}\n\n"
             context_info += "Specific objects and components found:\n"
-            for i, result in enumerate(context_results[:5]):  # Show top 5 results
+            for i, result in enumerate(context_results):  # Show top 5 results
                 content = result.get('content', '')
                 if content:
-                    context_info += f"{i + 1}. {content[:300]}...\n\n"
+                    context_info += f"{i + 1}. {content}...\n\n"
         else:
             context_info += "No existing components found in knowledge base.\n"
 
@@ -232,7 +275,7 @@ INSTRUCTIONS:
 4. Only create new objects if no existing ones can handle the requirement
 5. Be specific about object names and types (Form, Rule, Service, Component, etc.)
 
-OUTPUT FORMAT: Save as JSON to {output_path} with this structure:
+OUTPUT FORMAT: Return only valid JSON with this structure:
 {{
   "design_document": {{
     "overview": "Brief description of changes needed",
