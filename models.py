@@ -32,6 +32,7 @@ class Request(db.Model):
     total_time = db.Column(db.Integer)  # Total processing time in seconds
     step_durations = db.Column(db.Text)  # JSON string of step timings
     raw_agent_output = db.Column(db.Text)  # Raw Q agent response before cleaning
+    q_agent_prompt = db.Column(db.Text)  # Prompt sent to Q agent
     rag_similarity_avg = db.Column(db.Float)  # Average RAG similarity score
     json_valid = db.Column(db.Boolean, default=True)  # JSON validity flag
     error_log = db.Column(db.Text)  # Error messages and retry attempts
