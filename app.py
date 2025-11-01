@@ -70,12 +70,14 @@ def register_blueprints(app):
     from controllers.breakdown_controller import breakdown_bp
     from controllers.verify_controller import verify_bp
     from controllers.create_controller import create_bp
+    from controllers.convert_controller import convert_bp
     from controllers.chat_controller import chat_bp
     from controllers.process_controller import process_bp
     
     app.register_blueprint(breakdown_bp)
     app.register_blueprint(verify_bp)
     app.register_blueprint(create_bp)
+    app.register_blueprint(convert_bp)
     app.register_blueprint(chat_bp)
     app.register_blueprint(process_bp)
 
@@ -85,11 +87,12 @@ def register_routes(app):
 
     @app.route('/')
     def dashboard():
-        """Dashboard with 4 action cards and statistics"""
+        """Dashboard with 5 action cards and statistics"""
         # Get statistics from database
         stats = {
             'documents_processed': Request.query.filter_by(action_type='breakdown').count(),
             'designs_created': Request.query.filter_by(action_type='create').count(),
+            'sql_converted': Request.query.filter_by(action_type='convert').count(),
             'accuracy_rate': 98  # Mock for now
         }
         return render_template('dashboard.html', stats=stats)
