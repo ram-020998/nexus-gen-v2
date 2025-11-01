@@ -361,6 +361,164 @@ Please answer the user's question based on the available context. Be helpful and
             }
         }
 
+    def process_conversion(self, request_id: int, maria_sql: str) -> str:
+        """Process SQL conversion using Q agent"""
+        try:
+            # Prepare prompt for conversion
+            prompt = self._create_conversion_prompt(maria_sql)
+
+            # Store the prompt in database
+            self._update_request_field(request_id, 'q_agent_prompt', prompt)
+
+            # Execute Q agent and capture output
+            result = self._execute_q_agent("convert-agent", prompt)
+            
+            # Store raw output for debugging
+            self._update_request_field(request_id, 'raw_agent_output', result.stdout)
+
+            # Extract Oracle SQL from output
+            oracle_sql = self._extract_sql_from_output(result)
+            if oracle_sql:
+                return oracle_sql
+            else:
+                # Log the failure reason
+                error_msg = f"Convert agent SQL extraction failed. Return code: {result.returncode}"
+                self._update_request_field(request_id, 'error_log', error_msg)
+                return self._generate_fallback_conversion(maria_sql)
+
+        except Exception as e:
+            # Log the actual error
+            error_msg = f"Convert agent execution failed: {str(e)}"
+            self._update_request_field(request_id, 'error_log', error_msg)
+            return self._generate_fallback_conversion(maria_sql)
+
+    def _create_conversion_prompt(self, maria_sql: str) -> str:
+        """Create conversion prompt with guide content"""
+        # Read the conversion guide
+        guide_content = ""
+        try:
+            guide_path = Path(self.config.BASE_DIR) / "mariaToOracleConversionGuid.md"
+            if guide_path.exists():
+                guide_content = guide_path.read_text(encoding='utf-8')
+        except Exception as e:
+            print(f"Warning: Could not read conversion guide: {e}")
+        
+        return f"""
+CONVERSION GUIDE:
+{guide_content}
+
+MARIADB SQL TO CONVERT:
+{maria_sql}
+
+INSTRUCTIONS:
+Follow the conversion guide above exactly. Convert the MariaDB SQL to Oracle format using the patterns and rules specified in the guide. Return only the converted Oracle SQL script.
+"""
+
+    def _extract_sql_from_output(self, result: subprocess.CompletedProcess) -> str:
+        """Extract SQL from Q agent output"""
+        try:
+            # Q agent outputs to stdout
+            output = result.stdout
+            
+            # Remove ANSI color codes more thoroughly
+            import re
+            # Remove all ANSI escape sequences
+            ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+            clean_output = ansi_escape.sub('', output)
+            
+            # Remove remaining color codes like '10m', 'm10m', 'mmm'
+            clean_output = re.sub(r'\d+m', '', clean_output)
+            clean_output = re.sub(r'm\d+m', '', clean_output)
+            clean_output = re.sub(r'mmm+', '', clean_output)
+            clean_output = re.sub(r'mm+', '', clean_output)
+            
+            # Split into lines and clean each line
+            lines = clean_output.split('\n')
+            sql_lines = []
+            
+            for line in lines:
+                line = line.strip()
+                # Skip empty lines and Q CLI UI elements
+                if not line or any(ui in line for ui in ['╭', '╮', '│', '━', '🤖', '🛠️', '●', '✓', 'WARNING:', 'Using tool:', 'Completed in']):
+                    continue
+                
+                # Include SQL-related lines
+                if (line.startswith('CREATE') or 
+                    line.startswith('EXECUTE') or 
+                    line.startswith('--') or
+                    'VARCHAR2' in line or 
+                    'NUMBER' in line or
+                    'TIMESTAMP' in line or
+                    'CONSTRAINT' in line or
+                    'PRIMARY KEY' in line or
+                    line.startswith(')') or
+                    line.endswith(',') or
+                    line.endswith(';')):
+                    sql_lines.append(line)
+            
+            if sql_lines:
+                return self._format_sql(sql_lines)
+            
+            # If no SQL found using filters, return cleaned output
+            return clean_output.strip() if clean_output.strip() else None
+                
+        except Exception as e:
+            print(f"SQL extraction error: {e}")
+            return None
+
+    def _format_sql(self, sql_lines: list) -> str:
+        """Format SQL lines with proper indentation and spacing"""
+        formatted_lines = []
+        indent_level = 0
+        
+        for line in sql_lines:
+            line = line.strip()
+            
+            # Decrease indent for closing parenthesis
+            if line.startswith(')'):
+                indent_level = max(0, indent_level - 1)
+            
+            # Add proper indentation
+            if line.startswith('CREATE') or line.startswith('EXECUTE') or line.startswith('--'):
+                formatted_lines.append(line)
+            else:
+                formatted_lines.append('  ' + line)
+            
+            # Increase indent after opening parenthesis
+            if line.endswith('('):
+                indent_level += 1
+            
+            # Add blank line after each statement
+            if line.endswith(';'):
+                formatted_lines.append('')
+        
+        return '\n'.join(formatted_lines).strip()
+
+    def _generate_fallback_conversion(self, maria_sql: str) -> str:
+        """Generate fallback conversion with basic Oracle patterns"""
+        # Basic conversion patterns
+        oracle_sql = maria_sql
+        
+        # Basic data type conversions
+        oracle_sql = oracle_sql.replace('INT(11)', 'NUMBER(10)')
+        oracle_sql = oracle_sql.replace('TINYINT(1)', 'NUMBER(1)')
+        oracle_sql = oracle_sql.replace('VARCHAR(', 'VARCHAR2(')
+        oracle_sql = oracle_sql.replace('DATETIME', 'TIMESTAMP')
+        oracle_sql = oracle_sql.replace('AUTO_INCREMENT', '')
+        oracle_sql = oracle_sql.replace('IF NOT EXISTS', '')
+        oracle_sql = oracle_sql.replace('`', '')
+        
+        return f"""-- Basic Oracle conversion (Q agent unavailable)
+-- Note: This is a simplified conversion. Use Q agent for complete conversion.
+
+{oracle_sql}
+
+-- Additional Oracle-specific statements would be generated by Q agent:
+-- 1. EXECUTE IMMEDIATE for table creation
+-- 2. Named constraints (table_name_PK)
+-- 3. Separate index creation
+-- 4. Sequence creation for AUTO_INCREMENT columns"""
+
     def _generate_fallback_chat_response(self, question: str) -> str:
         """Generate fallback chat response"""
         return (f"I understand you're asking about: {question}. However, I don't have specific "
