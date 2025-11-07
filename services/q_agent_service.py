@@ -13,6 +13,14 @@ class QAgentService:
 
     def __init__(self):
         self.config = Config
+        self._artifacts_context = None
+
+    @property
+    def artifacts_context(self) -> str:
+        """Lazy load application artifacts"""
+        if self._artifacts_context is None:
+            self._artifacts_context = self._load_application_artifacts()
+        return self._artifacts_context
 
     def process_breakdown(self, request_id: int, file_content: str, bedrock_context: dict) -> dict:
         """Process spec breakdown using Q agent"""
@@ -145,7 +153,7 @@ class QAgentService:
             capture_output=True,
             text=True,
             cwd=str(self.config.BASE_DIR),
-            timeout=60,  # Increased from 30 to 60 seconds
+            timeout=120,  # Increased from 60 to 120 seconds
             input='\n'  # Send newline to handle any interactive prompts
         )
 
@@ -194,19 +202,30 @@ class QAgentService:
             return None
 
     def _create_breakdown_prompt(self, file_content: str, bedrock_context: dict) -> str:
-        """Create breakdown prompt with Bedrock context"""
+        """Create breakdown prompt with Bedrock context and application artifacts"""
         # Get relevant context from Bedrock
         context_text = ""
         if bedrock_context and 'results' in bedrock_context:
             results = bedrock_context['results'][:2]  # Limit to first 2 results
-            context_text = "\n".join([r.get('content', '')[:300] for r in results])
+            context_text = "\n".join([r.get('content', '')[:200] for r in results])
+        
+        # Get artifacts information
+        artifacts_ref = self._prepare_artifacts_for_q(file_content)
         
         return f"""
+{artifacts_ref}
+
 Here is the specification content:
 {file_content}
 
 Additional context from knowledge base:
 {context_text}
+
+INSTRUCTIONS:
+1. Analyze the specification using the artifacts files referenced above
+2. Reference specific objects from the Source Selection application artifacts
+3. Consider object dependencies and relationships defined in the blueprint and lookup files
+4. Create user stories that align with existing application architecture
 
 Create user stories from this specification. Return only valid JSON in this exact format:
 {{
@@ -226,8 +245,12 @@ Create user stories from this specification. Return only valid JSON in this exac
 """
 
     def _create_verification_prompt(self, design_content: str, bedrock_context: dict) -> str:
-        """Create verification prompt with Bedrock context"""
+        """Create verification prompt with Bedrock context and application artifacts"""
+        artifacts_ref = self._prepare_artifacts_for_q(design_content)
+        
         return f"""
+{artifacts_ref}
+
 Please verify this design document content:
 
 {design_content}
@@ -235,54 +258,63 @@ Please verify this design document content:
 Bedrock Context (existing designs):
 {json.dumps(bedrock_context, indent=2)}
 
-Analyze against existing designs and identify:
+INSTRUCTIONS:
+1. Verify the design against the artifacts files referenced above
+2. Check if referenced objects exist in the blueprint and lookup files
+3. Validate object dependencies and relationships
+4. Ensure design follows existing application patterns and architecture
+
+Analyze against existing designs and artifacts to identify:
 1. Missing objects or components
 2. Areas that need attention
-3. Recommendations based on similar designs
+3. Recommendations based on similar designs and artifact patterns
 
 Return only valid JSON output with verification results.
 """
 
     def _create_creation_prompt(self, acceptance_criteria: str, bedrock_context: dict) -> str:
-        """Create design creation prompt with Bedrock context"""
+        """Create design creation prompt with Bedrock context and application artifacts"""
         context_summary = bedrock_context.get('summary', 'No relevant context found')
         context_results = bedrock_context.get('results', [])
 
-        context_info = "BEDROCK CONTEXT - EXISTING OBJECTS TO MODIFY:\n"
+        context_info = "BEDROCK CONTEXT:\n"
         if context_results:
-            context_info += f"Summary: {context_summary}\n\n"
-            context_info += "Specific objects and components found:\n"
-            for i, result in enumerate(context_results):  # Show top 5 results
+            context_info += f"Summary: {context_summary}\n"
+            for i, result in enumerate(context_results[:2]):  # Limit to 2 results
                 content = result.get('content', '')
                 if content:
-                    context_info += f"{i + 1}. {content}...\n\n"
+                    context_info += f"{i + 1}. {content[:150]}...\n"
         else:
             context_info += "No existing components found in knowledge base.\n"
 
+        # Get detailed artifacts information
+        artifacts_info = self._get_relevant_objects(acceptance_criteria)
+        artifacts_ref = self._prepare_artifacts_for_q(acceptance_criteria)
+
         return f"""
-ACCEPTANCE CRITERIA TO IMPLEMENT:
+{artifacts_ref}
+
+{artifacts_info}
+
+ACCEPTANCE CRITERIA:
 {acceptance_criteria}
 
 {context_info}
 
 INSTRUCTIONS:
-1. Based on the acceptance criteria, identify EXACTLY which objects need to be modified
-2. Use the Bedrock context to find specific component names, forms, rules, and services
-3. For each object to modify, specify:
-   - Current description/purpose
-   - Proposed changes needed
-   - New methods or properties to add
-4. Only create new objects if no existing ones can handle the requirement
-5. Be specific about object names and types (Form, Rule, Service, Component, etc.)
+1. Use the artifacts files referenced above for specific object names and types
+2. Look for existing evaluation forms, rules, and interfaces in the artifacts
+3. Reference exact object names from the Source Selection application
+4. Consider object dependencies and relationships
 
-OUTPUT FORMAT: Return only valid JSON with this structure:
+OUTPUT FORMAT: Return only valid JSON:
 {{
   "design_document": {{
     "overview": "Brief description of changes needed",
     "existing_objects_to_modify": [
       {{
-        "name": "Exact object name from context",
-        "type": "Object type (Form/Rule/Service/etc)",
+        "name": "Exact object name from artifacts",
+        "type": "Object type",
         "current_description": "What it currently does",
         "proposed_changes": "Specific changes needed",
         "new_methods": ["method1", "method2"]
@@ -291,7 +323,7 @@ OUTPUT FORMAT: Return only valid JSON with this structure:
     "new_objects": [
       {{
         "name": "New object name",
-        "type": "Object type",
+        "type": "Object type", 
         "description": "Purpose and functionality",
         "methods": ["method1", "method2"]
       }}
@@ -303,14 +335,24 @@ OUTPUT FORMAT: Return only valid JSON with this structure:
 """
 
     def _create_chat_prompt(self, question: str, bedrock_context: dict) -> str:
-        """Create chat prompt with Bedrock context"""
+        """Create chat prompt with Bedrock context and application artifacts"""
+        artifacts_ref = self._prepare_artifacts_for_q(question)
+        
         return f"""
+{artifacts_ref}
+
 User Question: {question}
 
 Bedrock Context (relevant documents):
 {json.dumps(bedrock_context, indent=2)}
 
-Please answer the user's question based on the available context. Be helpful and conversational.
+INSTRUCTIONS:
+1. Answer using information from the artifacts files referenced above
+2. Reference specific objects, dependencies, and relationships from the artifacts when relevant
+3. Provide detailed technical information based on the blueprint and lookup files
+4. Be helpful and conversational while being technically accurate
+
+Please answer the user's question based on the available context and artifacts.
 """
 
     def _generate_fallback_breakdown(self) -> dict:
@@ -525,7 +567,220 @@ Follow the conversion guide above exactly. Convert the MariaDB SQL to Oracle for
                 "information available in the knowledge base to provide a detailed answer. "
                 "Could you try rephrasing your question or provide more context?")
 
+    def _load_application_artifacts(self) -> str:
+        """Load application artifacts for object definitions and dependencies"""
+        try:
+            artifacts_dir = Path(self.config.BASE_DIR) / "applicationArtifacts" / "Source Selection"
+            blueprint_file = artifacts_dir / "SourceSelectionv2.6.0_blueprint.json"
+            lookup_file = artifacts_dir / "SourceSelectionv2.6.0_object_lookup.json"
+            
+            artifacts_info = "APPLICATION ARTIFACTS - SOURCE SELECTION v2.6.0:\n"
+            
+            if blueprint_file.exists():
+                with open(blueprint_file, 'r', encoding='utf-8') as f:
+                    blueprint_data = json.load(f)
+                    
+                    # Add sample rule names if available
+                    if 'rules' in blueprint_data and blueprint_data['rules']:
+                        sample_rules = [rule.get('name', 'Unnamed') for rule in blueprint_data['rules'][:3]]
+                        artifacts_info += f"Sample Rules: {', '.join(sample_rules)}\n"
+            
+            if lookup_file.exists():
+                with open(lookup_file, 'r', encoding='utf-8') as f:
+                    lookup_data = json.load(f)
+                    
+                    # Get sample objects by type
+                    sample_objects = {}
+                    for obj_id, obj_data in list(lookup_data.items())[:50]:  # Sample first 50
+                        obj_type = obj_data.get('object_type', 'Unknown')
+                        obj_name = obj_data.get('name', 'Unnamed')
+                        
+                        if obj_type not in sample_objects:
+                            sample_objects[obj_type] = []
+                        if len(sample_objects[obj_type]) < 2:
+                            sample_objects[obj_type].append(obj_name)
+                    
+                    # Add key object types
+                    for obj_type in ['Expression Rule', 'Interface', 'Constant']:
+                        if obj_type in sample_objects:
+                            artifacts_info += f"{obj_type}s: {', '.join(sample_objects[obj_type])}\n"
+            
+            artifacts_info += "Use these artifacts for specific object names and relationships.\n"
+            return artifacts_info
+            
+        except Exception as e:
+            return f"APPLICATION ARTIFACTS: Error loading - {str(e)}\n"
+
+    def _get_relevant_objects(self, query_text: str, max_objects: int = 10) -> str:
+        """Get relevant objects from artifacts based on query text"""
+        try:
+            artifacts_dir = Path(self.config.BASE_DIR) / "applicationArtifacts" / "Source Selection"
+            lookup_file = artifacts_dir / "SourceSelectionv2.6.0_object_lookup.json"
+            blueprint_file = artifacts_dir / "SourceSelectionv2.6.0_blueprint.json"
+            
+            result = "DETAILED ARTIFACTS INFORMATION:\n\n"
+            
+            # Get relevant objects from lookup
+            if lookup_file.exists():
+                with open(lookup_file, 'r', encoding='utf-8') as f:
+                    lookup_data = json.load(f)
+                
+                keywords = ['evaluation', 'create', 'form', 'settings', 'award', 'type'] + query_text.lower().split()
+                relevant_objects = []
+                
+                for obj_id, obj_data in lookup_data.items():
+                    obj_name = obj_data.get('name', '').lower()
+                    obj_desc = obj_data.get('description', '').lower()
+                    
+                    if any(keyword in obj_name or keyword in obj_desc for keyword in keywords):
+                        relevant_objects.append({
+                            'name': obj_data.get('name', 'Unnamed'),
+                            'type': obj_data.get('object_type', 'Unknown'),
+                            'description': obj_data.get('description', 'No description')
+                        })
+                    
+                    if len(relevant_objects) >= max_objects:
+                        break
+                
+                if relevant_objects:
+                    result += "RELEVANT OBJECTS FROM LOOKUP:\n"
+                    for obj in relevant_objects:
+                        result += f"- {obj['name']} ({obj['type']})\n"
+                        result += f"  Description: {obj['description'][:150]}...\n\n"
+            
+            # Get relevant rules from blueprint
+            if blueprint_file.exists():
+                with open(blueprint_file, 'r', encoding='utf-8') as f:
+                    blueprint_data = json.load(f)
+                
+                if 'rules' in blueprint_data:
+                    result += "RELEVANT RULES FROM BLUEPRINT:\n"
+                    rule_count = 0
+                    for rule in blueprint_data['rules']:
+                        rule_name = rule.get('name', '').lower()
+                        if any(keyword in rule_name for keyword in ['evaluation', 'create', 'form', 'settings']):
+                            result += f"- {rule.get('name', 'Unnamed Rule')}\n"
+                            if 'description' in rule:
+                                result += f"  Description: {rule['description'][:100]}...\n"
+                            result += "\n"
+                            rule_count += 1
+                            if rule_count >= 5:
+                                break
+                
+                if 'interfaces' in blueprint_data:
+                    result += "RELEVANT INTERFACES FROM BLUEPRINT:\n"
+                    interface_count = 0
+                    for interface in blueprint_data['interfaces']:
+                        interface_name = interface.get('name', '').lower()
+                        if any(keyword in interface_name for keyword in ['evaluation', 'create', 'form', 'settings']):
+                            result += f"- {interface.get('name', 'Unnamed Interface')}\n"
+                            if 'description' in interface:
+                                result += f"  Description: {interface['description'][:100]}...\n"
+                            result += "\n"
+                            interface_count += 1
+                            if interface_count >= 5:
+                                break
+            
+            return result
+            
+        except Exception as e:
+            return f"ARTIFACTS ERROR: {str(e)}\n"
+
+    def _prepare_artifacts_for_q(self, query_text: str) -> str:
+        """Prepare artifacts information in a format Q can access"""
+        try:
+            artifacts_dir = Path(self.config.BASE_DIR) / "applicationArtifacts" / "Source Selection"
+            
+            # Create a summary file for Q to reference
+            summary_content = f"""SOURCE SELECTION APPLICATION ARTIFACTS SUMMARY
+
+BLUEPRINT FILE: {artifacts_dir}/SourceSelectionv2.6.0_blueprint.json
+LOOKUP FILE: {artifacts_dir}/SourceSelectionv2.6.0_object_lookup.json
+
+KEY EVALUATION-RELATED OBJECTS TO REFERENCE:
+"""
+            
+            # Add specific objects from lookup
+            lookup_file = artifacts_dir / "SourceSelectionv2.6.0_object_lookup.json"
+            if lookup_file.exists():
+                with open(lookup_file, 'r', encoding='utf-8') as f:
+                    lookup_data = json.load(f)
+                
+                eval_objects = []
+                for obj_id, obj_data in lookup_data.items():
+                    obj_name = obj_data.get('name', '').lower()
+                    if 'evaluation' in obj_name or 'create' in obj_name or 'form' in obj_name:
+                        eval_objects.append({
+                            'name': obj_data.get('name'),
+                            'type': obj_data.get('object_type'),
+                            'description': obj_data.get('description', '')[:200]
+                        })
+                    if len(eval_objects) >= 15:
+                        break
+                
+                for obj in eval_objects:
+                    summary_content += f"\n{obj['name']} ({obj['type']})\n"
+                    summary_content += f"Description: {obj['description']}\n"
+            
+            # Write to temp file
+            temp_file = Path(self.config.BASE_DIR) / "temp_artifacts_summary.txt"
+            with open(temp_file, 'w', encoding='utf-8') as f:
+                f.write(summary_content)
+            
+            return f"ARTIFACTS REFERENCE: See {temp_file} for detailed object information.\n"
+            
+        except Exception as e:
+            return f"ARTIFACTS PREP ERROR: {str(e)}\n"
+
     def _clean_response(self, response: str) -> str:
+        """Clean ANSI codes and unwanted characters from response"""
+        import re
+        
+        # Remove ANSI color codes
+        ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+        cleaned = ansi_escape.sub('', response)
+        
+        # Remove Q CLI UI elements and formatting
+        cleaned = re.sub(r'╭[─]*.*?╮', '', cleaned, flags=re.DOTALL)  # Remove boxes
+        cleaned = re.sub(r'━[━]*', '', cleaned)  # Remove horizontal lines
+        cleaned = re.sub(r'│.*?│', '', cleaned)  # Remove box content
+        cleaned = re.sub(r'/help.*?fuzzy search', '', cleaned)  # Remove help text
+        cleaned = re.sub(r'WARNING:.*?allowedPaths.*?\]', '', cleaned)  # Remove warnings
+        cleaned = re.sub(r'🤖.*?claude-sonnet-4', '', cleaned)  # Remove model info
+        cleaned = re.sub(r'🛠️.*?Using tool:.*?fs_read.*?trusted', '', cleaned)  # Remove tool usage
+        cleaned = re.sub(r'●.*?Completed in.*?s', '', cleaned)  # Remove completion info
+        cleaned = re.sub(r'✓.*?Successfully.*?entries?\)', '', cleaned)  # Remove success messages
+        cleaned = re.sub(r'> ', '', cleaned)  # Remove prompt markers
+        
+        # Extract the actual response content (usually after the last tool usage)
+        lines = cleaned.split('\n')
+        content_lines = []
+        capturing = False
+        
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+            # Start capturing after we see actual content (not UI elements)
+            if any(keyword in line.lower() for keyword in ['nexusgen', 'based on', 'here\'s what', 'document intelligence']):
+                capturing = True
+            if capturing and line and not any(ui_element in line for ui_element in ['⋮', '●', '✓', '🛠️', '🤖']):
+                content_lines.append(line)
+        
+        if content_lines:
+            cleaned = ' '.join(content_lines)
+        else:
+            # Fallback: just clean up the text
+            cleaned = ' '.join(cleaned.split())
+        
+        # Final cleanup
+        cleaned = cleaned.replace('mm mm', ' ')
+        cleaned = cleaned.replace('10m"', '"')
+        cleaned = cleaned.replace('m.mm', '.')
+        cleaned = cleaned.replace('mm', '')
+        cleaned = ' '.join(cleaned.split())
+        
+        return cleaned
         """Clean ANSI codes and unwanted characters from response"""
         import re
         
