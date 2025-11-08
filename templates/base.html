@@ -25,29 +25,33 @@
             </div>
             
             <div class="sidebar-menu">
-                <a href="{{ url_for('dashboard') }}" class="menu-item {% if request.endpoint == 'dashboard' %}active{% endif %}">
+                <a href="{{ url_for('dashboard') }}" class="menu-item">
                     <i class="fas fa-home"></i>
                     <span>Dashboard</span>
                 </a>
-                <!-- <a href="{{ url_for('breakdown.index') }}" class="menu-item {% if request.endpoint == 'breakdown.index' %}active{% endif %}">
+                <!-- <a href="{{ url_for('breakdown.index') }}" class="menu-item">
                     <i class="fas fa-upload"></i>
                     <span>Spec Breakdown</span>
                 </a>
-                <a href="{{ url_for('create.index') }}" class="menu-item {% if request.endpoint == 'create.index' %}active{% endif %}">
+                <a href="{{ url_for('create.index') }}" class="menu-item">
                     <i class="fas fa-file-alt"></i>
                     <span>Create Design Doc</span>
                 </a>
-                <a href="{{ url_for('verify.index') }}" class="menu-item {% if request.endpoint == 'verify.index' %}active{% endif %}">
+                <a href="{{ url_for('verify.index') }}" class="menu-item">
                     <i class="fas fa-check-circle"></i>
                     <span>Review Design Doc</span>
                 </a>
-                <a href="{{ url_for('chat.index') }}" class="menu-item {% if request.endpoint == 'chat.index' %}active{% endif %}">
+                <a href="{{ url_for('chat.index') }}" class="menu-item">
                     <i class="fas fa-comments"></i>
                     <span>AI Chat</span>
                 </a> -->
-                <a href="{{ url_for('process.history') }}" class="menu-item {% if request.endpoint == 'process.history' %}active{% endif %}">
+                <a href="{{ url_for('process.history') }}" class="menu-item">
                     <i class="fas fa-history"></i>
                     <span>Process History</span>
+                </a>
+                <a href="{{ url_for('analyzer.analyzer_home') }}" class="menu-item">
+                    <i class="fas fa-search"></i>
+                    <span>Appian Analyzer</span>
                 </a>
             </div>
             

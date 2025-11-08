@@ -1,0 +1,793 @@
+{% extends "base.html" %}
+
+{% block title %}Object Details - {{ object_data.name }}{% endblock %}
+
+{% block page_title %}Object Details{% endblock %}
+{% block page_subtitle %}{{ object_data.name }} ({{ object_data.type }}){% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h4>{{ object_data.name }}</h4>
+                <span class="badge bg-{{ object_data.change_type | lower == 'added' and 'success' or object_data.change_type | lower == 'removed' and 'danger' or 'warning' }} fs-6">
+                    {{ object_data.change_type }}
+                </span>
+            </div>
+            <button class="btn btn-secondary" onclick="window.close()">
+                <i class="fas fa-times"></i> Close
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Basic Information -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="details-panel">
+            <div class="panel-header">
+                <div class="panel-icon">
+                    <i class="fas fa-info-circle"></i>
+                </div>
+                <h5>Basic Information</h5>
+            </div>
+            <div class="panel-content">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Name:</strong> {{ object_data.name }}</p>
+                        <p><strong>Type:</strong> {{ object_data.type }}</p>
+                        <p><strong>Category:</strong> {{ object_data.category.replace('_', ' ').title() if object_data.category else 'N/A' }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Change Type:</strong> 
+                            <span class="badge bg-{{ object_data.change_type | lower == 'added' and 'success' or object_data.change_type | lower == 'removed' and 'danger' or 'warning' }}">
+                                {{ object_data.change_type }}
+                            </span>
+                        </p>
+                        <p><strong>UUID:</strong> {{ object_data.uuid }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Changes Made -->
+{% if object_data.changes %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="details-panel">
+            <div class="panel-header">
+                <div class="panel-icon bg-warning">
+                    <i class="fas fa-list"></i>
+                </div>
+                <h5>Changes Made</h5>
+            </div>
+            <div class="panel-content">
+                <ul class="change-list">
+                    {% for change in object_data.changes %}
+                    <li>{{ change }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- SAIL Code Comparison -->
+{% if object_data.sail_code_before or object_data.sail_code_after %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="details-panel">
+            <div class="panel-header">
+                <div class="panel-icon bg-info">
+                    <i class="fas fa-code"></i>
+                </div>
+                <h5>SAIL Code Comparison</h5>
+            </div>
+            <div class="panel-content">
+                {% if object_data.sail_code_before and object_data.sail_code_after %}
+                <div class="side-by-side-diff">
+                    <div class="diff-header-bar">
+                        <span class="diff-file-header">
+                            <i class="fas fa-file-code"></i> {{ object_data.name }}
+                        </span>
+                    </div>
+                    <div class="diff-container">
+                        <div class="diff-side">
+                            <div class="diff-side-header removed">
+                                <i class="fas fa-minus"></i> Before
+                            </div>
+                            <div class="diff-content-side" id="beforeCode">{{ object_data.sail_code_before }}</div>
+                        </div>
+                        <div class="diff-side">
+                            <div class="diff-side-header added">
+                                <i class="fas fa-plus"></i> After
+                            </div>
+                            <div class="diff-content-side" id="afterCode">{{ object_data.sail_code_after }}</div>
+                        </div>
+                    </div>
+                </div>
+                {% elif object_data.sail_code_after %}
+                <div class="side-by-side-diff">
+                    <div class="diff-header-bar added-file">
+                        <span class="diff-file-header">
+                            <i class="fas fa-plus"></i> {{ object_data.name }} (Added)
+                        </span>
+                    </div>
+                    <div class="diff-content-side single added" id="addedCodeSide">{{ object_data.sail_code_after }}</div>
+                </div>
+                {% elif object_data.sail_code_before %}
+                <div class="side-by-side-diff">
+                    <div class="diff-header-bar removed-file">
+                        <span class="diff-file-header">
+                            <i class="fas fa-minus"></i> {{ object_data.name }} (Removed)
+                        </span>
+                    </div>
+                    <div class="diff-content-side single removed" id="removedCodeSide">{{ object_data.sail_code_before }}</div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    function createSideBySideDiff(beforeText, afterText) {
+        console.log('Creating diff for:', beforeText.length, 'vs', afterText.length, 'characters');
+        const beforeLines = beforeText.split('\n');
+        const afterLines = afterText.split('\n');
+        console.log('Lines:', beforeLines.length, 'vs', afterLines.length);
+        
+        const diff = computeSideBySideDiff(beforeLines, afterLines);
+        console.log('Diff result:', diff);
+        
+        return {
+            before: createSideHTML(diff.before, 'before'),
+            after: createSideHTML(diff.after, 'after')
+        };
+    }
+    
+    function computeSideBySideDiff(beforeLines, afterLines) {
+        const beforeResult = [];
+        const afterResult = [];
+
+        const maxLength = Math.max(beforeLines.length, afterLines.length);
+        for (let i = 0; i < maxLength; i++) {
+            const b = beforeLines[i] ?? "";
+            const a = afterLines[i] ?? "";
+            if (b === a) {
+                beforeResult.push({ type: 'context', content: b, lineNum: i + 1 });
+                afterResult.push({ type: 'context', content: a, lineNum: i + 1 });
+            } else {
+                beforeResult.push({ type: b ? 'removed' : 'empty', content: b, lineNum: b ? i + 1 : '' });
+                afterResult.push({ type: a ? 'added' : 'empty', content: a, lineNum: a ? i + 1 : '' });
+            }
+        }
+
+        // Pad both sides equally
+        const total = Math.max(beforeResult.length, afterResult.length);
+        while (beforeResult.length < total) beforeResult.push({ type: 'empty', content: '', lineNum: '' });
+        while (afterResult.length < total) afterResult.push({ type: 'empty', content: '', lineNum: '' });
+
+        return { before: beforeResult, after: afterResult };
+    }
+    
+    function computeLCS(beforeLines, afterLines) {
+        // Use Myers diff algorithm for better line alignment
+        return myersDiff(beforeLines, afterLines);
+    }
+    
+    function myersDiff(a, b) {
+        try {
+            const N = a.length;
+            const M = b.length;
+            
+            // Fallback to simple diff for very large inputs
+            if (N + M > 1000) {
+                return simpleDiff(a, b);
+            }
+            
+            const MAX = N + M;
+            const v = {};
+            const trace = [];
+            
+            v[1] = 0;
+            
+            for (let d = 0; d <= MAX; d++) {
+                trace.push({...v});
+                
+                for (let k = -d; k <= d; k += 2) {
+                    let x;
+                    if (k === -d || (k !== d && v[k - 1] < v[k + 1])) {
+                        x = v[k + 1];
+                    } else {
+                        x = v[k - 1] + 1;
+                    }
+                    
+                    let y = x - k;
+                    
+                    while (x < N && y < M && a[x] === b[y]) {
+                        x++;
+                        y++;
+                    }
+                    
+                    v[k] = x;
+                    
+                    if (x >= N && y >= M) {
+                        return buildPath(trace, a, b, d);
+                    }
+                }
+            }
+            
+            return simpleDiff(a, b);
+        } catch (e) {
+            console.error('Myers diff failed:', e);
+            return simpleDiff(a, b);
+        }
+    }
+    
+    function simpleDiff(a, b) {
+        const result = [];
+        const maxLen = Math.max(a.length, b.length);
+        
+        for (let i = 0; i < maxLen; i++) {
+            if (i < a.length && i < b.length) {
+                if (a[i] === b[i]) {
+                    result.push({ type: 'equal', value: a[i] });
+                } else {
+                    result.push({ type: 'delete', value: a[i] });
+                    result.push({ type: 'insert', value: b[i] });
+                }
+            } else if (i < a.length) {
+                result.push({ type: 'delete', value: a[i] });
+            } else {
+                result.push({ type: 'insert', value: b[i] });
+            }
+        }
+        
+        return result;
+    }
+    
+    function buildPath(trace, a, b, d) {
+        const path = [];
+        let x = a.length;
+        let y = b.length;
+        
+        for (let i = d; i >= 0; i--) {
+            const v = trace[i];
+            const k = x - y;
+            
+            let prevK;
+            if (k === -i || (k !== i && v[k - 1] < v[k + 1])) {
+                prevK = k + 1;
+            } else {
+                prevK = k - 1;
+            }
+            
+            const prevX = v[prevK];
+            const prevY = prevX - prevK;
+            
+            while (x > prevX && y > prevY) {
+                path.unshift({ type: 'equal', value: a[x - 1] });
+                x--;
+                y--;
+            }
+            
+            if (i > 0) {
+                if (x > prevX) {
+                    path.unshift({ type: 'delete', value: a[x - 1] });
+                    x--;
+                } else {
+                    path.unshift({ type: 'insert', value: b[y - 1] });
+                    y--;
+                }
+            }
+        }
+        
+        return path;
+    }
+    
+    function createSideHTML(lines, side) {
+        let html = '<div class="diff-side-table">';
+        
+        lines.forEach(line => {
+            let lineClass = '';
+            let prefix = '';
+            
+            if (line.type === 'removed') {
+                lineClass = 'diff-line-removed';
+                prefix = '-';
+            } else if (line.type === 'added') {
+                lineClass = 'diff-line-added';
+                prefix = '+';
+            } else if (line.type === 'empty') {
+                lineClass = 'diff-line-empty';
+            } else {
+                lineClass = 'diff-line-context';
+            }
+            
+            html += `
+                <div class="diff-row ${lineClass}">
+                    <span class="line-num">${line.lineNum}</span>
+                    <span class="line-prefix">${prefix}</span>
+                    <span class="line-content">${escapeHtml(line.content)}</span>
+                </div>
+            `;
+        });
+        
+        html += '</div>';
+        return html;
+    }
+    
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    function decodeHtml(html) {
+        const div = document.createElement('div');
+        div.innerHTML = html;
+        return div.textContent || div.innerText || '';
+    }
+    
+    // Apply side-by-side diff
+    const beforeCode = document.getElementById('beforeCode');
+    const afterCode = document.getElementById('afterCode');
+    
+    if (beforeCode && afterCode) {
+        // Decode HTML entities first
+        const beforeText = decodeHtml(beforeCode.innerHTML);
+        const afterText = decodeHtml(afterCode.innerHTML);
+        
+        const diff = createSideBySideDiff(beforeText, afterText);
+        
+        beforeCode.innerHTML = diff.before;
+        afterCode.innerHTML = diff.after;
+        
+        // Synchronize scrolling between both sides
+        const beforeContainer = beforeCode.closest('.diff-content-side');
+        const afterContainer = afterCode.closest('.diff-content-side');
+        
+        if (beforeContainer && afterContainer) {
+            beforeContainer.addEventListener('scroll', function() {
+                afterContainer.scrollTop = this.scrollTop;
+            });
+            
+            afterContainer.addEventListener('scroll', function() {
+                beforeContainer.scrollTop = this.scrollTop;
+            });
+        }
+    }
+    
+    // Handle single code blocks
+    const addedCodeSide = document.getElementById('addedCodeSide');
+    const removedCodeSide = document.getElementById('removedCodeSide');
+    
+    if (addedCodeSide) {
+        const lines = decodeHtml(addedCodeSide.innerHTML).split('\n');
+        let html = '<div class="diff-side-table">';
+        lines.forEach((line, index) => {
+            html += `
+                <div class="diff-row diff-line-added">
+                    <span class="line-num">${index + 1}</span>
+                    <span class="line-prefix">+</span>
+                    <span class="line-content">${escapeHtml(line)}</span>
+                </div>
+            `;
+        });
+        html += '</div>';
+        addedCodeSide.innerHTML = html;
+    }
+    
+    if (removedCodeSide) {
+        const lines = decodeHtml(removedCodeSide.innerHTML).split('\n');
+        let html = '<div class="diff-side-table">';
+        lines.forEach((line, index) => {
+            html += `
+                <div class="diff-row diff-line-removed">
+                    <span class="line-num">${index + 1}</span>
+                    <span class="line-prefix">-</span>
+                    <span class="line-content">${escapeHtml(line)}</span>
+                </div>
+            `;
+        });
+        html += '</div>';
+        removedCodeSide.innerHTML = html;
+    }
+});
+</script>
+{% endif %}
+
+<style>
+.details-panel {
+    background: var(--bg-card);
+    border-radius: 12px;
+    border: 1px solid #374151;
+    margin-bottom: 1.5rem;
+}
+
+.panel-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1.5rem 1.5rem 0;
+    flex-shrink: 0;
+}
+
+.panel-icon {
+    width: 32px;
+    height: 32px;
+    background: rgba(16, 185, 129, 0.2);
+    color: var(--emerald);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.panel-icon.bg-warning {
+    background: rgba(245, 158, 11, 0.2);
+    color: #f59e0b;
+}
+
+.panel-icon.bg-info {
+    background: rgba(59, 130, 246, 0.2);
+    color: #3b82f6;
+}
+
+.panel-content {
+    padding: 1rem 1.5rem 1.5rem;
+}
+
+.change-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.change-list li {
+    padding: 0.75rem 0;
+    border-bottom: 1px solid #374151;
+    color: var(--text-secondary);
+}
+
+.change-list li:last-child {
+    border-bottom: none;
+}
+
+.code-comparison-block {
+    background: var(--bg-primary);
+    border: 1px solid #374151;
+    border-radius: 8px;
+    padding: 0;
+    margin-bottom: 1rem;
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.code-comparison-block.old-code {
+    border-left: 4px solid #ef4444;
+}
+
+.code-comparison-block.new-code {
+    border-left: 4px solid #22c55e;
+}
+
+.code-comparison-block pre {
+    margin: 0;
+    padding: 1.5rem;
+    font-family: 'Courier New', monospace;
+    font-size: 0.875rem;
+    color: var(--text-primary);
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    background: transparent;
+    border: none;
+}
+
+.side-by-side-diff {
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    overflow: hidden;
+    font-family: 'SFMono-Regular', 'Consolas', 'Liberation Mono', 'Menlo', monospace;
+}
+
+.diff-header-bar {
+    background: #21262d;
+    padding: 8px 16px;
+    border-bottom: 1px solid #30363d;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.diff-header-bar.added-file {
+    background: rgba(46, 160, 67, 0.15);
+}
+
+.diff-header-bar.removed-file {
+    background: rgba(248, 81, 73, 0.15);
+}
+
+.diff-file-header {
+    color: #f0f6fc;
+}
+
+.diff-container {
+    display: flex;
+    background: #0d1117;
+}
+
+.diff-side {
+    flex: 1;
+    border-right: 1px solid #30363d;
+}
+
+.diff-side:last-child {
+    border-right: none;
+}
+
+.diff-side-header {
+    background: #21262d;
+    padding: 8px 16px;
+    border-bottom: 1px solid #30363d;
+    font-weight: 600;
+    font-size: 12px;
+}
+
+.diff-side-header.removed {
+    background: rgba(248, 81, 73, 0.15);
+    color: #f85149;
+}
+
+.diff-side-header.added {
+    background: rgba(46, 160, 67, 0.15);
+    color: #3fb950;
+}
+
+.diff-content-side {
+    background: #0d1117;
+    max-height: 600px;
+    overflow: auto;
+}
+
+.diff-content-side.single {
+    border-radius: 6px;
+    border: 1px solid #30363d;
+}
+
+.diff-side-table {
+    width: 100%;
+    font-size: 12px;
+    line-height: 20px;
+}
+
+.diff-row {
+    display: flex;
+    width: 100%;
+}
+
+.diff-row:hover {
+    background: rgba(56, 139, 253, 0.1);
+}
+
+.line-num {
+    color: #7d8590;
+    text-align: right;
+    padding: 0 8px;
+    min-width: 40px;
+    user-select: none;
+    background: #0d1117;
+    border-right: 1px solid #21262d;
+}
+
+.line-prefix {
+    color: #f0f6fc;
+    padding: 0 8px;
+    min-width: 20px;
+    user-select: none;
+    font-weight: bold;
+}
+
+.line-content {
+    color: #f0f6fc;
+    padding: 0 8px;
+    flex: 1;
+    white-space: pre;
+    word-wrap: break-word;
+}
+
+.diff-line-removed {
+    background: rgba(248, 81, 73, 0.15);
+}
+
+.diff-line-removed .line-num {
+    background: rgba(248, 81, 73, 0.15);
+}
+
+.diff-line-removed .line-prefix {
+    color: #f85149;
+}
+
+.diff-line-removed .line-content {
+    background: rgba(248, 81, 73, 0.15);
+}
+
+.diff-line-added {
+    background: rgba(46, 160, 67, 0.15);
+}
+
+.diff-line-added .line-num {
+    background: rgba(46, 160, 67, 0.15);
+}
+
+.diff-line-added .line-prefix {
+    color: #3fb950;
+}
+
+.diff-line-added .line-content {
+    background: rgba(46, 160, 67, 0.15);
+}
+
+.diff-line-context .line-content {
+    background: #0d1117;
+}
+
+.diff-line-empty {
+    background: #0d1117;
+    opacity: 0.3;
+}
+
+.diff-line-empty .line-content {
+    background: #0d1117;
+    min-height: 20px;
+}
+
+.diff-container {
+    display: flex;
+    gap: 1px;
+    background: #374151;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.diff-side {
+    flex: 1;
+    background: var(--bg-primary);
+}
+
+.diff-header {
+    padding: 0.75rem 1rem;
+    margin: 0;
+    font-size: 0.875rem;
+    font-weight: 600;
+    border-bottom: 1px solid #374151;
+}
+
+.diff-header.removed {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+}
+
+.diff-header.added {
+    background: rgba(34, 197, 94, 0.1);
+    color: #22c55e;
+}
+
+.diff-content {
+    font-family: 'Courier New', monospace;
+    font-size: 0.875rem;
+    line-height: 1.4;
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.diff-content.single {
+    border-radius: 8px;
+    border: 1px solid #374151;
+}
+
+.diff-content.single.added {
+    background: rgba(34, 197, 94, 0.05);
+}
+
+.diff-content.single.removed {
+    background: rgba(239, 68, 68, 0.05);
+}
+
+.diff-lines {
+    display: table;
+    width: 100%;
+}
+
+.diff-line {
+    display: table-row;
+}
+
+.diff-line-removed {
+    background: rgba(239, 68, 68, 0.1);
+}
+
+.diff-line-added {
+    background: rgba(34, 197, 94, 0.1);
+}
+
+.line-number {
+    display: table-cell;
+    padding: 0.25rem 0.75rem;
+    text-align: right;
+    color: #6b7280;
+    background: rgba(0, 0, 0, 0.2);
+    border-right: 1px solid #374151;
+    user-select: none;
+    width: 60px;
+    vertical-align: top;
+}
+
+.line-content {
+    display: table-cell;
+    padding: 0.25rem 0.75rem;
+    color: var(--text-primary);
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    vertical-align: top;
+}
+
+.diff-line-removed .line-content {
+    color: #fca5a5;
+}
+
+.diff-line-added .line-content {
+    color: #86efac;
+}
+
+/* --- FIX: Keep diff sides aligned --- */
+.diff-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr; /* equal width sides */
+    background: #0d1117;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.diff-side {
+    border-right: 1px solid #30363d;
+    overflow: hidden;
+}
+
+.diff-side:last-child {
+    border-right: none;
+}
+
+.diff-side-table {
+    display: grid;
+}
+
+.diff-row {
+    display: grid;
+    grid-template-columns: 60px 20px 1fr; /* line number, prefix, content */
+    align-items: start;
+    min-height: 20px;
+}
+
+.diff-row .line-content {
+    white-space: pre;       /* keep code aligned */
+    font-family: monospace;
+}
+
+.diff-content-side {
+    max-height: 600px;
+    overflow-y: scroll;
+    scrollbar-width: thin;
+}
+
+.diff-side-table > .diff-row {
+    box-sizing: border-box;
+}
+
+</style>
+{% endblock %}

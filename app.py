@@ -73,6 +73,7 @@ def register_blueprints(app):
     from controllers.convert_controller import convert_bp
     from controllers.chat_controller import chat_bp
     from controllers.process_controller import process_bp
+    from controllers.analyzer_controller import analyzer_bp
     
     app.register_blueprint(breakdown_bp)
     app.register_blueprint(verify_bp)
@@ -80,6 +81,7 @@ def register_blueprints(app):
     app.register_blueprint(convert_bp)
     app.register_blueprint(chat_bp)
     app.register_blueprint(process_bp)
+    app.register_blueprint(analyzer_bp)
 
 
 def register_routes(app):

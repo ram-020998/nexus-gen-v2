@@ -314,6 +314,10 @@ body {
     background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
 }
 
+.action-card.analyzer::before {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+}
+
 .action-card:hover {
     transform: translateY(-2px);
     box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
@@ -359,6 +363,11 @@ body {
     color: white;
 }
 
+.action-card.analyzer .card-icon {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+}
+
 .card-title {
     font-size: 1.25rem;
     font-weight: 600;
@@ -401,6 +410,10 @@ body {
 
 .action-card.convert .card-action {
     color: #f59e0b;
+}
+
+.action-card.analyzer .card-action {
+    color: #10b981;
 }
 
 /* Statistics */

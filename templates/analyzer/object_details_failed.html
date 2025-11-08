@@ -1,0 +1,230 @@
+{% extends "base.html" %}
+
+{% block title %}{{ object_data.name }} - Object Details{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="details-panel">
+                <div class="details-header">
+                    <h2>{{ object_data.name }}</h2>
+                    <span class="object-type">{{ object_data.type }}</span>
+                </div>
+                
+                <div class="details-content">
+                    <div class="info-section">
+                        <h4>Object Information</h4>
+                        <div class="info-grid">
+                            <div class="info-item">
+                                <strong>UUID:</strong> {{ object_data.uuid }}
+                            </div>
+                            <div class="info-item">
+                                <strong>Type:</strong> {{ object_data.type }}
+                            </div>
+                            <div class="info-item">
+                                <strong>Status:</strong> {{ object_data.status }}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {% if object_data.sail_code_before and object_data.sail_code_after %}
+                    <div class="sail-section">
+                        <h4>SAIL Code Changes</h4>
+                        <div class="diff-container">
+                            <div class="diff-side">
+                                <div class="diff-header removed">Before</div>
+                                <div class="diff-content" id="before-code">{{ object_data.sail_code_before }}</div>
+                            </div>
+                            <div class="diff-side">
+                                <div class="diff-header added">After</div>
+                                <div class="diff-content" id="after-code">{{ object_data.sail_code_after }}</div>
+                            </div>
+                        </div>
+                    </div>
+                    {% elif object_data.sail_code_after %}
+                    <div class="sail-section">
+                        <h4>SAIL Code (Added)</h4>
+                        <div class="diff-container single">
+                            <div class="diff-side">
+                                <div class="diff-header added">Added</div>
+                                <pre class="diff-content added"><code>{{ object_data.sail_code_after }}</code></pre>
+                            </div>
+                        </div>
+                    </div>
+                    {% elif object_data.sail_code_before %}
+                    <div class="sail-section">
+                        <h4>SAIL Code (Removed)</h4>
+                        <div class="diff-container single">
+                            <div class="diff-side">
+                                <div class="diff-header removed">Removed</div>
+                                <pre class="diff-content removed"><code>{{ object_data.sail_code_before }}</code></pre>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.details-panel {
+    background: var(--bg-card);
+    border-radius: 8px;
+    padding: 2rem;
+    margin: 1rem 0;
+}
+
+.details-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--text-secondary);
+}
+
+.object-type {
+    background: var(--purple);
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-size: 0.9rem;
+}
+
+.info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.info-item {
+    padding: 1rem;
+    background: var(--bg-primary);
+    border-radius: 6px;
+}
+
+.sail-section {
+    margin-top: 2rem;
+}
+
+.diff-container {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.diff-container.single {
+    justify-content: center;
+}
+
+.diff-side {
+    flex: 1;
+    border: 1px solid var(--text-secondary);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.diff-header {
+    padding: 0.5rem 1rem;
+    font-weight: bold;
+    font-size: 0.9rem;
+}
+
+.diff-header.added {
+    background: #1e4d2b;
+    color: #4ade80;
+}
+
+.diff-header.removed {
+    background: #4d1e1e;
+    color: #f87171;
+}
+
+.diff-content {
+    margin: 0;
+    padding: 1rem;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: 'Courier New', monospace;
+    font-size: 0.9rem;
+    line-height: 1.4;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.diff-line {
+    display: block;
+    padding: 2px 4px;
+    margin: 1px 0;
+}
+
+.diff-line-removed {
+    background-color: #4d1e1e;
+    color: #f87171;
+}
+
+.diff-line-added {
+    background-color: #1e4d2b;
+    color: #4ade80;
+}
+
+.diff-line-context {
+    background-color: transparent;
+}
+
+.diff-content.added {
+    background: #0f2419;
+    border-left: 3px solid #4ade80;
+}
+
+.diff-content.removed {
+    background: #241a1a;
+    border-left: 3px solid #f87171;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const beforeCode = document.getElementById('before-code');
+    const afterCode = document.getElementById('after-code');
+    
+    if (beforeCode && afterCode) {
+        const beforeLines = beforeCode.textContent.split('\n');
+        const afterLines = afterCode.textContent.split('\n');
+        
+        const maxLines = Math.max(beforeLines.length, afterLines.length);
+        
+        let beforeHtml = '';
+        let afterHtml = '';
+        
+        for (let i = 0; i < maxLines; i++) {
+            const beforeLine = i < beforeLines.length ? beforeLines[i] : '';
+            const afterLine = i < afterLines.length ? afterLines[i] : '';
+            
+            if (beforeLine === afterLine) {
+                beforeHtml += `<span class="diff-line diff-line-context">${escapeHtml(beforeLine)}</span>\n`;
+                afterHtml += `<span class="diff-line diff-line-context">${escapeHtml(afterLine)}</span>\n`;
+            } else {
+                beforeHtml += `<span class="diff-line diff-line-removed">${escapeHtml(beforeLine)}</span>\n`;
+                afterHtml += `<span class="diff-line diff-line-added">${escapeHtml(afterLine)}</span>\n`;
+            }
+        }
+        
+        beforeCode.innerHTML = beforeHtml;
+        afterCode.innerHTML = afterHtml;
+    }
+    
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+});
+</script>
+{% endblock %}

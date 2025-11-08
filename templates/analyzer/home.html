@@ -1,0 +1,338 @@
+{% extends "base.html" %}
+
+{% block title %}Application Comparison - NexusGen{% endblock %}
+
+{% block page_title %}Application Comparison{% endblock %}
+{% block page_subtitle %}Compare Appian application versions and analyze changes{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-6">
+        <div class="input-panel">
+            <div class="panel-header">
+                <div class="panel-icon">
+                    <i class="fas fa-code-compare"></i>
+                </div>
+                <h4>Compare Applications</h4>
+            </div>
+            
+            <form id="compareForm" enctype="multipart/form-data">
+                <div class="mb-3">
+                    <label for="old_file" class="form-label">Old Version ZIP</label>
+                    <input type="file" class="form-control" id="old_file" name="old_file" accept=".zip" required>
+                    <div class="form-text">Select the older version of the application</div>
+                </div>
+                <div class="mb-3">
+                    <label for="new_file" class="form-label">New Version ZIP</label>
+                    <input type="file" class="form-control" id="new_file" name="new_file" accept=".zip" required>
+                    <div class="form-text">Select the newer version of the application</div>
+                </div>
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="fas fa-code-compare"></i> Start Comparison
+                </button>
+            </form>
+        </div>
+    </div>
+    
+    <div class="col-lg-6">
+        <div class="results-panel">
+            <div class="panel-header">
+                <div class="panel-icon">
+                    <i class="fas fa-info-circle"></i>
+                </div>
+                <h4>How It Works</h4>
+            </div>
+            <div class="results-content">
+                <div class="info-content">
+                    <div class="step-item">
+                        <div class="step-number">1</div>
+                        <div class="step-text">
+                            <strong>Upload Applications</strong><br>
+                            Select two Appian application ZIP files to compare
+                        </div>
+                    </div>
+                    <div class="step-item">
+                        <div class="step-number">2</div>
+                        <div class="step-text">
+                            <strong>Analysis</strong><br>
+                            System analyzes both applications and generates blueprints
+                        </div>
+                    </div>
+                    <div class="step-item">
+                        <div class="step-number">3</div>
+                        <div class="step-text">
+                            <strong>Comparison</strong><br>
+                            Detailed comparison identifies all changes and impacts
+                        </div>
+                    </div>
+                    <div class="step-item">
+                        <div class="step-number">4</div>
+                        <div class="step-text">
+                            <strong>Results</strong><br>
+                            View comprehensive comparison report with all details
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Comparison Requests Table -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="input-panel">
+            <div class="panel-header">
+                <div class="panel-icon">
+                    <i class="fas fa-list"></i>
+                </div>
+                <h4>Comparison Requests</h4>
+            </div>
+            
+            {% if requests %}
+                <div class="table-responsive">
+                    <table class="table table-dark table-striped">
+                        <thead>
+                            <tr>
+                                <th>Request ID</th>
+                                <th>Applications</th>
+                                <th>Status</th>
+                                <th>Created</th>
+                                <th>Processing Time</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for req in requests %}
+                            <tr>
+                                <td>
+                                    <span class="badge bg-primary">{{ req.reference_id }}</span>
+                                </td>
+                                <td>
+                                    <div class="app-names">
+                                        <div class="app-name old">{{ req.old_app_name or 'Old Version' }}</div>
+                                        <div class="arrow-down">
+                                            <i class="fas fa-arrow-down text-warning"></i>
+                                        </div>
+                                        <div class="app-name new">{{ req.new_app_name or 'New Version' }}</div>
+                                    </div>
+                                </td>
+                                <td>
+                                    {% if req.status == 'completed' %}
+                                        <span class="badge bg-success">Completed</span>
+                                    {% elif req.status == 'processing' %}
+                                        <span class="badge bg-warning">Processing</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">Error</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <small>{{ req.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                                </td>
+                                <td>
+                                    {% if req.total_time %}
+                                        {{ req.total_time }}s
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if req.status == 'completed' %}
+                                        <a href="{{ url_for('analyzer.view_request', request_id=req.id) }}" 
+                                           class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-eye"></i> View Results
+                                        </a>
+                                    {% elif req.status == 'error' %}
+                                        <button class="btn btn-sm btn-outline-danger" disabled>
+                                            <i class="fas fa-exclamation-triangle"></i> Failed
+                                        </button>
+                                    {% else %}
+                                        <button class="btn btn-sm btn-outline-warning" disabled>
+                                            <i class="fas fa-spinner fa-spin"></i> Processing
+                                        </button>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="empty-state">
+                    <i class="fas fa-inbox"></i>
+                    <p>No comparison requests yet. Upload two applications to get started.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+.input-panel, .results-panel {
+    background: var(--bg-card);
+    border-radius: 12px;
+    padding: 1.5rem;
+    border: 1px solid #374151;
+    display: flex;
+    flex-direction: column;
+}
+
+.panel-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+    flex-shrink: 0;
+}
+
+.panel-icon {
+    width: 32px;
+    height: 32px;
+    background: rgba(16, 185, 129, 0.2);
+    color: var(--emerald);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.results-content {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow-y: auto;
+}
+
+.info-content {
+    width: 100%;
+}
+
+.step-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.step-number {
+    width: 32px;
+    height: 32px;
+    background: var(--emerald);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+
+.step-text {
+    flex: 1;
+}
+
+.empty-state {
+    text-align: center;
+    color: var(--text-secondary);
+}
+
+.empty-state i {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    color: var(--text-secondary);
+}
+
+.form-control {
+    background: var(--bg-primary);
+    border: 1px solid #374151;
+    color: var(--text-primary);
+}
+
+.form-control:focus {
+    background: var(--bg-primary);
+    border-color: var(--emerald);
+    color: var(--text-primary);
+    box-shadow: 0 0 0 0.2rem rgba(16, 185, 129, 0.25);
+}
+
+.app-names {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.app-name {
+    font-size: 0.875rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    text-align: center;
+    min-width: 120px;
+}
+
+.app-name.old {
+    background: rgba(239, 68, 68, 0.1);
+    color: #fca5a5;
+}
+
+.app-name.new {
+    background: rgba(34, 197, 94, 0.1);
+    color: #86efac;
+}
+
+.arrow-down {
+    font-size: 0.75rem;
+}
+
+.table td {
+    vertical-align: middle;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const compareForm = document.getElementById('compareForm');
+    
+    if (compareForm) {
+        compareForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const oldFile = document.getElementById('old_file').files[0];
+            const newFile = document.getElementById('new_file').files[0];
+            
+            if (!oldFile || !newFile) {
+                alert('Please select both ZIP files for comparison');
+                return;
+            }
+            
+            const formData = new FormData(this);
+            const button = this.querySelector('button[type="submit"]');
+            
+            // Show loading state
+            const originalText = button.innerHTML;
+            button.disabled = true;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+            
+            try {
+                const response = await fetch('/analyzer/compare', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (response.ok) {
+                    location.reload();
+                } else {
+                    throw new Error('Comparison failed');
+                }
+            } catch (error) {
+                alert('Comparison failed: ' + error.message);
+            } finally {
+                button.disabled = false;
+                button.innerHTML = originalText;
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

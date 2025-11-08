@@ -55,6 +55,40 @@ class Request(db.Model):
         }
 
 
+class ComparisonRequest(db.Model):
+    """Comparison requests table for Appian application analysis"""
+    __tablename__ = 'comparison_requests'
+
+    id = db.Column(db.Integer, primary_key=True)
+    reference_id = db.Column(db.String(20), unique=True)  # CMP_001 format
+    old_app_name = db.Column(db.String(255), nullable=False)
+    new_app_name = db.Column(db.String(255), nullable=False)
+    status = db.Column(db.String(20), default='processing')  # 'processing', 'completed', 'error'
+    
+    # Analysis results
+    old_app_blueprint = db.Column(db.Text)  # JSON string
+    new_app_blueprint = db.Column(db.Text)  # JSON string
+    comparison_results = db.Column(db.Text)  # JSON string
+    
+    # Metadata
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    total_time = db.Column(db.Integer)  # Processing time in seconds
+    error_log = db.Column(db.Text)
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'reference_id': self.reference_id,
+            'old_app_name': self.old_app_name,
+            'new_app_name': self.new_app_name,
+            'status': self.status,
+            'created_at': self.created_at.isoformat(),
+            'updated_at': self.updated_at.isoformat(),
+            'total_time': self.total_time
+        }
+
+
 class ChatSession(db.Model):
     """Chat sessions for AI assistant"""
     __tablename__ = 'chat_sessions'

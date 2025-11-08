@@ -131,6 +131,10 @@ document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('input[type="file"]').forEach(input => {
         input.addEventListener('change', function(e) {
             const file = e.target.files[0];
+            // Skip validation for analyzer file inputs
+            if (this.id === 'file' && window.location.pathname.includes('/analyzer')) return;
+            if (this.id === 'old_file' || this.id === 'new_file') return;
+            
             if (file && !DocFlow.validateFileType(file.name)) {
                 DocFlow.showNotification('Invalid file type. Please select a TXT, MD, DOCX, or PDF file.', 'error');
                 e.target.value = '';
