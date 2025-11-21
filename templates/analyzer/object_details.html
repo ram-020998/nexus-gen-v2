@@ -3,17 +3,14 @@
 {% block title %}Object Details - {{ object_data.name }}{% endblock %}
 
 {% block page_title %}Object Details{% endblock %}
-{% block page_subtitle %}{{ object_data.name }} ({{ object_data.type }}){% endblock %}
+{% block page_subtitle %}{% endblock %}
 
 {% block content %}
 <div class="row mb-4">
     <div class="col-12">
         <div class="d-flex justify-content-between align-items-center">
             <div>
-                <h4>{{ object_data.name }}</h4>
-                <span class="badge bg-{{ object_data.change_type | lower == 'added' and 'success' or object_data.change_type | lower == 'removed' and 'danger' or 'warning' }} fs-6">
-                    {{ object_data.change_type }}
-                </span>
+                <h4>{{ object_data.name }} <span style="color: var(--text-secondary); font-size: 1rem; font-weight: normal;">({{ object_data.type }})</span></h4>
             </div>
             <button class="btn btn-secondary" onclick="window.close()">
                 <i class="fas fa-times"></i> Close
@@ -444,6 +441,16 @@ document.addEventListener('DOMContentLoaded', function() {
     padding: 1rem 1.5rem 1.5rem;
 }
 
+.panel-content p {
+    color: var(--text-primary);
+    margin-bottom: 0.75rem;
+}
+
+.panel-content p strong {
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
 .change-list {
     list-style: none;
     padding: 0;
@@ -453,7 +460,7 @@ document.addEventListener('DOMContentLoaded', function() {
 .change-list li {
     padding: 0.75rem 0;
     border-bottom: 1px solid #374151;
-    color: var(--text-secondary);
+    color: var(--text-primary);
 }
 
 .change-list li:last-child {

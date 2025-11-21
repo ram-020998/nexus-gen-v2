@@ -13,9 +13,15 @@ from models import db, ComparisonRequest
 try:
     from services.appian_analyzer.analyzer import AppianAnalyzer
     from services.appian_analyzer.version_comparator import AppianVersionComparator
+    from services.appian_analyzer.enhanced_comparison_service import (
+        EnhancedComparisonService
+    )
+    from services.appian_analyzer.logger import create_request_logger
     APPIAN_ANALYZER_AVAILABLE = True
+    ENHANCED_COMPARISON_AVAILABLE = True
 except ImportError:
     APPIAN_ANALYZER_AVAILABLE = False
+    ENHANCED_COMPARISON_AVAILABLE = False
 
 
 class ComparisonRequestManager:
@@ -259,14 +265,6 @@ class ComparisonEngine:
 
 
 class ComparisonService:
-    """Main service orchestrating the comparison process using local appian_analyzer"""
-    
-    def __init__(self):
-        self.request_manager = ComparisonRequestManager()
-        self.blueprint_analyzer = BlueprintAnalyzer()
-
-
-class ComparisonService:
     """Main service orchestrating the comparison process"""
     
     def __init__(self):
@@ -275,7 +273,7 @@ class ComparisonService:
         # ComparisonEngine will be created per request with specific version names
     
     def process_comparison(self, old_zip_path: str, new_zip_path: str) -> ComparisonRequest:
-        """Process complete comparison workflow using local appian_analyzer"""
+        """Process complete comparison workflow using enhanced comparison system"""
         start_time = time.time()
         
         # Extract app names from file paths
@@ -285,23 +283,68 @@ class ComparisonService:
         # Create request
         request = self.request_manager.create_request(old_app_name, new_app_name)
         
+        # Create request-specific logger
+        logger = create_request_logger(request.reference_id)
+        
         try:
             if not APPIAN_ANALYZER_AVAILABLE:
+                logger.error("Local appian_analyzer not available")
                 raise Exception("Local appian_analyzer not available")
             
-            # Use local appian_analyzer version comparator directly
-            print(f"DEBUG: Using local appian_analyzer for comparison")
-            comparator = AppianVersionComparator(old_zip_path, new_zip_path)
-            comparison = comparator.compare_versions()
+            logger.info(f"Starting comparison: {old_app_name} vs {new_app_name}")
+            logger.log_stage("Upload", {
+                "old_file": old_zip_path,
+                "new_file": new_zip_path,
+                "old_size_mb": f"{Path(old_zip_path).stat().st_size / 1024 / 1024:.2f}",
+                "new_size_mb": f"{Path(new_zip_path).stat().st_size / 1024 / 1024:.2f}"
+            })
             
-            print(f"DEBUG: Original analyzer found {comparison.get('comparison_summary', {}).get('total_changes', 0)} changes")
-            
-            # Get individual blueprints for storage
+            # Analyze both applications
+            logger.log_stage("Analyzing old version", {"app": old_app_name})
             old_analyzer = AppianAnalyzer(old_zip_path)
-            new_analyzer = AppianAnalyzer(new_zip_path)
-            
             old_result = old_analyzer.analyze()
+            old_obj_count = old_result['blueprint']['metadata']['total_objects']
+            logger.info(f"Old version analyzed: {old_obj_count} objects")
+            
+            logger.log_stage("Analyzing new version", {"app": new_app_name})
+            new_analyzer = AppianAnalyzer(new_zip_path)
             new_result = new_analyzer.analyze()
+            new_obj_count = new_result['blueprint']['metadata']['total_objects']
+            logger.info(f"New version analyzed: {new_obj_count} objects")
+            
+            # Use enhanced comparison if available, otherwise fall back
+            if ENHANCED_COMPARISON_AVAILABLE:
+                logger.log_stage("Comparison", {"method": "enhanced"})
+                try:
+                    enhanced_service = EnhancedComparisonService()
+                    comparison = enhanced_service.compare_applications(
+                        old_result,
+                        new_result,
+                        old_app_name,
+                        new_app_name
+                    )
+                except Exception as enhanced_error:
+                    logger.warning(f"Enhanced comparison failed: {str(enhanced_error)}")
+                    logger.info("Falling back to basic comparison")
+                    # Fallback to old comparison
+                    engine = ComparisonEngine(old_app_name, new_app_name)
+                    comparison = engine.compare_results(old_result, new_result)
+            else:
+                logger.warning("Enhanced comparison not available")
+                logger.log_stage("Comparison", {"method": "basic"})
+                # Fallback to old comparison
+                comparator = AppianVersionComparator(old_zip_path, new_zip_path)
+                comparison = comparator.compare_versions()
+            
+            total_changes = comparison.get('comparison_summary', {}).get('total_changes', 0)
+            impact_level = comparison.get('comparison_summary', {}).get('impact_level', 'UNKNOWN')
+            
+            logger.log_metrics({
+                "total_changes": total_changes,
+                "impact_level": impact_level,
+                "old_objects": old_obj_count,
+                "new_objects": new_obj_count
+            })
             
             # Calculate processing time
             processing_time = int(time.time() - start_time)
@@ -311,9 +354,16 @@ class ComparisonService:
                 request.id, old_result["blueprint"], new_result["blueprint"], comparison, processing_time
             )
             
+            logger.log_completion(
+                status='success',
+                total_changes=total_changes,
+                processing_time=f"{processing_time}s"
+            )
+            
             return request
             
         except Exception as e:
+            logger.error(f"Comparison failed: {str(e)}", exc_info=True)
             self.request_manager.update_status(request.id, 'error', str(e))
             raise e
     

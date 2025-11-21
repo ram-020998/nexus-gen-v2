@@ -7,9 +7,11 @@ from pathlib import Path
 import json
 
 from services.comparison_service import ComparisonService
+from services.appian_analyzer.logger import get_logger
 
 analyzer_bp = Blueprint('analyzer', __name__)
 comparison_service = ComparisonService()
+logger = get_logger()
 
 ALLOWED_EXTENSIONS = {'zip'}
 
@@ -25,22 +27,21 @@ def analyzer_home():
 @analyzer_bp.route('/analyzer/compare', methods=['POST'])
 def compare_versions():
     """Compare two application versions"""
-    print("DEBUG: Compare request received")
+    logger.info("Comparison request received via web interface")
     
     if 'old_file' not in request.files or 'new_file' not in request.files:
-        print("DEBUG: Missing files in request")
+        logger.warning("Missing files in upload request")
         flash('Please select both files for comparison', 'error')
         return redirect(url_for('analyzer.analyzer_home'))
     
     old_file = request.files['old_file']
     new_file = request.files['new_file']
     
-    print(f"DEBUG: Old file: {old_file.filename}")
-    print(f"DEBUG: New file: {new_file.filename}")
+    logger.info(f"Files received: {old_file.filename} vs {new_file.filename}")
     
     if not (old_file.filename and new_file.filename and 
             allowed_file(old_file.filename) and allowed_file(new_file.filename)):
-        print("DEBUG: File validation failed")
+        logger.warning(f"File validation failed: {old_file.filename}, {new_file.filename}")
         flash('Please select valid ZIP files', 'error')
         return redirect(url_for('analyzer.analyzer_home'))
     
@@ -52,23 +53,23 @@ def compare_versions():
         old_path.parent.mkdir(exist_ok=True)
         old_file.save(old_path)
         new_file.save(new_path)
-        print(f"DEBUG: Files saved to {old_path} and {new_path}")
-        print(f"DEBUG: Old file size: {old_path.stat().st_size} bytes")
-        print(f"DEBUG: New file size: {new_path.stat().st_size} bytes")
         
-        # Process comparison
+        logger.debug(f"Files saved: {old_path} ({old_path.stat().st_size} bytes), "
+                    f"{new_path} ({new_path.stat().st_size} bytes)")
+        
+        # Process comparison (this creates its own request logger)
         comparison_request = comparison_service.process_comparison(str(old_path), str(new_path))
-        print(f"DEBUG: Comparison completed with request ID: {comparison_request.id}")
+        logger.info(f"Comparison completed: {comparison_request.reference_id}")
         
         # Clean up files
         old_path.unlink(missing_ok=True)
         new_path.unlink(missing_ok=True)
-        print("DEBUG: Files cleaned up")
+        logger.debug("Temporary files cleaned up")
         
         flash(f'Comparison completed successfully! Request ID: {comparison_request.reference_id}', 'success')
         
     except Exception as e:
-        print(f"DEBUG: Comparison failed: {str(e)}")
+        logger.error(f"Comparison request failed: {str(e)}", exc_info=True)
         flash(f'Comparison failed: {str(e)}', 'error')
         
         # Clean up files on error

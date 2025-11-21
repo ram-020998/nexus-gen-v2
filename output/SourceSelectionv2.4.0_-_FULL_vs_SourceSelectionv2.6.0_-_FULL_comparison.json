@@ -1,0 +1,11 @@
+{
+  "comparison_summary": {
+    "version_from": "SourceSelectionv2.4.0_-_FULL",
+    "version_to": "SourceSelectionv2.6.0_-_FULL",
+    "comparison_date": "2025-11-07",
+    "total_changes": 0,
+    "impact_level": "LOW"
+  },
+  "changes_by_category": {},
+  "detailed_changes": []
+}

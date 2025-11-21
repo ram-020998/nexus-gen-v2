@@ -1,0 +1,29 @@
+{
+  "metadata": {
+    "application_name": "SourceSelectionv2.4.0_-_FULL",
+    "total_objects": 0,
+    "analysis_timestamp": "2025-11-03T12:06:39.395+05:30"
+  },
+  "sites": [],
+  "record_types": [],
+  "process_models": [],
+  "interfaces": [],
+  "rules": [],
+  "data_types": [],
+  "integrations": [],
+  "security_groups": [],
+  "constants": [],
+  "summary": {
+    "total_sites": 0,
+    "total_record_types": 0,
+    "total_process_models": 0,
+    "total_interfaces": 0,
+    "total_rules": 0,
+    "total_data_types": 0,
+    "total_integrations": 0,
+    "total_security_groups": 0,
+    "total_constants": 0,
+    "complexity_assessment": "Low",
+    "recommendations": []
+  }
+}

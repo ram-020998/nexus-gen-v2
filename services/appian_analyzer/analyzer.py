@@ -272,26 +272,46 @@ class AppianAnalyzer:
         for interface in blueprint.interfaces:
             if interface.sail_code:
                 interface.sail_code = formatter.format_sail_code(interface.sail_code)
+                # Update object_lookup with formatted code
+                obj = self.object_lookup.get_object(interface.uuid)
+                if obj:
+                    obj['sail_code'] = interface.sail_code
         
         # Format rules
         for rule in blueprint.rules:
             if rule.sail_code:
                 rule.sail_code = formatter.format_sail_code(rule.sail_code)
+                # Update object_lookup with formatted code
+                obj = self.object_lookup.get_object(rule.uuid)
+                if obj:
+                    obj['sail_code'] = rule.sail_code
         
         # Format constants
         for constant in blueprint.constants:
             if constant.sail_code:
                 constant.sail_code = formatter.format_sail_code(constant.sail_code)
+                # Update object_lookup with formatted code
+                obj = self.object_lookup.get_object(constant.uuid)
+                if obj:
+                    obj['sail_code'] = constant.sail_code
         
         # Format process models (special handling for business logic)
         for process in blueprint.process_models:
             if process.business_logic:
                 process.business_logic = formatter.format_process_model_logic(process.business_logic)
+                # Update object_lookup with formatted business logic
+                obj = self.object_lookup.get_object(process.uuid)
+                if obj:
+                    obj['business_logic'] = process.business_logic
         
         # Format integrations
         for integration in blueprint.integrations:
             if integration.sail_code:
                 integration.sail_code = formatter.format_sail_code(integration.sail_code)
+                # Update object_lookup with formatted code
+                obj = self.object_lookup.get_object(integration.uuid)
+                if obj:
+                    obj['sail_code'] = integration.sail_code
     
     def _create_metadata(self) -> Dict[str, Any]:
         """Create analysis metadata"""

@@ -3,9 +3,9 @@ XML parsers for different Appian object types
 """
 import xml.etree.ElementTree as ET
 from abc import ABC, abstractmethod
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Dict, List, Any, Optional
 from .models import AppianObject, Site, RecordType, ProcessModel, SimpleObject
-from .sail_formatter import SAILFormatter
+from .version_history_extractor import VersionHistoryExtractor
 
 class XMLParser(ABC):
     """Abstract base class for XML parsers"""
@@ -15,6 +15,7 @@ class XMLParser(ABC):
             'a': 'http://www.appian.com/ae/types/2009',
             'xsd': 'http://www.w3.org/2001/XMLSchema'
         }
+        self.version_extractor = VersionHistoryExtractor()
     
     @abstractmethod
     def can_parse(self, file_path: str) -> bool:
@@ -30,6 +31,50 @@ class XMLParser(ABC):
         """Safely get element text"""
         elem = parent.find(xpath, self.namespaces)
         return elem.text.strip() if elem is not None and elem.text else ""
+    
+    def extract_raw_xml(self, root: ET.Element) -> str:
+        """Extract complete raw XML content"""
+        return ET.tostring(root, encoding='unicode', method='xml')
+    
+    def extract_version_history(self, root: ET.Element):
+        """Extract version history from XML metadata"""
+        return self.version_extractor.extract_from_xml(root)
+    
+    def extract_current_version_uuid(self, root: ET.Element) -> str:
+        """Extract current version UUID from XML"""
+        version_uuid = self.version_extractor.extract_current_version_uuid(root)
+        return version_uuid if version_uuid else ""
+    
+    def extract_all_elements(self, element: ET.Element) -> Dict[str, Any]:
+        """Recursively extract all XML elements and attributes"""
+        result = {}
+        
+        # Extract attributes
+        if element.attrib:
+            result['@attributes'] = dict(element.attrib)
+        
+        # Extract text content
+        if element.text and element.text.strip():
+            result['@text'] = element.text.strip()
+        
+        # Extract child elements
+        for child in element:
+            tag = child.tag
+            # Remove namespace prefix for cleaner keys
+            if '}' in tag:
+                tag = tag.split('}')[1]
+            
+            child_data = self.extract_all_elements(child)
+            
+            # Handle multiple children with same tag
+            if tag in result:
+                if not isinstance(result[tag], list):
+                    result[tag] = [result[tag]]
+                result[tag].append(child_data)
+            else:
+                result[tag] = child_data
+        
+        return result
 
 class SiteParser(XMLParser):
     """Parser for Site objects"""
@@ -53,6 +98,14 @@ class SiteParser(XMLParser):
         site = Site(uuid=uuid, name=name, object_type="Site", description=description)
         site.pages = self._parse_pages(site_elem)
         site.security = self._parse_security(root)
+        
+        # Extract raw XML and all elements
+        site.raw_xml = self.extract_raw_xml(root)
+        site.raw_xml_data = self.extract_all_elements(root)
+        
+        # Extract version information
+        site.version_uuid = self.extract_current_version_uuid(root)
+        site.version_history = self.extract_version_history(root)
         
         return site
     
@@ -126,6 +179,14 @@ class RecordTypeParser(XMLParser):
         record.actions = self._parse_actions(record_elem)
         record.views = self._parse_views(record_elem)
         record.security = {"roles": []}  # Simplified
+        
+        # Extract raw XML and all elements
+        record.raw_xml = self.extract_raw_xml(root)
+        record.raw_xml_data = self.extract_all_elements(root)
+        
+        # Extract version information
+        record.version_uuid = self.extract_current_version_uuid(root)
+        record.version_history = self.extract_version_history(root)
         
         return record
     
@@ -261,6 +322,14 @@ class ProcessModelParser(XMLParser):
         process.rules = self._parse_rules(pm_elem)
         process.business_logic = self._extract_complete_business_logic(pm_elem)
         process.security = self._parse_security(root)
+        
+        # Extract raw XML and all elements
+        process.raw_xml = self.extract_raw_xml(root)
+        process.raw_xml_data = self.extract_all_elements(root)
+        
+        # Extract version information
+        process.version_uuid = self.extract_current_version_uuid(root)
+        process.version_history = self.extract_version_history(root)
         
         return process
     
@@ -552,6 +621,15 @@ class ContentParser(XMLParser):
                     description=description,
                     sail_code=sail_code
                 )
+                
+                # Extract raw XML and all elements
+                obj.raw_xml = self.extract_raw_xml(root)
+                obj.raw_xml_data = self.extract_all_elements(root)
+                
+                # Extract version information
+                obj.version_uuid = self.extract_current_version_uuid(root)
+                obj.version_history = self.extract_version_history(root)
+                
                 return obj
         
         return None
@@ -608,12 +686,22 @@ class SimpleObjectParser(XMLParser):
         if uuid_elem is None or name_elem is None:
             return None
         
-        return SimpleObject(
+        obj = SimpleObject(
             uuid=uuid_elem.text,
             name=name_elem.text,
             object_type="Security Group",
             description=desc_elem.text if desc_elem is not None and desc_elem.text else ""
         )
+        
+        # Extract raw XML and all elements
+        obj.raw_xml = self.extract_raw_xml(root)
+        obj.raw_xml_data = self.extract_all_elements(root)
+        
+        # Extract version information
+        obj.version_uuid = self.extract_current_version_uuid(root)
+        obj.version_history = self.extract_version_history(root)
+        
+        return obj
     
     def _parse_connected_system(self, root: ET.Element) -> Optional[SimpleObject]:
         cs_elem = root.find('connectedSystem')
@@ -634,7 +722,17 @@ class SimpleObjectParser(XMLParser):
         if not uuid or not name:
             return None
         
-        return SimpleObject(uuid=uuid, name=name, object_type="Connected System", description=description, sail_code=sail_code)
+        obj = SimpleObject(uuid=uuid, name=name, object_type="Connected System", description=description, sail_code=sail_code)
+        
+        # Extract raw XML and all elements
+        obj.raw_xml = self.extract_raw_xml(root)
+        obj.raw_xml_data = self.extract_all_elements(root)
+        
+        # Extract version information
+        obj.version_uuid = self.extract_current_version_uuid(root)
+        obj.version_history = self.extract_version_history(root)
+        
+        return obj
     
     def _parse_web_api(self, root: ET.Element) -> Optional[SimpleObject]:
         api_elem = root.find('webApi')
@@ -653,7 +751,17 @@ class SimpleObjectParser(XMLParser):
         if not uuid or not name:
             return None
         
-        return SimpleObject(uuid=uuid, name=name, object_type="Web API", description=description, sail_code=sail_code)
+        obj = SimpleObject(uuid=uuid, name=name, object_type="Web API", description=description, sail_code=sail_code)
+        
+        # Extract raw XML and all elements
+        obj.raw_xml = self.extract_raw_xml(root)
+        obj.raw_xml_data = self.extract_all_elements(root)
+        
+        # Extract version information
+        obj.version_uuid = self.extract_current_version_uuid(root)
+        obj.version_history = self.extract_version_history(root)
+        
+        return obj
     
     def _parse_report(self, root: ET.Element) -> Optional[SimpleObject]:
         report_elem = root.find('tempoReport')
@@ -672,4 +780,14 @@ class SimpleObjectParser(XMLParser):
         if not uuid or not name:
             return None
         
-        return SimpleObject(uuid=uuid, name=name, object_type="Report", description=description, sail_code=sail_code)
+        obj = SimpleObject(uuid=uuid, name=name, object_type="Report", description=description, sail_code=sail_code)
+        
+        # Extract raw XML and all elements
+        obj.raw_xml = self.extract_raw_xml(root)
+        obj.raw_xml_data = self.extract_all_elements(root)
+        
+        # Extract version information
+        obj.version_uuid = self.extract_current_version_uuid(root)
+        obj.version_history = self.extract_version_history(root)
+        
+        return obj

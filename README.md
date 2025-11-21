@@ -1,10 +1,10 @@
 # NexusGen Document Intelligence Hub
 
-> **Version 2.1.0** | A comprehensive Flask-based document intelligence application with AI-powered analysis, generation capabilities, and professional-grade refactored architecture.
+> **Version 2.2.0** | A comprehensive Flask-based document intelligence application with AI-powered analysis, generation capabilities, Appian code analysis, and professional-grade refactored architecture.
 
 ## 🚀 Overview
 
-NexusGen is a modern document intelligence platform that leverages Amazon Q CLI agents and AWS Bedrock Knowledge Base to provide intelligent document processing, verification, and creation capabilities. Built with Flask and featuring a sleek dark-themed UI, it offers four core functionalities through an intuitive web interface with complete process transparency and database-first architecture.
+NexusGen is a modern document intelligence platform that leverages Amazon Q CLI agents and AWS Bedrock Knowledge Base to provide intelligent document processing, verification, and creation capabilities. Built with Flask and featuring a sleek dark-themed UI, it offers comprehensive functionality through an intuitive web interface with complete process transparency and database-first architecture.
 
 ### ✨ Key Features
 
@@ -14,10 +14,11 @@ NexusGen is a modern document intelligence platform that leverages Amazon Q CLI 
 - **💬 AI Chat Assistant**: Interactive chat interface for document-related queries and assistance
 - **📊 Process History**: Complete transparency with timeline tracking, confidence metrics, and debugging info
 - **🔍 Database-First Architecture**: All data stored in database with no file dependencies for core operations
+- **🏢 Appian Analyzer**: Advanced Appian application analysis with version comparison and SAIL code diff visualization
 
 ## 🏗️ Architecture Overview
 
-### System Components (Refactored v2.1.0)
+### System Components (Enhanced v2.2.0)
 
 ```
 nexus-gen-v2/
@@ -27,21 +28,32 @@ nexus-gen-v2/
 │   ├── verify_controller.py            # Design verification
 │   ├── create_controller.py            # Design document creation
 │   ├── chat_controller.py              # AI chat interface
-│   └── process_controller.py           # Process history and details
-├── 🏛️ core/                # Clean Architecture Foundation (NEW)
+│   ├── process_controller.py           # Process history and details
+│   └── analyzer_controller.py          # Appian analyzer interface (NEW)
+├── 🏛️ core/                # Clean Architecture Foundation
 │   ├── interfaces.py       # Abstract base classes and interfaces
 │   ├── exceptions.py       # Custom exception hierarchy
 │   ├── container.py        # Dependency injection container
 │   └── service_registry.py # Service configuration and registration
-├── 🗄️ repositories/        # Data Access Layer (NEW)
+├── 🗄️ repositories/        # Data Access Layer
 │   ├── request_repository.py # Request entity data access
 │   └── chat_repository.py    # Chat session data access
-├── ⚙️ services/            # Business Logic Layer (Legacy + Refactored)
-│   ├── processors/         # Specialized Q Agent Processors (NEW)
+├── ⚙️ services/            # Business Logic Layer (Legacy + Refactored + Appian)
+│   ├── processors/         # Specialized Q Agent Processors
 │   │   ├── base_processor.py      # Base processor with common functionality
 │   │   ├── breakdown_processor.py # Specialized breakdown processing
 │   │   ├── verification_processor.py # Specialized verification processing
 │   │   └── creation_processor.py  # Specialized creation processing
+│   ├── appian_analyzer/    # Appian Analysis Engine (NEW)
+│   │   ├── analyzer.py            # Main Appian analyzer service
+│   │   ├── parsers.py             # XML parsers for Appian objects
+│   │   ├── version_comparator.py  # Version comparison logic
+│   │   ├── sail_formatter.py      # SAIL code formatting and cleanup
+│   │   ├── business_summary_generator.py # AI-powered business summaries
+│   │   ├── models.py              # Appian object data models
+│   │   └── schemas/               # JSON schemas and function mappings
+│   │       ├── appian_public_functions.json # Function name mappings
+│   │       └── object_schemas/    # Object type definitions
 │   ├── refactored_bedrock_service.py # Clean Bedrock service
 │   ├── refactored_request_service.py # Clean request service
 │   ├── request_service.py         # Legacy request management
@@ -147,7 +159,28 @@ graph LR
 - **QAgentService**: Conversational AI with `chat-agent` (no file operations)
 - **Database Storage**: All chat history and context stored in database
 
-### 5. Process History & Transparency
+### 5. Appian Analyzer Workflow (NEW)
+```mermaid
+graph LR
+    A[Appian Export Upload] --> B[XML Parsing]
+    B --> C[Object Extraction]
+    C --> D[Version Comparison]
+    D --> E[SAIL Code Diff]
+    E --> F[Business Summary]
+    F --> G[Results Display]
+```
+
+**Process Details:**
+- **FileUpload**: Accepts Appian export ZIP files with XML objects
+- **XMLParsers**: Extracts objects (interfaces, process models, rules, etc.)
+- **ObjectLookup**: Creates UUID-to-name mapping for readable references
+- **VersionComparator**: Compares object versions and identifies changes
+- **SAILFormatter**: Cleans SAIL code, replaces UUIDs and function names
+- **DiffVisualization**: Side-by-side code comparison with GitHub-style highlighting
+- **BusinessSummaryGenerator**: AI-powered analysis of changes and impact
+- **ResultsDisplay**: Interactive object browser with detailed diff views
+
+### 6. Process History & Transparency
 ```mermaid
 graph LR
     A[Any Request] --> B[ProcessTracker]
@@ -578,7 +611,41 @@ def test_complete_breakdown_workflow(self):
 
 ## 🔄 Version History & Changelog
 
-### Version 2.1.0 (Current) - October 26, 2025
+### Version 2.2.0 (Current) - November 18, 2025
+
+#### 🏢 **Appian Analyzer - Advanced Code Analysis Engine**
+
+**Core Appian Analysis Features:**
+- ✅ **XML Export Processing**: Upload and parse Appian application export ZIP files
+- ✅ **Object Extraction**: Parse interfaces, process models, rules, constants, and other Appian objects
+- ✅ **Version Comparison**: Compare different versions of Appian applications with detailed change tracking
+- ✅ **SAIL Code Diff**: Side-by-side SAIL code comparison with GitHub-style diff visualization
+- ✅ **UUID Resolution**: Replace UUIDs with readable object names for better code comprehension
+- ✅ **Function Name Mapping**: Replace internal Appian function calls with public-facing names
+- ✅ **Business Impact Analysis**: AI-powered summaries of changes and their business implications
+
+**Technical Implementation:**
+- ✅ **XML Parsers**: Specialized parsers for different Appian object types (interfaces, rules, etc.)
+- ✅ **Object Models**: Rich data models for Appian objects with proper relationships
+- ✅ **SAIL Formatter**: Advanced code formatter with UUID replacement and function name mapping
+- ✅ **Version Comparator**: Intelligent comparison engine that identifies added, modified, and removed objects
+- ✅ **Diff Visualization**: Professional diff viewer with line-by-line comparison and syntax highlighting
+- ✅ **Schema Definitions**: JSON schemas for object validation and function mappings
+
+**User Experience Enhancements:**
+- ✅ **Interactive Object Browser**: Navigate through application structure with expandable tree view
+- ✅ **Detailed Object Views**: Comprehensive object details with metadata and SAIL code
+- ✅ **Search and Filter**: Find specific objects quickly with advanced filtering options
+- ✅ **Export Capabilities**: Generate reports and summaries of application changes
+- ✅ **Responsive Design**: Mobile-friendly interface that works across all devices
+
+**Architecture Improvements:**
+- ✅ **Modular Design**: Clean separation between parsers, comparators, and formatters
+- ✅ **Error Handling**: Robust error handling for malformed XML and missing objects
+- ✅ **Performance Optimization**: Efficient processing of large Appian applications
+- ✅ **Extensible Framework**: Easy to add support for new Appian object types
+
+### Version 2.1.0 - October 26, 2025
 
 #### 🏗️ **Major Architecture Refactoring - Clean Architecture Implementation**
 
