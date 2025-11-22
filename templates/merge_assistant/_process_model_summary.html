@@ -1,0 +1,259 @@
+{# Process Model Summary - Single Version View #}
+{# Requirements: 7.1, 7.2, 7.5, 7.6, 7.9 #}
+
+<div class="process-model-summary">
+    {% if change.process_model_data.node_summary %}
+    <div class="guidance-section">
+        <h5><i class="fas fa-sitemap"></i> Process Model Nodes</h5>
+        <p class="guidance-description">Structured view of all nodes in this process model:</p>
+        
+        <div class="nodes-container">
+            {% for node in change.process_model_data.node_summary.nodes_by_type %}
+            <details class="node-group" open>
+                <summary class="node-group-header">
+                    <span class="node-type-badge">{{ node.type }}</span>
+                    <span class="node-count">({{ node.nodes|length }} nodes)</span>
+                </summary>
+                
+                <div class="node-list">
+                    {% for node_item in node.nodes %}
+                    <div class="node-card">
+                        <div class="node-card-header">
+                            <h6>{{ node_item.name }}</h6>
+                        </div>
+                        
+                        <div class="node-card-body">
+                            {% if node_item.properties.basic %}
+                            <div class="property-section">
+                                <strong>Basic:</strong>
+                                <ul class="property-list-compact">
+                                    {% for key, value in node_item.properties.basic.items() %}
+                                    {% if value %}
+                                    <li><span class="prop-key">{{ key }}:</span> {{ value }}</li>
+                                    {% endif %}
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                            {% endif %}
+                            
+                            {% if node_item.properties.assignment and node_item.properties.assignment.type != 'NONE' %}
+                            <div class="property-section">
+                                <strong>Assignment:</strong>
+                                <ul class="property-list-compact">
+                                    <li><span class="prop-key">Type:</span> {{ node_item.properties.assignment.type }}</li>
+                                    {% if node_item.properties.assignment.assignees %}
+                                    <li><span class="prop-key">Assignees:</span> {{ node_item.properties.assignment.assignees|join(', ') }}</li>
+                                    {% endif %}
+                                </ul>
+                            </div>
+                            {% endif %}
+                            
+                            {% if node_item.properties.forms and node_item.properties.forms.interface_name %}
+                            <div class="property-section">
+                                <strong>Interface:</strong> {{ node_item.properties.forms.interface_name }}
+                            </div>
+                            {% endif %}
+                            
+                            {% if node_item.properties.expressions and node_item.properties.expressions.output_expressions %}
+                            <div class="property-section">
+                                <strong>Output Expressions:</strong>
+                                <ul class="property-list-compact">
+                                    {% for var, expr in node_item.properties.expressions.output_expressions.items() %}
+                                    <li><code>{{ var }} = {{ expr }}</code></li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </details>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    
+    {% if change.process_model_data.flow_graph %}
+    <div class="guidance-section">
+        <h5><i class="fas fa-project-diagram"></i> Process Flow Diagram</h5>
+        <p class="guidance-description">Visual representation of the process flow:</p>
+        
+        <div class="flow-diagram-container">
+            <div class="mermaid">
+                {{ _generate_mermaid_diagram(change.process_model_data) }}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+{# Macro to generate Mermaid diagram syntax #}
+{% macro _generate_mermaid_diagram(pm_data) %}
+graph TD
+    {% if pm_data.node_summary and pm_data.node_summary.nodes_by_type %}
+    {% for node_type_group in pm_data.node_summary.nodes_by_type %}
+    {% for node in node_type_group.nodes %}
+    {% set node_id = node.uuid|replace('-', '_')|replace('.', '_') %}
+    {% if node.type == 'USER_INPUT_TASK' %}
+    {{ node_id }}[{{ node.name }}]
+    {% elif node.type == 'GATEWAY' %}
+    {{ node_id }}{{{ node.name }}}
+    {% elif node.type == 'SCRIPT_TASK' %}
+    {{ node_id }}({{ node.name }})
+    {% elif node.type == 'START_NODE' %}
+    {{ node_id }}(({{ node.name }}))
+    {% elif node.type == 'END_NODE' %}
+    {{ node_id }}(({{ node.name }}))
+    {% else %}
+    {{ node_id }}[{{ node.name }}]
+    {% endif %}
+    {% endfor %}
+    {% endfor %}
+    
+    {% if pm_data.flow_graph and pm_data.flow_graph.flows %}
+    {% for flow in pm_data.flow_graph.flows %}
+    {% set from_id = flow.from_node_uuid|replace('-', '_')|replace('.', '_') %}
+    {% set to_id = flow.to_node_uuid|replace('-', '_')|replace('.', '_') %}
+    {% if flow.condition %}
+    {{ from_id }} -->|{{ flow.condition[:30] }}...| {{ to_id }}
+    {% else %}
+    {{ from_id }} --> {{ to_id }}
+    {% endif %}
+    {% endfor %}
+    {% endif %}
+    {% endif %}
+{% endmacro %}
+
+<style>
+.process-model-summary {
+    margin-top: 1rem;
+}
+
+.nodes-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.node-group {
+    background: rgba(139, 92, 246, 0.05);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1rem;
+}
+
+.node-group-header {
+    cursor: pointer;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--text-primary);
+    user-select: none;
+}
+
+.node-group-header:hover {
+    color: var(--purple);
+}
+
+.node-type-badge {
+    background: rgba(139, 92, 246, 0.2);
+    color: var(--purple);
+    padding: 0.25rem 0.75rem;
+    border-radius: 4px;
+    font-size: 0.875rem;
+}
+
+.node-count {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+}
+
+.node-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.node-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.node-card-header {
+    background: rgba(139, 92, 246, 0.1);
+    padding: 0.75rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.node-card-header h6 {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.node-card-body {
+    padding: 0.75rem;
+}
+
+.property-section {
+    margin-bottom: 0.75rem;
+}
+
+.property-section:last-child {
+    margin-bottom: 0;
+}
+
+.property-section strong {
+    color: var(--purple);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    display: block;
+    margin-bottom: 0.25rem;
+}
+
+.property-list-compact {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    font-size: 0.8125rem;
+}
+
+.property-list-compact li {
+    padding: 0.125rem 0;
+    color: var(--text-secondary);
+}
+
+.prop-key {
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.property-list-compact code {
+    background: rgba(0, 0, 0, 0.3);
+    padding: 0.125rem 0.25rem;
+    border-radius: 3px;
+    font-size: 0.75rem;
+    color: var(--teal);
+}
+
+.flow-diagram-container {
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 2rem;
+    overflow-x: auto;
+}
+
+.mermaid {
+    display: flex;
+    justify-content: center;
+    min-height: 300px;
+}
+</style>

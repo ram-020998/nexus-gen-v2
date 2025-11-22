@@ -134,6 +134,9 @@ document.addEventListener('DOMContentLoaded', function() {
             // Skip validation for analyzer file inputs
             if (this.id === 'file' && window.location.pathname.includes('/analyzer')) return;
             if (this.id === 'old_file' || this.id === 'new_file') return;
+            // Skip validation for merge assistant file inputs
+            if (this.id === 'basePackage' || this.id === 'customizedPackage' || this.id === 'newVendorPackage') return;
+            if (window.location.pathname.includes('/merge-assistant')) return;
             
             if (file && !DocFlow.validateFileType(file.name)) {
                 DocFlow.showNotification('Invalid file type. Please select a TXT, MD, DOCX, or PDF file.', 'error');
@@ -190,33 +193,18 @@ function initSidebarToggle() {
         });
     }
 
-    // Theme toggle functionality
-    const themeToggle = document.getElementById('themeToggle');
-    
-    function updateThemeIcon(theme) {
-        const icon = themeToggle.querySelector('i');
-        if (theme === 'dark') {
-            icon.className = 'fas fa-sun';
-            themeToggle.title = 'Switch to light mode';
-        } else {
-            icon.className = 'fas fa-moon';
-            themeToggle.title = 'Switch to dark mode';
+    // Theme initialization - load saved theme on page load
+    // Handle localStorage unavailable (private browsing)
+    let savedTheme = 'dark';
+    try {
+        savedTheme = localStorage.getItem('theme') || 'dark';
+    } catch (e) {
+        console.warn('localStorage unavailable, using default theme:', e);
+        try {
+            savedTheme = sessionStorage.getItem('theme') || 'dark';
+        } catch (sessionError) {
+            console.warn('sessionStorage also unavailable, using default theme');
         }
     }
-    
-    if (themeToggle) {
-        // Load saved theme
-        const savedTheme = localStorage.getItem('theme') || 'dark';
-        document.documentElement.setAttribute('data-theme', savedTheme);
-        updateThemeIcon(savedTheme);
-        
-        themeToggle.addEventListener('click', function() {
-            const currentTheme = document.documentElement.getAttribute('data-theme');
-            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-            
-            document.documentElement.setAttribute('data-theme', newTheme);
-            localStorage.setItem('theme', newTheme);
-            updateThemeIcon(newTheme);
-        });
-    }
+    document.documentElement.setAttribute('data-theme', savedTheme);
 }

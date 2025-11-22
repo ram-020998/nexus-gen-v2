@@ -1,0 +1,823 @@
+{% extends "base.html" %}
+
+{% block title %}Three-Way Merge Assistant - NexusGen{% endblock %}
+
+{% block breadcrumbs %}
+<nav aria-label="breadcrumb" class="breadcrumb-nav">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}"><i class="fas fa-home"></i> Home</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Merge Assistant</li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block page_title %}Three-Way Merge Assistant{% endblock %}
+{% block page_subtitle %}Upload three application packages to analyze vendor changes and guide your upgrade process{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Upload Instructions -->
+    <div class="col-12 mb-4">
+        <div class="info-banner">
+            <div class="info-icon">
+                <i class="fas fa-info-circle"></i>
+            </div>
+            <div class="info-content">
+                <h5>How It Works</h5>
+                <p>Upload three Appian application packages to perform a three-way merge analysis:</p>
+                <ul>
+                    <li><strong>Base Package (A):</strong> The original vendor version you started with</li>
+                    <li><strong>Customized Package (B):</strong> Your modified version with customizations</li>
+                    <li><strong>New Vendor Package (C):</strong> The latest vendor release you want to adopt</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<form id="mergeUploadForm" enctype="multipart/form-data">
+    <div class="row">
+        <!-- Base Package (A) -->
+        <div class="col-lg-4">
+            <div class="upload-panel" id="uploadPanelA">
+                <div class="panel-header">
+                    <div class="panel-icon package-a">
+                        <i class="fas fa-box"></i>
+                    </div>
+                    <h4>Base Package (A)</h4>
+                </div>
+                
+                <div class="upload-zone" id="uploadZoneA" data-package="base">
+                    <input type="file" id="basePackage" name="base_package" accept=".zip,application/zip,application/x-zip,application/x-zip-compressed" style="display: none;">
+                    <div class="upload-content" id="uploadContentA">
+                        <div class="upload-icon">
+                            <i class="fas fa-cloud-upload-alt"></i>
+                        </div>
+                        <h5>Drop ZIP here</h5>
+                        <p>or click to browse</p>
+                        <button type="button" class="btn btn-outline-primary btn-sm" onclick="event.stopPropagation(); document.getElementById('basePackage').click();">
+                            Choose File
+                        </button>
+                        <p class="upload-info">Original vendor version</p>
+                    </div>
+                    
+                    <div class="file-selected" id="fileSelectedA" style="display: none;">
+                        <div class="file-icon">
+                            <i class="fas fa-file-archive"></i>
+                        </div>
+                        <div class="file-details">
+                            <div class="file-name" id="fileNameA"></div>
+                            <div class="file-size" id="fileSizeA"></div>
+                        </div>
+                        <button type="button" class="btn-remove" onclick="removeFile('A')">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="validation-error" id="errorA" style="display: none;">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <span id="errorMessageA"></span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Customized Package (B) -->
+        <div class="col-lg-4">
+            <div class="upload-panel" id="uploadPanelB">
+                <div class="panel-header">
+                    <div class="panel-icon package-b">
+                        <i class="fas fa-box"></i>
+                    </div>
+                    <h4>Customized Package (B)</h4>
+                </div>
+                
+                <div class="upload-zone" id="uploadZoneB" data-package="customized">
+                    <input type="file" id="customizedPackage" name="customized_package" accept=".zip,application/zip,application/x-zip,application/x-zip-compressed" style="display: none;">
+                    <div class="upload-content" id="uploadContentB">
+                        <div class="upload-icon">
+                            <i class="fas fa-cloud-upload-alt"></i>
+                        </div>
+                        <h5>Drop ZIP here</h5>
+                        <p>or click to browse</p>
+                        <button type="button" class="btn btn-outline-primary btn-sm" onclick="event.stopPropagation(); document.getElementById('customizedPackage').click();">
+                            Choose File
+                        </button>
+                        <p class="upload-info">Your customized version</p>
+                    </div>
+                    
+                    <div class="file-selected" id="fileSelectedB" style="display: none;">
+                        <div class="file-icon">
+                            <i class="fas fa-file-archive"></i>
+                        </div>
+                        <div class="file-details">
+                            <div class="file-name" id="fileNameB"></div>
+                            <div class="file-size" id="fileSizeB"></div>
+                        </div>
+                        <button type="button" class="btn-remove" onclick="removeFile('B')">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="validation-error" id="errorB" style="display: none;">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <span id="errorMessageB"></span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- New Vendor Package (C) -->
+        <div class="col-lg-4">
+            <div class="upload-panel" id="uploadPanelC">
+                <div class="panel-header">
+                    <div class="panel-icon package-c">
+                        <i class="fas fa-box"></i>
+                    </div>
+                    <h4>New Vendor Package (C)</h4>
+                </div>
+                
+                <div class="upload-zone" id="uploadZoneC" data-package="new_vendor">
+                    <input type="file" id="newVendorPackage" name="new_vendor_package" accept=".zip,application/zip,application/x-zip,application/x-zip-compressed" style="display: none;">
+                    <div class="upload-content" id="uploadContentC">
+                        <div class="upload-icon">
+                            <i class="fas fa-cloud-upload-alt"></i>
+                        </div>
+                        <h5>Drop ZIP here</h5>
+                        <p>or click to browse</p>
+                        <button type="button" class="btn btn-outline-primary btn-sm" onclick="event.stopPropagation(); document.getElementById('newVendorPackage').click();">
+                            Choose File
+                        </button>
+                        <p class="upload-info">Latest vendor release</p>
+                    </div>
+                    
+                    <div class="file-selected" id="fileSelectedC" style="display: none;">
+                        <div class="file-icon">
+                            <i class="fas fa-file-archive"></i>
+                        </div>
+                        <div class="file-details">
+                            <div class="file-name" id="fileNameC"></div>
+                            <div class="file-size" id="fileSizeC"></div>
+                        </div>
+                        <button type="button" class="btn-remove" onclick="removeFile('C')">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="validation-error" id="errorC" style="display: none;">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <span id="errorMessageC"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Start Analysis Button -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="action-panel">
+                <button type="submit" id="startAnalysisBtn" class="btn btn-primary btn-lg" disabled>
+                    <i class="fas fa-play-circle"></i> Start Analysis
+                </button>
+                <p class="action-hint" id="actionHint">Upload all three packages to begin analysis</p>
+            </div>
+        </div>
+    </div>
+</form>
+
+<!-- Progress Modal -->
+<div class="modal fade" id="progressModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-cog fa-spin"></i> Processing Packages
+                </h5>
+            </div>
+            <div class="modal-body">
+                <div class="progress-stage">
+                    <div class="stage-item" id="stageUpload">
+                        <div class="stage-icon">
+                            <i class="fas fa-upload"></i>
+                        </div>
+                        <div class="stage-text">
+                            <strong>Uploading Packages</strong>
+                            <p>Transferring files to server...</p>
+                        </div>
+                        <div class="stage-status">
+                            <div class="spinner-border spinner-border-sm" role="status"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="stage-item" id="stageBlueprint">
+                        <div class="stage-icon">
+                            <i class="fas fa-file-code"></i>
+                        </div>
+                        <div class="stage-text">
+                            <strong>Generating Blueprints</strong>
+                            <p>Analyzing package structures...</p>
+                        </div>
+                        <div class="stage-status">
+                            <i class="fas fa-clock text-muted"></i>
+                        </div>
+                    </div>
+                    
+                    <div class="stage-item" id="stageComparison">
+                        <div class="stage-icon">
+                            <i class="fas fa-code-compare"></i>
+                        </div>
+                        <div class="stage-text">
+                            <strong>Comparing Versions</strong>
+                            <p>Identifying changes and conflicts...</p>
+                        </div>
+                        <div class="stage-status">
+                            <i class="fas fa-clock text-muted"></i>
+                        </div>
+                    </div>
+                    
+                    <div class="stage-item" id="stageClassification">
+                        <div class="stage-icon">
+                            <i class="fas fa-tags"></i>
+                        </div>
+                        <div class="stage-text">
+                            <strong>Classifying Changes</strong>
+                            <p>Categorizing conflicts and changes...</p>
+                        </div>
+                        <div class="stage-status">
+                            <i class="fas fa-clock text-muted"></i>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="progress mt-3">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                         role="progressbar" 
+                         id="overallProgress" 
+                         style="width: 0%"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.info-banner {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-left: 4px solid var(--purple);
+    border-radius: 8px;
+    padding: 1.5rem;
+    display: flex;
+    gap: 1rem;
+}
+
+.info-icon {
+    font-size: 2rem;
+    color: var(--purple);
+    flex-shrink: 0;
+}
+
+.info-content h5 {
+    margin: 0 0 0.5rem 0;
+    color: var(--text-primary);
+    font-size: 1.125rem;
+}
+
+.info-content p {
+    margin: 0 0 0.5rem 0;
+    color: var(--text-secondary);
+}
+
+.info-content ul {
+    margin: 0.5rem 0 0 0;
+    padding-left: 1.5rem;
+    color: var(--text-secondary);
+}
+
+.info-content li {
+    margin-bottom: 0.25rem;
+}
+
+.upload-panel {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1.5rem;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.panel-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.panel-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    color: white;
+}
+
+.panel-icon.package-a {
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+}
+
+.panel-icon.package-b {
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+}
+
+.panel-icon.package-c {
+    background: linear-gradient(135deg, #10b981, #059669);
+}
+
+.panel-header h4 {
+    margin: 0;
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.upload-zone {
+    flex: 1;
+    border: 2px dashed var(--border-color);
+    border-radius: 12px;
+    padding: 2rem 1rem;
+    text-align: center;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(139, 92, 246, 0.03);
+    min-height: 250px;
+}
+
+.upload-zone:hover {
+    border-color: var(--purple);
+    background: rgba(139, 92, 246, 0.08);
+}
+
+.upload-zone.dragover {
+    border-color: var(--purple);
+    background: rgba(139, 92, 246, 0.15);
+    transform: scale(1.02);
+}
+
+.upload-zone.has-file {
+    border-color: var(--green);
+    background: rgba(16, 185, 129, 0.05);
+}
+
+.upload-content {
+    width: 100%;
+}
+
+.upload-icon {
+    font-size: 3rem;
+    color: var(--purple);
+    margin-bottom: 1rem;
+}
+
+.upload-zone h5 {
+    margin: 0.5rem 0;
+    color: var(--text-primary);
+    font-size: 1rem;
+}
+
+.upload-zone p {
+    margin: 0.25rem 0;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+}
+
+.upload-info {
+    margin-top: 1rem !important;
+    font-size: 0.75rem !important;
+    color: var(--text-secondary) !important;
+}
+
+.file-selected {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    background: rgba(16, 185, 129, 0.1);
+    border-radius: 8px;
+    width: 100%;
+}
+
+.file-icon {
+    font-size: 2rem;
+    color: var(--green);
+    flex-shrink: 0;
+}
+
+.file-details {
+    flex: 1;
+    text-align: left;
+}
+
+.file-name {
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.25rem;
+    word-break: break-word;
+}
+
+.file-size {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+.btn-remove {
+    background: rgba(239, 68, 68, 0.2);
+    border: none;
+    color: #ef4444;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+
+.btn-remove:hover {
+    background: rgba(239, 68, 68, 0.3);
+    transform: scale(1.1);
+}
+
+.validation-error {
+    margin-top: 1rem;
+    padding: 0.75rem;
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    border-radius: 8px;
+    color: #fca5a5;
+    font-size: 0.875rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.validation-error i {
+    color: #ef4444;
+}
+
+.action-panel {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 2rem;
+    text-align: center;
+}
+
+.action-panel .btn {
+    min-width: 250px;
+    padding: 0.75rem 2rem;
+    font-size: 1.125rem;
+    font-weight: 600;
+}
+
+.action-panel .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.action-hint {
+    margin: 1rem 0 0 0;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+}
+
+.modal-content {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+}
+
+.modal-header {
+    border-bottom: 1px solid var(--border-color);
+}
+
+.modal-title {
+    color: var(--text-primary);
+}
+
+.progress-stage {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.stage-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    background: rgba(139, 92, 246, 0.05);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+}
+
+.stage-item.active {
+    background: rgba(139, 92, 246, 0.15);
+    border-color: var(--purple);
+}
+
+.stage-item.completed {
+    background: rgba(16, 185, 129, 0.1);
+    border-color: var(--green);
+}
+
+.stage-icon {
+    width: 40px;
+    height: 40px;
+    background: rgba(139, 92, 246, 0.2);
+    color: var(--purple);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    flex-shrink: 0;
+}
+
+.stage-item.completed .stage-icon {
+    background: rgba(16, 185, 129, 0.2);
+    color: var(--green);
+}
+
+.stage-text {
+    flex: 1;
+    text-align: left;
+}
+
+.stage-text strong {
+    display: block;
+    color: var(--text-primary);
+    margin-bottom: 0.25rem;
+}
+
+.stage-text p {
+    margin: 0;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+.stage-status {
+    flex-shrink: 0;
+}
+
+.progress {
+    height: 8px;
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.progress-bar {
+    background: linear-gradient(90deg, var(--purple), var(--teal));
+}
+
+@media (max-width: 992px) {
+    .upload-zone {
+        min-height: 200px;
+    }
+    
+    .action-panel .btn {
+        min-width: 200px;
+    }
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('mergeUploadForm');
+    const startBtn = document.getElementById('startAnalysisBtn');
+    const actionHint = document.getElementById('actionHint');
+    
+    const packages = {
+        A: { input: document.getElementById('basePackage'), file: null },
+        B: { input: document.getElementById('customizedPackage'), file: null },
+        C: { input: document.getElementById('newVendorPackage'), file: null }
+    };
+    
+    // File input change handlers
+    Object.keys(packages).forEach(key => {
+        const pkg = packages[key];
+        const zone = document.getElementById(`uploadZone${key}`);
+        
+        // Click to upload
+        zone.addEventListener('click', function(e) {
+            if (!e.target.closest('.btn-remove')) {
+                pkg.input.click();
+            }
+        });
+        
+        // File selection
+        pkg.input.addEventListener('change', function(e) {
+            if (this.files.length > 0) {
+                handleFileSelect(key, this.files[0]);
+            }
+        });
+        
+        // Drag and drop
+        zone.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            this.classList.add('dragover');
+        });
+        
+        zone.addEventListener('dragleave', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            this.classList.remove('dragover');
+        });
+        
+        zone.addEventListener('drop', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            this.classList.remove('dragover');
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0 && files[0].name.endsWith('.zip')) {
+                pkg.input.files = files;
+                handleFileSelect(key, files[0]);
+            }
+        });
+    });
+    
+    function handleFileSelect(key, file) {
+        // Validate file
+        if (!file.name.endsWith('.zip')) {
+            showError(key, 'Please select a ZIP file');
+            return;
+        }
+        
+        // Store file
+        packages[key].file = file;
+        
+        // Update UI
+        document.getElementById(`uploadContent${key}`).style.display = 'none';
+        document.getElementById(`fileSelected${key}`).style.display = 'flex';
+        document.getElementById(`fileName${key}`).textContent = file.name;
+        document.getElementById(`fileSize${key}`).textContent = formatFileSize(file.size);
+        document.getElementById(`uploadZone${key}`).classList.add('has-file');
+        document.getElementById(`error${key}`).style.display = 'none';
+        
+        // Check if all files are uploaded
+        checkAllFilesUploaded();
+    }
+    
+    window.removeFile = function(key) {
+        packages[key].file = null;
+        packages[key].input.value = '';
+        
+        document.getElementById(`uploadContent${key}`).style.display = 'block';
+        document.getElementById(`fileSelected${key}`).style.display = 'none';
+        document.getElementById(`uploadZone${key}`).classList.remove('has-file');
+        
+        checkAllFilesUploaded();
+    };
+    
+    function checkAllFilesUploaded() {
+        const allUploaded = Object.values(packages).every(pkg => pkg.file !== null);
+        
+        startBtn.disabled = !allUploaded;
+        
+        if (allUploaded) {
+            actionHint.textContent = 'All packages ready. Click to start analysis.';
+            actionHint.style.color = 'var(--green)';
+        } else {
+            const remaining = Object.keys(packages).filter(key => !packages[key].file).length;
+            actionHint.textContent = `Upload ${remaining} more package${remaining > 1 ? 's' : ''} to begin analysis`;
+            actionHint.style.color = 'var(--text-secondary)';
+        }
+    }
+    
+    function showError(key, message) {
+        const errorDiv = document.getElementById(`error${key}`);
+        const errorMsg = document.getElementById(`errorMessage${key}`);
+        
+        errorMsg.textContent = message;
+        errorDiv.style.display = 'flex';
+    }
+    
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+    }
+    
+    // Form submission
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        // Show progress modal
+        const progressModal = new bootstrap.Modal(document.getElementById('progressModal'));
+        progressModal.show();
+        
+        // Prepare form data
+        const formData = new FormData();
+        formData.append('base_package', packages.A.file);
+        formData.append('customized_package', packages.B.file);
+        formData.append('new_vendor_package', packages.C.file);
+        
+        try {
+            // Simulate progress stages
+            updateStage('stageUpload', 'active');
+            updateProgress(25);
+            
+            // Submit form
+            const response = await fetch('/merge-assistant/upload', {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: formData
+            });
+            
+            updateStage('stageUpload', 'completed');
+            updateStage('stageBlueprint', 'active');
+            updateProgress(50);
+            
+            await sleep(1000);
+            updateStage('stageBlueprint', 'completed');
+            updateStage('stageComparison', 'active');
+            updateProgress(75);
+            
+            await sleep(1000);
+            updateStage('stageComparison', 'completed');
+            updateStage('stageClassification', 'active');
+            updateProgress(90);
+            
+            if (response.ok) {
+                const result = await response.json();
+                
+                updateStage('stageClassification', 'completed');
+                updateProgress(100);
+                
+                await sleep(500);
+                
+                // Redirect to summary page
+                window.location.href = `/merge-assistant/session/${result.session_id}/summary`;
+            } else {
+                const error = await response.json();
+                progressModal.hide();
+                
+                // Show error for specific package
+                if (error.package) {
+                    const packageKey = error.package === 'base' ? 'A' : 
+                                      error.package === 'customized' ? 'B' : 'C';
+                    showError(packageKey, error.message);
+                } else {
+                    alert('Error: ' + error.message);
+                }
+            }
+        } catch (error) {
+            progressModal.hide();
+            alert('Upload failed: ' + error.message);
+        }
+    });
+    
+    function updateStage(stageId, status) {
+        const stage = document.getElementById(stageId);
+        stage.classList.remove('active', 'completed');
+        
+        if (status === 'active') {
+            stage.classList.add('active');
+            const statusDiv = stage.querySelector('.stage-status');
+            statusDiv.innerHTML = '<div class="spinner-border spinner-border-sm" role="status"></div>';
+        } else if (status === 'completed') {
+            stage.classList.add('completed');
+            const statusDiv = stage.querySelector('.stage-status');
+            statusDiv.innerHTML = '<i class="fas fa-check-circle text-success"></i>';
+        }
+    }
+    
+    function updateProgress(percent) {
+        document.getElementById('overallProgress').style.width = percent + '%';
+    }
+    
+    function sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+});
+</script>
+{% endblock %}

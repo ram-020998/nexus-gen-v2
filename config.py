@@ -14,7 +14,7 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     # File Settings
-    MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB
+    MAX_CONTENT_LENGTH = 200 * 1024 * 1024  # 200MB (to accommodate large Appian packages)
     ALLOWED_EXTENSIONS = {'txt', 'md', 'docx', 'pdf'}
 
     # Directory Settings
@@ -22,6 +22,11 @@ class Config:
     UPLOAD_FOLDER = BASE_DIR / 'uploads'
     OUTPUT_FOLDER = BASE_DIR / 'outputs'
     PROMPT_FOLDER = BASE_DIR / 'prompts'
+    
+    # Merge Assistant Settings
+    MERGE_UPLOAD_FOLDER = BASE_DIR / 'uploads' / 'merge_assistant'
+    MERGE_MAX_FILE_SIZE = 100 * 1024 * 1024  # 100MB for Appian packages
+    MERGE_SESSION_TIMEOUT = 24 * 60 * 60  # 24 hours in seconds
 
     # Data Source Configuration
     DATA_SOURCE = 'BEDROCK'
@@ -33,5 +38,5 @@ class Config:
     @classmethod
     def init_directories(cls):
         """Initialize required directories"""
-        for folder in [cls.UPLOAD_FOLDER, cls.OUTPUT_FOLDER, cls.PROMPT_FOLDER]:
+        for folder in [cls.UPLOAD_FOLDER, cls.OUTPUT_FOLDER, cls.PROMPT_FOLDER, cls.MERGE_UPLOAD_FOLDER]:
             folder.mkdir(parents=True, exist_ok=True)

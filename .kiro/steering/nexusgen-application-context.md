@@ -272,16 +272,56 @@ applicationArtifacts/Testing Files/
 
 ### Running Tests
 
+## ⚠️ CRITICAL: MANDATORY TEST EXECUTION PATTERN ⚠️
+
+**YOU MUST ALWAYS USE THIS EXACT PATTERN WHEN RUNNING PYTEST COMMANDS:**
+
+```bash
+# MANDATORY: Redirect output to file and then cat it
+python -m pytest <test_path> <options> > /tmp/test_output.txt 2>&1; cat /tmp/test_output.txt
+```
+
+**WHY THIS IS MANDATORY:**
+- Direct pytest execution returns "TY=not a tty" error and Exit Code: -1
+- This prevents you from seeing actual test results
+- The redirect-and-cat pattern is the ONLY way to see test output properly
+- Without this, you cannot verify if tests pass or fail
+
+**EXAMPLES:**
+
 ```bash
 # Run all tests
-pytest
+python -m pytest > /tmp/test_output.txt 2>&1; cat /tmp/test_output.txt
 
 # Run specific test file
-pytest tests/test_analyzer.py
+python -m pytest tests/test_analyzer.py > /tmp/test_output.txt 2>&1; cat /tmp/test_output.txt
 
 # Run with verbose output
-pytest -v
+python -m pytest -v > /tmp/test_output.txt 2>&1; cat /tmp/test_output.txt
+
+# Run specific test by name
+python -m pytest tests/test_file.py::TestClass::test_method -v > /tmp/test_output.txt 2>&1; cat /tmp/test_output.txt
+
+# Run tests matching a pattern
+python -m pytest -k "test_property_7" -v > /tmp/test_output.txt 2>&1; cat /tmp/test_output.txt
 ```
+
+**NEVER USE THESE (THEY WILL FAIL):**
+```bash
+# ❌ WRONG - Will not show output
+pytest tests/test_file.py
+
+# ❌ WRONG - Will not show output
+python -m pytest tests/test_file.py
+
+# ❌ WRONG - Will not show output
+python -m pytest tests/test_file.py -v
+```
+
+**ALWAYS ADD TIMEOUT:**
+```bash
+# Always include timeout parameter (120000ms = 2 minutes is good default)
+<parameter name="timeout">120000
 
 ### Checking Diagnostics
 
@@ -575,7 +615,7 @@ The SAIL formatter now properly formats code in comparison results:
 - Large applications (1500+ objects): 6-8 seconds
 
 **Database:**
-- SQLite database at `instance/nexusgen.db`
+- SQLite database at `instance/docflow.db`
 - Stores comparison requests, blueprints, and results
 - No manual cleanup needed (managed by application)
 

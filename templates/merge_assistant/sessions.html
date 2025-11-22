@@ -1,0 +1,983 @@
+{% extends "base.html" %}
+
+{% block title %}Merge Sessions - NexusGen{% endblock %}
+
+{% block breadcrumbs %}
+<nav aria-label="breadcrumb" class="breadcrumb-nav">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}"><i class="fas fa-home"></i> Home</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Merge Assistant</li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block page_title %}Merge Sessions{% endblock %}
+{% block page_subtitle %}View and manage all three-way merge sessions{% endblock %}
+
+{% block content %}
+<!-- Filters and Search -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="filter-card">
+            <div class="filter-header">
+                <h4><i class="fas fa-filter"></i> Filters</h4>
+                <button class="btn btn-sm btn-outline-secondary" id="clearFiltersBtn">
+                    <i class="fas fa-times"></i> Clear Filters
+                </button>
+            </div>
+            
+            <div class="filter-controls">
+                <div class="filter-group">
+                    <label for="statusFilter">Status</label>
+                    <select id="statusFilter" class="form-select">
+                        <option value="">All Statuses</option>
+                        <option value="processing">Processing</option>
+                        <option value="ready">Ready</option>
+                        <option value="in_progress">In Progress</option>
+                        <option value="completed">Completed</option>
+                        <option value="error">Error</option>
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label for="searchInput">Search</label>
+                    <div class="search-box">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="searchInput" class="form-control" 
+                               placeholder="Search by reference ID or package name...">
+                    </div>
+                </div>
+                
+                <div class="filter-group">
+                    <label for="sortBy">Sort By</label>
+                    <select id="sortBy" class="form-select">
+                        <option value="created_desc">Newest First</option>
+                        <option value="created_asc">Oldest First</option>
+                        <option value="reference_asc">Reference ID (A-Z)</option>
+                        <option value="reference_desc">Reference ID (Z-A)</option>
+                        <option value="status_asc">Status (A-Z)</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Sessions Table -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="sessions-card">
+            <div class="card-header">
+                <div class="header-left">
+                    <h4><i class="fas fa-list"></i> All Sessions</h4>
+                    <span class="session-count" id="sessionCount">{{ sessions|length }} session{{ 's' if sessions|length != 1 else '' }}</span>
+                </div>
+                <div class="header-right">
+                    <a href="{{ url_for('merge_assistant.merge_assistant_home') }}" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> New Merge Session
+                    </a>
+                </div>
+            </div>
+            
+            <div class="table-responsive">
+                <table class="table sessions-table" id="sessionsTable">
+                    <thead>
+                        <tr>
+                            <th>Reference ID</th>
+                            <!-- <th>Base Package (A)</th>
+                            <th>Customized Package (B)</th>
+                            <th>New Vendor Package (C)</th> -->
+                            <th>Status</th>
+                            <th>Progress</th>
+                            <th>Created</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="sessionsTableBody">
+                        {% if sessions %}
+                            {% for session in sessions %}
+                            <tr class="session-row" 
+                                data-status="{{ session.status }}"
+                                data-reference="{{ session.reference_id }}"
+                                data-base="{{ session.base_package_name }}"
+                                data-customized="{{ session.customized_package_name }}"
+                                data-vendor="{{ session.new_vendor_package_name }}">
+                                <td>
+                                    <div class="reference-cell">
+                                        <i class="fas fa-code-branch"></i>
+                                        <strong>{{ session.reference_id }}</strong>
+                                    </div>
+                                </td>
+                                <!-- <td>
+                                    <div class="package-cell package-a">
+                                        {{ session.base_package_name }}
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="package-cell package-b">
+                                        {{ session.customized_package_name }}
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="package-cell package-c">
+                                        {{ session.new_vendor_package_name }}
+                                    </div>
+                                </td> -->
+                                <td>
+                                    {% if session.status == 'processing' %}
+                                        <span class="badge badge-processing">
+                                            <i class="fas fa-spinner fa-spin"></i> Processing
+                                        </span>
+                                    {% elif session.status == 'ready' %}
+                                        <span class="badge badge-ready">
+                                            <i class="fas fa-check-circle"></i> Ready
+                                        </span>
+                                    {% elif session.status == 'in_progress' %}
+                                        <span class="badge badge-in-progress">
+                                            <i class="fas fa-play-circle"></i> In Progress
+                                        </span>
+                                    {% elif session.status == 'completed' %}
+                                        <span class="badge badge-completed">
+                                            <i class="fas fa-flag-checkered"></i> Completed
+                                        </span>
+                                    {% elif session.status == 'error' %}
+                                        <span class="badge badge-error">
+                                            <i class="fas fa-exclamation-circle"></i> Error
+                                        </span>
+                                    {% else %}
+                                        <span class="badge badge-secondary">{{ session.status }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if session.total_changes > 0 %}
+                                        <div class="progress-cell">
+                                            <div class="progress-bar-container">
+                                                <div class="progress-bar-fill" 
+                                                     style="width: {{ (session.reviewed_count / session.total_changes * 100)|int }}%"></div>
+                                            </div>
+                                            <div class="progress-text">
+                                                {{ session.reviewed_count }} / {{ session.total_changes }}
+                                                <span class="progress-percent">({{ (session.reviewed_count / session.total_changes * 100)|int }}%)</span>
+                                            </div>
+                                        </div>
+                                    {% else %}
+                                        <span class="text-muted">—</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="date-cell">
+                                        <div class="date-primary">{{ session.created_at.strftime('%Y-%m-%d') }}</div>
+                                        <div class="date-secondary">{{ session.created_at.strftime('%H:%M') }}</div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="action-buttons">
+                                        {% if session.status == 'ready' %}
+                                            <a href="{{ url_for('merge_assistant.view_summary', session_id=session.id) }}" 
+                                               class="btn btn-sm btn-primary" title="View Summary">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            <a href="{{ url_for('merge_assistant.start_workflow', session_id=session.id) }}" 
+                                               class="btn btn-sm btn-success" title="Start Workflow">
+                                                <i class="fas fa-play"></i>
+                                            </a>
+                                        {% elif session.status == 'in_progress' %}
+                                            <a href="{{ url_for('merge_assistant.view_summary', session_id=session.id) }}" 
+                                               class="btn btn-sm btn-primary" title="View Summary">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            <a href="{{ url_for('merge_assistant.start_workflow', session_id=session.id) }}" 
+                                               class="btn btn-sm btn-warning" title="Resume Workflow">
+                                                <i class="fas fa-play-circle"></i>
+                                            </a>
+                                        {% elif session.status == 'completed' %}
+                                            <a href="{{ url_for('merge_assistant.view_summary', session_id=session.id) }}" 
+                                               class="btn btn-sm btn-primary" title="View Summary">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            <a href="{{ url_for('merge_assistant.generate_report', session_id=session.id) }}" 
+                                               class="btn btn-sm btn-info" title="View Report">
+                                                <i class="fas fa-file-alt"></i>
+                                            </a>
+                                        {% elif session.status == 'error' %}
+                                            <a href="{{ url_for('merge_assistant.view_summary', session_id=session.id) }}" 
+                                               class="btn btn-sm btn-primary" title="View Details">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                        {% else %}
+                                            <button class="btn btn-sm btn-secondary" disabled title="Processing">
+                                                <i class="fas fa-spinner fa-spin"></i>
+                                            </button>
+                                        {% endif %}
+                                        <button class="btn btn-sm btn-danger delete-session-btn" 
+                                                data-session-id="{{ session.id }}"
+                                                data-reference-id="{{ session.reference_id }}"
+                                                title="Delete Session">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="8">
+                                    <div class="empty-state">
+                                        <i class="fas fa-inbox"></i>
+                                        <h5>No Merge Sessions Found</h5>
+                                        <p>Create your first three-way merge session to get started</p>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Pagination -->
+            {% if sessions and sessions|length > 10 %}
+            <div class="pagination-container">
+                <div class="pagination-info">
+                    Showing <span id="showingStart">1</span> to <span id="showingEnd">10</span> of <span id="totalSessions">{{ sessions|length }}</span> sessions
+                </div>
+                <div class="pagination-controls">
+                    <button class="btn btn-sm btn-outline-secondary" id="prevPageBtn" disabled>
+                        <i class="fas fa-chevron-left"></i> Previous
+                    </button>
+                    <span class="page-indicator">
+                        Page <span id="currentPage">1</span> of <span id="totalPages">{{ ((sessions|length - 1) // 10 + 1) }}</span>
+                    </span>
+                    <button class="btn btn-sm btn-outline-secondary" id="nextPageBtn">
+                        Next <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+/* Fix horizontal overflow */
+body, html {
+    overflow-x: hidden;
+    max-width: 100%;
+}
+
+.main-content {
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
+.filter-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1.5rem;
+    max-width: 100%;
+}
+
+.filter-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.filter-header h4 {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: 1.125rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.filter-controls {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1rem;
+}
+
+.filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.filter-group label {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.search-box {
+    position: relative;
+}
+
+.search-box i {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-secondary);
+}
+
+.search-box input {
+    padding-left: 2.5rem;
+}
+
+.form-select, .form-control {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    font-size: 0.875rem;
+}
+
+.form-select:focus, .form-control:focus {
+    background: var(--bg-primary);
+    border-color: var(--purple);
+    color: var(--text-primary);
+    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+}
+
+.sessions-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    overflow: hidden;
+    max-width: 100%;
+}
+
+.sessions-card .card-header {
+    padding: 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+    background: rgba(139, 92, 246, 0.05);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.header-left h4 {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: 1.25rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.session-count {
+    padding: 0.25rem 0.75rem;
+    background: rgba(139, 92, 246, 0.2);
+    color: var(--purple);
+    border-radius: 12px;
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.table-responsive {
+    overflow-x: auto;
+    max-width: 100%;
+    -webkit-overflow-scrolling: touch;
+}
+
+.sessions-table {
+    width: 100%;
+    margin: 0;
+    border-collapse: separate;
+    border-spacing: 0;
+    background: transparent;
+}
+
+.sessions-table thead {
+    background: rgba(139, 92, 246, 0.05);
+}
+
+.sessions-table th {
+    padding: 1rem;
+    text-align: left;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 2px solid var(--border-color);
+    white-space: nowrap;
+    background: transparent;
+}
+
+.sessions-table tbody {
+    background: transparent;
+}
+
+.sessions-table tbody tr {
+    border-bottom: 1px solid var(--border-color);
+    transition: background-color 0.2s;
+    background: transparent;
+}
+
+.sessions-table tbody tr:hover {
+    background: rgba(139, 92, 246, 0.05);
+}
+
+.sessions-table tbody tr.hidden {
+    display: none;
+}
+
+.sessions-table td {
+    padding: 1rem;
+    color: var(--text-primary);
+    vertical-align: middle;
+    background: transparent;
+}
+
+.reference-cell {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-family: 'Courier New', monospace;
+}
+
+.reference-cell i {
+    color: var(--purple);
+}
+
+.package-cell {
+    font-size: 0.875rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 6px;
+    border-left: 3px solid;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.package-cell.package-a {
+    background: rgba(239, 68, 68, 0.05);
+    border-color: #ef4444;
+}
+
+.package-cell.package-b {
+    background: rgba(59, 130, 246, 0.05);
+    border-color: #3b82f6;
+}
+
+.package-cell.package-c {
+    background: rgba(16, 185, 129, 0.05);
+    border-color: var(--green);
+}
+
+.badge {
+    padding: 0.375rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    white-space: nowrap;
+}
+
+.badge-processing {
+    background: rgba(139, 92, 246, 0.2);
+    color: var(--purple);
+}
+
+.badge-ready {
+    background: rgba(16, 185, 129, 0.2);
+    color: var(--green);
+}
+
+.badge-in-progress {
+    background: rgba(251, 191, 36, 0.2);
+    color: #fbbf24;
+}
+
+.badge-completed {
+    background: rgba(59, 130, 246, 0.2);
+    color: #3b82f6;
+}
+
+.badge-error {
+    background: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+}
+
+.badge-secondary {
+    background: rgba(156, 163, 175, 0.2);
+    color: #9ca3af;
+}
+
+.progress-cell {
+    min-width: 150px;
+}
+
+.progress-bar-container {
+    width: 100%;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 0.375rem;
+}
+
+.progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--purple), var(--teal));
+    border-radius: 3px;
+    transition: width 0.3s ease;
+}
+
+.progress-text {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+.progress-percent {
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.date-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+}
+
+.date-primary {
+    font-size: 0.875rem;
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+.date-secondary {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+.action-buttons {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.btn-sm {
+    padding: 0.375rem 0.75rem;
+    font-size: 0.875rem;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    transition: all 0.2s;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, var(--purple), var(--teal));
+    border: none;
+    color: white;
+}
+
+.btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(139, 92, 246, 0.4);
+}
+
+.btn-success {
+    background: var(--green);
+    border: none;
+    color: white;
+}
+
+.btn-success:hover {
+    background: #059669;
+    transform: translateY(-1px);
+}
+
+.btn-warning {
+    background: #fbbf24;
+    border: none;
+    color: #1f2937;
+}
+
+.btn-warning:hover {
+    background: #f59e0b;
+    transform: translateY(-1px);
+}
+
+.btn-info {
+    background: #3b82f6;
+    border: none;
+    color: white;
+}
+
+.btn-info:hover {
+    background: #2563eb;
+    transform: translateY(-1px);
+}
+
+.btn-outline-secondary {
+    background: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+}
+
+.btn-outline-secondary:hover {
+    background: rgba(139, 92, 246, 0.1);
+    border-color: var(--purple);
+    color: var(--purple);
+}
+
+.btn-secondary {
+    background: rgba(156, 163, 175, 0.2);
+    border: none;
+    color: #9ca3af;
+}
+
+.btn-danger {
+    background: #ef4444;
+    border: none;
+    color: white;
+}
+
+.btn-danger:hover {
+    background: #dc2626;
+    transform: translateY(-1px);
+}
+
+.empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+    color: var(--text-secondary);
+    background: transparent;
+}
+
+.empty-state i {
+    font-size: 4rem;
+    margin-bottom: 1.5rem;
+    opacity: 0.5;
+    color: var(--text-secondary);
+}
+
+.empty-state h5 {
+    margin: 0 0 0.5rem 0;
+    color: var(--text-primary);
+    font-size: 1.25rem;
+}
+
+.empty-state p {
+    margin: 0 0 1.5rem 0;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+.pagination-container {
+    padding: 1.5rem;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.pagination-info {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+.pagination-controls {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.page-indicator {
+    font-size: 0.875rem;
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+@media (max-width: 768px) {
+    .filter-controls {
+        grid-template-columns: 1fr;
+    }
+    
+    .sessions-card .card-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .header-left {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .action-buttons {
+        flex-direction: column;
+    }
+    
+    .pagination-container {
+        flex-direction: column;
+        text-align: center;
+    }
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const statusFilter = document.getElementById('statusFilter');
+    const searchInput = document.getElementById('searchInput');
+    const sortBy = document.getElementById('sortBy');
+    const clearFiltersBtn = document.getElementById('clearFiltersBtn');
+    const sessionsTableBody = document.getElementById('sessionsTableBody');
+    const sessionRows = document.querySelectorAll('.session-row');
+    
+    // Pagination elements
+    const prevPageBtn = document.getElementById('prevPageBtn');
+    const nextPageBtn = document.getElementById('nextPageBtn');
+    const currentPageSpan = document.getElementById('currentPage');
+    const totalPagesSpan = document.getElementById('totalPages');
+    const showingStartSpan = document.getElementById('showingStart');
+    const showingEndSpan = document.getElementById('showingEnd');
+    const totalSessionsSpan = document.getElementById('totalSessions');
+    const sessionCountSpan = document.getElementById('sessionCount');
+    
+    let currentPage = 1;
+    const itemsPerPage = 10;
+    let filteredRows = Array.from(sessionRows);
+    
+    // Filter and search functionality
+    function applyFilters() {
+        const statusValue = statusFilter.value.toLowerCase();
+        const searchValue = searchInput.value.toLowerCase();
+        
+        filteredRows = Array.from(sessionRows).filter(row => {
+            const status = row.dataset.status.toLowerCase();
+            const reference = row.dataset.reference.toLowerCase();
+            const base = row.dataset.base.toLowerCase();
+            const customized = row.dataset.customized.toLowerCase();
+            const vendor = row.dataset.vendor.toLowerCase();
+            
+            const matchesStatus = !statusValue || status === statusValue;
+            const matchesSearch = !searchValue || 
+                reference.includes(searchValue) ||
+                base.includes(searchValue) ||
+                customized.includes(searchValue) ||
+                vendor.includes(searchValue);
+            
+            return matchesStatus && matchesSearch;
+        });
+        
+        // Apply sorting
+        applySorting();
+        
+        // Reset to first page
+        currentPage = 1;
+        updateDisplay();
+    }
+    
+    function applySorting() {
+        const sortValue = sortBy.value;
+        
+        filteredRows.sort((a, b) => {
+            switch(sortValue) {
+                case 'created_desc':
+                    return b.querySelector('.date-primary').textContent.localeCompare(
+                        a.querySelector('.date-primary').textContent
+                    );
+                case 'created_asc':
+                    return a.querySelector('.date-primary').textContent.localeCompare(
+                        b.querySelector('.date-primary').textContent
+                    );
+                case 'reference_asc':
+                    return a.dataset.reference.localeCompare(b.dataset.reference);
+                case 'reference_desc':
+                    return b.dataset.reference.localeCompare(a.dataset.reference);
+                case 'status_asc':
+                    return a.dataset.status.localeCompare(b.dataset.status);
+                default:
+                    return 0;
+            }
+        });
+    }
+    
+    function updateDisplay() {
+        // Hide all rows
+        sessionRows.forEach(row => row.classList.add('hidden'));
+        
+        // Calculate pagination
+        const totalPages = Math.ceil(filteredRows.length / itemsPerPage);
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = Math.min(startIndex + itemsPerPage, filteredRows.length);
+        
+        // Show current page rows
+        for (let i = startIndex; i < endIndex; i++) {
+            filteredRows[i].classList.remove('hidden');
+        }
+        
+        // Update pagination info
+        if (totalSessionsSpan) {
+            totalSessionsSpan.textContent = filteredRows.length;
+        }
+        if (showingStartSpan) {
+            showingStartSpan.textContent = filteredRows.length > 0 ? startIndex + 1 : 0;
+        }
+        if (showingEndSpan) {
+            showingEndSpan.textContent = endIndex;
+        }
+        if (currentPageSpan) {
+            currentPageSpan.textContent = currentPage;
+        }
+        if (totalPagesSpan) {
+            totalPagesSpan.textContent = totalPages;
+        }
+        if (sessionCountSpan) {
+            sessionCountSpan.textContent = `${filteredRows.length} session${filteredRows.length !== 1 ? 's' : ''}`;
+        }
+        
+        // Update pagination buttons
+        if (prevPageBtn) {
+            prevPageBtn.disabled = currentPage === 1;
+        }
+        if (nextPageBtn) {
+            nextPageBtn.disabled = currentPage >= totalPages;
+        }
+    }
+    
+    // Event listeners
+    if (statusFilter) {
+        statusFilter.addEventListener('change', applyFilters);
+    }
+    
+    if (searchInput) {
+        searchInput.addEventListener('input', debounce(applyFilters, 300));
+    }
+    
+    if (sortBy) {
+        sortBy.addEventListener('change', applyFilters);
+    }
+    
+    if (clearFiltersBtn) {
+        clearFiltersBtn.addEventListener('click', function() {
+            statusFilter.value = '';
+            searchInput.value = '';
+            sortBy.value = 'created_desc';
+            applyFilters();
+        });
+    }
+    
+    if (prevPageBtn) {
+        prevPageBtn.addEventListener('click', function() {
+            if (currentPage > 1) {
+                currentPage--;
+                updateDisplay();
+            }
+        });
+    }
+    
+    if (nextPageBtn) {
+        nextPageBtn.addEventListener('click', function() {
+            const totalPages = Math.ceil(filteredRows.length / itemsPerPage);
+            if (currentPage < totalPages) {
+                currentPage++;
+                updateDisplay();
+            }
+        });
+    }
+    
+    // Debounce helper
+    function debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    }
+    
+    // Initial display
+    updateDisplay();
+    
+    // Delete session functionality
+    document.querySelectorAll('.delete-session-btn').forEach(btn => {
+        btn.addEventListener('click', async function(e) {
+            e.preventDefault();
+            
+            const sessionId = this.dataset.sessionId;
+            const referenceId = this.dataset.referenceId;
+            
+            // Confirm deletion
+            if (!confirm(`Are you sure you want to delete session ${referenceId}?\n\nThis will permanently delete all session data including blueprints, changes, and reviews.`)) {
+                return;
+            }
+            
+            // Disable button and show loading
+            this.disabled = true;
+            this.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            
+            try {
+                const response = await fetch(`/merge-assistant/session/${sessionId}/delete`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    // Remove the row from the table
+                    const row = this.closest('tr');
+                    row.style.opacity = '0';
+                    row.style.transition = 'opacity 0.3s';
+                    
+                    setTimeout(() => {
+                        row.remove();
+                        
+                        // Update filtered rows
+                        filteredRows = filteredRows.filter(r => r !== row);
+                        
+                        // Update display
+                        updateDisplay();
+                        
+                        // Show success message
+                        alert(result.message);
+                        
+                        // Reload page if no sessions left
+                        if (filteredRows.length === 0) {
+                            window.location.reload();
+                        }
+                    }, 300);
+                } else {
+                    alert(`Error: ${result.message}`);
+                    this.disabled = false;
+                    this.innerHTML = '<i class="fas fa-trash"></i>';
+                }
+            } catch (error) {
+                alert(`Error deleting session: ${error.message}`);
+                this.disabled = false;
+                this.innerHTML = '<i class="fas fa-trash"></i>';
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

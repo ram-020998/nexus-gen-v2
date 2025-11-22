@@ -280,10 +280,31 @@ class RecordTypeParser(XMLParser):
 class ProcessModelParser(XMLParser):
     """Parser for Process Model objects"""
     
+    def __init__(self):
+        super().__init__()
+        self.object_lookup = {}
+        self.sail_formatter = None
+    
+    def set_object_lookup(self, object_lookup: Dict[str, Any]):
+        """Set object lookup for UUID resolution"""
+        self.object_lookup = object_lookup
+    
+    def set_sail_formatter(self, sail_formatter: Any):
+        """Set SAIL formatter for expression formatting"""
+        self.sail_formatter = sail_formatter
+    
     def can_parse(self, file_path: str) -> bool:
         return 'processModel/' in file_path
     
     def parse(self, root: ET.Element, file_path: str) -> Optional[ProcessModel]:
+        """
+        Parse process model XML with enhanced extraction
+        
+        Integrates NodeExtractor and FlowExtractor for enhanced parsing
+        while maintaining backward compatibility with existing fields.
+        
+        Requirements: 9.1, 9.2
+        """
         pm_port = root.find('{http://www.appian.com/ae/types/2009}process_model_port')
         if pm_port is None:
             return None
@@ -315,9 +336,77 @@ class ProcessModelParser(XMLParser):
             name = f"Process Model {uuid.split('-')[0]}"
         
         process = ProcessModel(uuid=uuid, name=name, object_type="Process Model", description=description)
+        
+        # Try enhanced parsing with new extractors
+        try:
+            # Import here to avoid circular dependencies
+            from .process_model_enhancement import (
+                NodeExtractor, FlowExtractor, log_parsing_start,
+                log_parsing_complete, log_parsing_error, log_fallback_to_raw_xml
+            )
+            
+            log_parsing_start(name)
+            
+            # Initialize extractors
+            node_extractor = NodeExtractor(self.object_lookup, self.sail_formatter)
+            
+            # Extract nodes using enhanced extractor
+            enhanced_nodes = []
+            node_lookup = {}  # Map UUID to name for flow extraction
+            
+            nodes_elem = pm_elem.find('{http://www.appian.com/ae/types/2009}nodes')
+            if nodes_elem is not None:
+                for node_elem in nodes_elem.findall('{http://www.appian.com/ae/types/2009}node'):
+                    try:
+                        enhanced_node = node_extractor.extract_node(node_elem)
+                        enhanced_nodes.append(enhanced_node)
+                        node_lookup[enhanced_node['uuid']] = enhanced_node['name']
+                    except Exception as e:
+                        # Log error but continue with other nodes
+                        log_parsing_error(name, e, f"node extraction")
+            
+            # Initialize flow extractor with node lookup
+            flow_extractor = FlowExtractor(node_lookup, self.sail_formatter)
+            
+            # Extract flows using enhanced extractor
+            enhanced_flows = flow_extractor.extract_flows(pm_elem)
+            
+            # Build flow graph
+            flow_graph = flow_extractor.build_flow_graph(enhanced_nodes, enhanced_flows)
+            
+            # Store enhanced data in process model
+            process.nodes = enhanced_nodes
+            process.flows = enhanced_flows
+            
+            # Add new fields for enhanced data
+            if not hasattr(process, 'flow_graph'):
+                # Dynamically add flow_graph attribute
+                process.flow_graph = flow_graph
+            else:
+                process.flow_graph = flow_graph
+            
+            # Build node summary
+            node_summary = self._build_node_summary(enhanced_nodes)
+            if not hasattr(process, 'node_summary'):
+                process.node_summary = node_summary
+            else:
+                process.node_summary = node_summary
+            
+            log_parsing_complete(name, len(enhanced_nodes), len(enhanced_flows))
+            
+        except Exception as e:
+            # Fall back to basic parsing on error
+            log_fallback_to_raw_xml(name, str(e))
+            process.nodes = self._parse_nodes(pm_elem)
+            process.flows = self._parse_flows(pm_elem)
+            # Set empty enhanced fields
+            if not hasattr(process, 'flow_graph'):
+                process.flow_graph = {}
+            if not hasattr(process, 'node_summary'):
+                process.node_summary = {}
+        
+        # Continue with existing parsing for other fields (backward compatibility)
         process.variables = self._parse_variables(pm_elem)
-        process.nodes = self._parse_nodes(pm_elem)
-        process.flows = self._parse_flows(pm_elem)
         process.interfaces = self._parse_interfaces(pm_elem)
         process.rules = self._parse_rules(pm_elem)
         process.business_logic = self._extract_complete_business_logic(pm_elem)
@@ -497,26 +586,30 @@ class ProcessModelParser(XMLParser):
     def _parse_nodes(self, pm_elem: ET.Element) -> List[Dict[str, Any]]:
         """Parse process nodes"""
         nodes = []
-        for node_elem in pm_elem.findall('.//nodes/node'):
-            node_data = {
-                "uuid": node_elem.get('uuid'),
-                "name": self._get_element_text(node_elem, 'name'),
-                "type": self._determine_node_type(node_elem),
-                "details": self._parse_node_details(node_elem)
-            }
-            nodes.append(node_data)
+        nodes_elem = pm_elem.find('{http://www.appian.com/ae/types/2009}nodes')
+        if nodes_elem is not None:
+            for node_elem in nodes_elem.findall('{http://www.appian.com/ae/types/2009}node'):
+                node_data = {
+                    "uuid": node_elem.get('uuid'),
+                    "name": self._get_element_text(node_elem, 'name'),
+                    "type": self._determine_node_type(node_elem),
+                    "details": self._parse_node_details(node_elem)
+                }
+                nodes.append(node_data)
         return nodes
     
     def _parse_flows(self, pm_elem: ET.Element) -> List[Dict[str, Any]]:
         """Parse process flows"""
         flows = []
-        for flow_elem in pm_elem.findall('.//flows/flow'):
-            flow_data = {
-                "from": self._get_element_text(flow_elem, 'from'),
-                "to": self._get_element_text(flow_elem, 'to'),
-                "condition": self._get_element_text(flow_elem, 'condition')
-            }
-            flows.append(flow_data)
+        flows_elem = pm_elem.find('{http://www.appian.com/ae/types/2009}flows')
+        if flows_elem is not None:
+            for flow_elem in flows_elem.findall('{http://www.appian.com/ae/types/2009}flow'):
+                flow_data = {
+                    "from": self._get_element_text(flow_elem, '{http://www.appian.com/ae/types/2009}from'),
+                    "to": self._get_element_text(flow_elem, '{http://www.appian.com/ae/types/2009}to'),
+                    "condition": self._get_element_text(flow_elem, '{http://www.appian.com/ae/types/2009}condition')
+                }
+                flows.append(flow_data)
         return flows
     
     def _determine_node_type(self, node_elem: ET.Element) -> str:
@@ -532,15 +625,23 @@ class ProcessModelParser(XMLParser):
     def _parse_node_details(self, node_elem: ET.Element) -> Dict[str, Any]:
         """Parse node details"""
         details = {}
-        form_config = node_elem.find('.//form-config')
-        if form_config is not None:
-            ui_expr = form_config.find('.//uiExpressionForm')
-            if ui_expr is not None:
-                details["interface"] = {"uuid": ui_expr.text, "name": "Unknown"}
         
-        expr_elem = node_elem.find('.//expr')
-        if expr_elem is not None:
-            details["expression"] = expr_elem.text
+        # Look for AC (activity class) element which contains node configuration
+        ac_elem = node_elem.find('{http://www.appian.com/ae/types/2009}ac')
+        if ac_elem is not None:
+            # Check for form configuration (User Input Task)
+            form_config = ac_elem.find('.//{http://www.appian.com/ae/types/2009}form-config')
+            if form_config is not None:
+                ui_expr = form_config.find('.//{http://www.appian.com/ae/types/2009}uiExpressionForm')
+                if ui_expr is not None:
+                    expr_elem = ui_expr.find('{http://www.appian.com/ae/types/2009}expression')
+                    if expr_elem is not None and expr_elem.text:
+                        details["interface"] = {"uuid": expr_elem.text, "name": "Unknown"}
+            
+            # Check for expression (Script Task)
+            expr_elem = ac_elem.find('.//{http://www.appian.com/ae/types/2009}expr')
+            if expr_elem is not None and expr_elem.text:
+                details["expression"] = expr_elem.text
         
         return details
     
@@ -561,6 +662,39 @@ class ProcessModelParser(XMLParser):
                         "groups": [{"uuid": g, "name": "Unknown"} for g in group_uuids]
                     })
         return security
+    
+    def _build_node_summary(self, nodes: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """
+        Build organized node summary grouped by type
+        
+        Requirements: 9.1, 9.2
+        
+        Args:
+            nodes: List of enhanced node dictionaries
+            
+        Returns:
+            Node summary dictionary with nodes grouped by type
+        """
+        from .process_model_enhancement import NodeType
+        
+        nodes_by_type = {}
+        node_type_counts = {}
+        
+        for node in nodes:
+            node_type = node.get('type', NodeType.UNKNOWN.value)
+            
+            if node_type not in nodes_by_type:
+                nodes_by_type[node_type] = []
+                node_type_counts[node_type] = 0
+            
+            nodes_by_type[node_type].append(node)
+            node_type_counts[node_type] += 1
+        
+        return {
+            'nodes_by_type': nodes_by_type,
+            'total_nodes': len(nodes),
+            'node_type_counts': node_type_counts
+        }
 
 class ContentParser(XMLParser):
     """Parser for content objects (interfaces, rules, constants, etc.)"""

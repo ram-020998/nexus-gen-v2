@@ -92,6 +92,10 @@ class ProcessModel(AppianObject):
     rules: List[Dict[str, Any]] = None
     business_logic: str = ""
     security: Dict[str, Any] = None
+    
+    # New fields for enhanced parsing (Requirements: 9.1, 9.2)
+    flow_graph: Dict[str, Any] = None
+    node_summary: Dict[str, Any] = None
 
     def __post_init__(self):
         if self.variables is None:
@@ -106,6 +110,10 @@ class ProcessModel(AppianObject):
             self.rules = []
         if self.security is None:
             self.security = {"roles": []}
+        if self.flow_graph is None:
+            self.flow_graph = {}
+        if self.node_summary is None:
+            self.node_summary = {}
 
 
 @dataclass

@@ -1,0 +1,951 @@
+{% extends "base.html" %}
+
+{% block title %}Merge Summary - {{ session.reference_id }} - NexusGen{% endblock %}
+
+{% block breadcrumbs %}
+<nav aria-label="breadcrumb" class="breadcrumb-nav">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}"><i class="fas fa-home"></i> Home</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('merge_assistant.list_sessions') }}">Merge Assistant</a></li>
+        <li class="breadcrumb-item active" aria-current="page">{{ session.reference_id }}</li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block page_title %}Merge Summary{% endblock %}
+{% block page_subtitle %}Review the analysis results and start the guided merge workflow{% endblock %}
+
+{% block content %}
+<!-- Session Information -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="session-info-card">
+            <div class="session-header">
+                <div class="session-icon">
+                    <i class="fas fa-code-branch"></i>
+                </div>
+                <div class="session-details">
+                    <h3>{{ session.reference_id }}</h3>
+                    <p class="session-meta">
+                        <span><i class="fas fa-calendar"></i> Created: {{ session.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                        {% if session.total_time %}
+                        <span><i class="fas fa-clock"></i> Processing Time: {{ session.total_time }}s</span>
+                        {% endif %}
+                    </p>
+                </div>
+                <div class="session-status">
+                    {% if session.status == 'ready' %}
+                        <span class="badge badge-success"><i class="fas fa-check-circle"></i> Ready</span>
+                    {% elif session.status == 'in_progress' %}
+                        <span class="badge badge-warning"><i class="fas fa-spinner"></i> In Progress</span>
+                    {% elif session.status == 'completed' %}
+                        <span class="badge badge-info"><i class="fas fa-flag-checkered"></i> Completed</span>
+                    {% else %}
+                        <span class="badge badge-secondary">{{ session.status }}</span>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="packages-info">
+                <div class="package-item package-a">
+                    <div class="package-label">Base Package (A)</div>
+                    <div class="package-name">{{ session.base_package_name }}</div>
+                </div>
+                <div class="package-arrow">
+                    <i class="fas fa-arrow-right"></i>
+                </div>
+                <div class="package-item package-b">
+                    <div class="package-label">Customized Package (B)</div>
+                    <div class="package-name">{{ session.customized_package_name }}</div>
+                </div>
+                <div class="package-arrow">
+                    <i class="fas fa-arrow-right"></i>
+                </div>
+                <div class="package-item package-c">
+                    <div class="package-label">New Vendor Package (C)</div>
+                    <div class="package-name">{{ session.new_vendor_package_name }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Workflow Information -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="info-banner">
+            <div class="info-icon">
+                <i class="fas fa-info-circle"></i>
+            </div>
+            <div class="info-content">
+                <h5>What's in the Merge Workflow?</h5>
+                <p>The workflow includes only changes relevant to merging the new vendor release:</p>
+                <ul>
+                    <li><strong>Vendor Changes</strong> - Objects updated in the new vendor release</li>
+                    <li><strong>Conflicts</strong> - Objects modified by both you and the vendor</li>
+                    <li><strong>Removed but Customized</strong> - Objects the vendor removed that you customized</li>
+                </ul>
+                <p class="mb-0"><em>Note: Your customer-only changes are tracked for reference but not included in the workflow since they don't require merge decisions.</em></p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Statistics Overview -->
+<div class="row mb-4">
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="stat-card stat-total">
+            <div class="stat-icon">
+                <i class="fas fa-list"></i>
+            </div>
+            <div class="stat-content">
+                <div class="stat-value">{{ summary.statistics.total_changes }}</div>
+                <div class="stat-label">Total Changes</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="stat-card stat-no-conflict">
+            <div class="stat-icon">
+                <i class="fas fa-check-circle"></i>
+            </div>
+            <div class="stat-content">
+                <div class="stat-value">{{ summary.statistics.no_conflict }}</div>
+                <div class="stat-label">No Conflicts</div>
+                <div class="stat-description">Vendor-only changes</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="stat-card stat-conflict">
+            <div class="stat-icon">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <div class="stat-content">
+                <div class="stat-value">{{ summary.statistics.conflict }}</div>
+                <div class="stat-label">Conflicts</div>
+                <div class="stat-description">Requires manual review</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="stat-card stat-customer">
+            <div class="stat-icon">
+                <i class="fas fa-user-edit"></i>
+            </div>
+            <div class="stat-content">
+                <div class="stat-value">{{ summary.statistics.customer_only }}</div>
+                <div class="stat-label">Customer Only</div>
+                <div class="stat-description">Your customizations (not in workflow)</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Breakdown by Object Type -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="breakdown-card">
+            <div class="card-header">
+                <h4><i class="fas fa-chart-bar"></i> Breakdown by Object Type</h4>
+            </div>
+            
+            <div class="breakdown-tabs">
+                <button class="tab-btn active" data-category="no_conflict">
+                    <i class="fas fa-check-circle"></i> No Conflicts ({{ summary.statistics.no_conflict }})
+                </button>
+                <button class="tab-btn" data-category="conflict">
+                    <i class="fas fa-exclamation-triangle"></i> Conflicts ({{ summary.statistics.conflict }})
+                </button>
+                <button class="tab-btn" data-category="customer_only">
+                    <i class="fas fa-user-edit"></i> Customer Only ({{ summary.statistics.customer_only }})
+                </button>
+                {% if summary.statistics.removed_but_customized > 0 %}
+                <button class="tab-btn" data-category="removed_but_customized">
+                    <i class="fas fa-trash-restore"></i> Removed but Customized ({{ summary.statistics.removed_but_customized }})
+                </button>
+                {% endif %}
+            </div>
+            
+            <div class="breakdown-content">
+                <!-- No Conflict Breakdown -->
+                <div class="breakdown-panel active" id="panel-no_conflict">
+                    {% set has_no_conflict = namespace(found=false) %}
+                    {% for object_type, counts in summary.breakdown_by_type.items() %}
+                        {% if counts.no_conflict > 0 %}
+                            {% set has_no_conflict.found = true %}
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if has_no_conflict.found %}
+                        <div class="breakdown-grid">
+                            {% for object_type, counts in summary.breakdown_by_type.items() %}
+                                {% if counts.no_conflict > 0 %}
+                                <div class="breakdown-item">
+                                    <div class="breakdown-type">{{ object_type }}</div>
+                                    <div class="breakdown-count">{{ counts.no_conflict }}</div>
+                                </div>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="empty-breakdown">
+                            <i class="fas fa-inbox"></i>
+                            <p>No changes in this category</p>
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <!-- Conflict Breakdown -->
+                <div class="breakdown-panel" id="panel-conflict">
+                    {% set has_conflict = namespace(found=false) %}
+                    {% for object_type, counts in summary.breakdown_by_type.items() %}
+                        {% if counts.conflict > 0 %}
+                            {% set has_conflict.found = true %}
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if has_conflict.found %}
+                        <div class="breakdown-grid">
+                            {% for object_type, counts in summary.breakdown_by_type.items() %}
+                                {% if counts.conflict > 0 %}
+                                <div class="breakdown-item">
+                                    <div class="breakdown-type">{{ object_type }}</div>
+                                    <div class="breakdown-count">{{ counts.conflict }}</div>
+                                </div>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="empty-breakdown">
+                            <i class="fas fa-inbox"></i>
+                            <p>No changes in this category</p>
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <!-- Customer Only Breakdown -->
+                <div class="breakdown-panel" id="panel-customer_only">
+                    {% set has_customer_only = namespace(found=false) %}
+                    {% for object_type, counts in summary.breakdown_by_type.items() %}
+                        {% if counts.customer_only > 0 %}
+                            {% set has_customer_only.found = true %}
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if has_customer_only.found %}
+                        <div class="breakdown-grid">
+                            {% for object_type, counts in summary.breakdown_by_type.items() %}
+                                {% if counts.customer_only > 0 %}
+                                <div class="breakdown-item">
+                                    <div class="breakdown-type">{{ object_type }}</div>
+                                    <div class="breakdown-count">{{ counts.customer_only }}</div>
+                                </div>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="empty-breakdown">
+                            <i class="fas fa-inbox"></i>
+                            <p>No changes in this category</p>
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <!-- Removed but Customized Breakdown -->
+                {% if summary.statistics.removed_but_customized > 0 %}
+                <div class="breakdown-panel" id="panel-removed_but_customized">
+                    {% set has_removed = namespace(found=false) %}
+                    {% for object_type, counts in summary.breakdown_by_type.items() %}
+                        {% if counts.removed_but_customized > 0 %}
+                            {% set has_removed.found = true %}
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if has_removed.found %}
+                        <div class="breakdown-grid">
+                            {% for object_type, counts in summary.breakdown_by_type.items() %}
+                                {% if counts.removed_but_customized > 0 %}
+                                <div class="breakdown-item">
+                                    <div class="breakdown-type">{{ object_type }}</div>
+                                    <div class="breakdown-count">{{ counts.removed_but_customized }}</div>
+                                </div>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="empty-breakdown">
+                            <i class="fas fa-inbox"></i>
+                            <p>No changes in this category</p>
+                        </div>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Complexity and Time Estimate -->
+<div class="row mb-4">
+    <div class="col-lg-6 mb-3">
+        <div class="estimate-card">
+            <div class="estimate-icon complexity-{{ summary.estimated_complexity|lower }}">
+                {% if summary.estimated_complexity == 'LOW' %}
+                    <i class="fas fa-smile"></i>
+                {% elif summary.estimated_complexity == 'MEDIUM' %}
+                    <i class="fas fa-meh"></i>
+                {% else %}
+                    <i class="fas fa-frown"></i>
+                {% endif %}
+            </div>
+            <div class="estimate-content">
+                <div class="estimate-label">Estimated Complexity</div>
+                <div class="estimate-value complexity-{{ summary.estimated_complexity|lower }}">
+                    {{ summary.estimated_complexity }}
+                </div>
+                <div class="estimate-description">
+                    {% if summary.estimated_complexity == 'LOW' %}
+                        Most changes are straightforward with few conflicts
+                    {% elif summary.estimated_complexity == 'MEDIUM' %}
+                        Moderate number of conflicts requiring review
+                    {% else %}
+                        High number of conflicts requiring careful analysis
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-6 mb-3">
+        <div class="estimate-card">
+            <div class="estimate-icon">
+                <i class="fas fa-hourglass-half"></i>
+            </div>
+            <div class="estimate-content">
+                <div class="estimate-label">Estimated Time</div>
+                <div class="estimate-value">
+                    {% if summary.estimated_time_hours < 1 %}
+                        {{ (summary.estimated_time_hours * 60)|int }} minutes
+                    {% else %}
+                        {{ summary.estimated_time_hours|int }} hour{{ 's' if summary.estimated_time_hours > 1 else '' }}
+                    {% endif %}
+                </div>
+                <div class="estimate-description">
+                    Based on {{ summary.statistics.total_changes }} total changes
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Action Buttons -->
+<div class="row">
+    <div class="col-12">
+        <div class="action-card">
+            <div class="action-content">
+                <h4>Ready to Start?</h4>
+                <p>Begin the guided merge workflow to review each change step-by-step</p>
+            </div>
+            <div class="action-buttons">
+                <a href="{{ url_for('merge_assistant.start_workflow', session_id=session.id) }}" 
+                   class="btn btn-primary btn-lg">
+                    <i class="fas fa-play-circle"></i> Start Merge Workflow
+                </a>
+                <a href="{{ url_for('merge_assistant.list_sessions') }}" 
+                   class="btn btn-outline-secondary btn-lg">
+                    <i class="fas fa-arrow-left"></i> Back to Sessions
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.info-banner {
+    background: rgba(59, 130, 246, 0.1);
+    border: 1px solid rgba(59, 130, 246, 0.3);
+    border-radius: 12px;
+    padding: 1.5rem;
+    display: flex;
+    gap: 1rem;
+}
+
+.info-icon {
+    width: 40px;
+    height: 40px;
+    background: rgba(59, 130, 246, 0.2);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    color: #3b82f6;
+    flex-shrink: 0;
+}
+
+.info-content {
+    flex: 1;
+}
+
+.info-content h5 {
+    margin: 0 0 0.75rem 0;
+    color: var(--text-primary);
+    font-size: 1.125rem;
+    font-weight: 600;
+}
+
+.info-content p {
+    margin: 0 0 0.5rem 0;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    line-height: 1.6;
+}
+
+.info-content ul {
+    margin: 0.5rem 0;
+    padding-left: 1.5rem;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+}
+
+.info-content ul li {
+    margin-bottom: 0.25rem;
+}
+
+.info-content em {
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+.session-info-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 2rem;
+}
+
+.session-header {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.session-icon {
+    width: 60px;
+    height: 60px;
+    background: linear-gradient(135deg, var(--purple), var(--teal));
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.75rem;
+    color: white;
+    flex-shrink: 0;
+}
+
+.session-details {
+    flex: 1;
+}
+
+.session-details h3 {
+    margin: 0 0 0.5rem 0;
+    color: var(--text-primary);
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+
+.session-meta {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    display: flex;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.session-meta span {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.session-status {
+    flex-shrink: 0;
+}
+
+.badge {
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.badge-success {
+    background: rgba(16, 185, 129, 0.2);
+    color: var(--green);
+}
+
+.badge-warning {
+    background: rgba(251, 191, 36, 0.2);
+    color: #fbbf24;
+}
+
+.badge-info {
+    background: rgba(59, 130, 246, 0.2);
+    color: #60a5fa;
+}
+
+.badge-secondary {
+    background: rgba(156, 163, 175, 0.2);
+    color: #9ca3af;
+}
+
+.packages-info {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.package-item {
+    flex: 1;
+    min-width: 200px;
+    padding: 1rem;
+    border-radius: 8px;
+    border: 2px solid;
+}
+
+.package-item.package-a {
+    background: rgba(239, 68, 68, 0.05);
+    border-color: rgba(239, 68, 68, 0.3);
+}
+
+.package-item.package-b {
+    background: rgba(59, 130, 246, 0.05);
+    border-color: rgba(59, 130, 246, 0.3);
+}
+
+.package-item.package-c {
+    background: rgba(16, 185, 129, 0.05);
+    border-color: rgba(16, 185, 129, 0.3);
+}
+
+.package-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-secondary);
+    margin-bottom: 0.5rem;
+}
+
+.package-name {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    word-break: break-word;
+}
+
+.package-arrow {
+    color: var(--text-secondary);
+    font-size: 1.25rem;
+    flex-shrink: 0;
+}
+
+.stat-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    height: 100%;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.stat-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    flex-shrink: 0;
+}
+
+.stat-total .stat-icon {
+    background: rgba(139, 92, 246, 0.2);
+    color: var(--purple);
+}
+
+.stat-no-conflict .stat-icon {
+    background: rgba(16, 185, 129, 0.2);
+    color: var(--green);
+}
+
+.stat-conflict .stat-icon {
+    background: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+}
+
+.stat-customer .stat-icon {
+    background: rgba(59, 130, 246, 0.2);
+    color: #3b82f6;
+}
+
+.stat-content {
+    flex: 1;
+}
+
+.stat-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1;
+    margin-bottom: 0.25rem;
+}
+
+.stat-label {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.25rem;
+}
+
+.stat-description {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+.breakdown-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.breakdown-card .card-header {
+    padding: 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+    background: rgba(139, 92, 246, 0.05);
+}
+
+.breakdown-card .card-header h4 {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: 1.25rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.breakdown-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border-color);
+    overflow-x: auto;
+}
+
+.tab-btn {
+    flex: 1;
+    min-width: 150px;
+    padding: 1rem 1.5rem;
+    background: transparent;
+    border: none;
+    border-bottom: 3px solid transparent;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.tab-btn:hover {
+    background: rgba(139, 92, 246, 0.05);
+    color: var(--text-primary);
+}
+
+.tab-btn.active {
+    color: var(--purple);
+    border-bottom-color: var(--purple);
+    background: rgba(139, 92, 246, 0.1);
+}
+
+.breakdown-content {
+    padding: 2rem;
+}
+
+.breakdown-panel {
+    display: none;
+}
+
+.breakdown-panel.active {
+    display: block;
+}
+
+.breakdown-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+.breakdown-item {
+    background: rgba(139, 92, 246, 0.05);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: all 0.2s;
+}
+
+.breakdown-item:hover {
+    background: rgba(139, 92, 246, 0.1);
+    transform: translateY(-2px);
+}
+
+.breakdown-type {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.breakdown-count {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--purple);
+}
+
+.empty-breakdown {
+    text-align: center;
+    padding: 3rem;
+    color: var(--text-secondary);
+}
+
+.empty-breakdown i {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    opacity: 0.5;
+}
+
+.empty-breakdown p {
+    margin: 0;
+    font-size: 0.875rem;
+}
+
+.estimate-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    height: 100%;
+}
+
+.estimate-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    flex-shrink: 0;
+    background: rgba(139, 92, 246, 0.2);
+    color: var(--purple);
+}
+
+.estimate-icon.complexity-low {
+    background: rgba(16, 185, 129, 0.2);
+    color: var(--green);
+}
+
+.estimate-icon.complexity-medium {
+    background: rgba(251, 191, 36, 0.2);
+    color: #fbbf24;
+}
+
+.estimate-icon.complexity-high {
+    background: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+}
+
+.estimate-content {
+    flex: 1;
+}
+
+.estimate-label {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 0.5rem;
+}
+
+.estimate-value {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+}
+
+.estimate-value.complexity-low {
+    color: var(--green);
+}
+
+.estimate-value.complexity-medium {
+    color: #fbbf24;
+}
+
+.estimate-value.complexity-high {
+    color: #ef4444;
+}
+
+.estimate-description {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+.action-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 2rem;
+    flex-wrap: wrap;
+}
+
+.action-content h4 {
+    margin: 0 0 0.5rem 0;
+    color: var(--text-primary);
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.action-content p {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    position: relative;
+    z-index: 10;
+}
+
+.btn-lg {
+    padding: 0.75rem 2rem;
+    font-size: 1rem;
+    font-weight: 600;
+    border-radius: 8px;
+    cursor: pointer;
+    pointer-events: auto;
+    position: relative;
+    z-index: 10;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.2s;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, var(--purple), var(--teal));
+    border: none;
+    color: white;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
+}
+
+.btn-outline-secondary {
+    background: transparent;
+    border: 2px solid var(--border-color);
+    color: var(--text-primary);
+}
+
+.btn-outline-secondary:hover {
+    background: rgba(139, 92, 246, 0.1);
+    border-color: var(--purple);
+    color: var(--purple);
+}
+
+@media (max-width: 992px) {
+    .packages-info {
+        flex-direction: column;
+    }
+    
+    .package-arrow {
+        transform: rotate(90deg);
+    }
+    
+    .breakdown-grid {
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    }
+    
+    .action-card {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .action-buttons {
+        justify-content: center;
+        width: 100%;
+    }
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Tab switching functionality
+    const tabButtons = document.querySelectorAll('.tab-btn');
+    const panels = document.querySelectorAll('.breakdown-panel');
+    
+    tabButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const category = this.dataset.category;
+            
+            // Update active tab
+            tabButtons.forEach(btn => btn.classList.remove('active'));
+            this.classList.add('active');
+            
+            // Update active panel
+            panels.forEach(panel => panel.classList.remove('active'));
+            document.getElementById(`panel-${category}`).classList.add('active');
+        });
+    });
+});
+</script>
+{% endblock %}

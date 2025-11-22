@@ -184,17 +184,21 @@ class AppianAnalyzer:
                     print(f"⚠️  Error processing {file_path}: {e}")
                     continue
         
-        # Second pass: Re-parse process models with object lookup for proper interface/rule classification
+        # Second pass: Re-parse process models with object lookup and SAIL formatter for enhanced parsing
+        # Create SAIL formatter for process model parsing
+        sail_formatter = SAILFormatter(self.object_lookup.get_all())
+        
         for file_path in self.zip_file.namelist():
             if file_path.startswith('processModel/') and file_path.endswith('.xml'):
                 try:
                     content = self.zip_file.read(file_path).decode('utf-8')
                     root = ET.fromstring(content)
                     
-                    # Find process model parser and pass object lookup
+                    # Find process model parser and pass object lookup and SAIL formatter
                     for parser in self.parsers:
                         if parser.__class__.__name__ == 'ProcessModelParser':
-                            parser.object_lookup = self.object_lookup.get_all()
+                            parser.set_object_lookup(self.object_lookup.get_all())
+                            parser.set_sail_formatter(sail_formatter)
                             obj = parser.parse(root, file_path)
                             if obj:
                                 # Replace the existing process model in blueprint
@@ -252,9 +256,12 @@ class AppianAnalyzer:
         # Resolve process model node interfaces
         for process in blueprint.process_models:
             for node in process.nodes:
-                if "interface" in node["details"]:
-                    interface_uuid = node["details"]["interface"]["uuid"]
-                    node["details"]["interface"]["name"] = self.object_lookup.resolve_name(interface_uuid)
+                # Safely check for details and interface
+                if isinstance(node, dict) and "details" in node:
+                    details = node["details"]
+                    if isinstance(details, dict) and "interface" in details:
+                        interface_uuid = details["interface"]["uuid"]
+                        details["interface"]["name"] = self.object_lookup.resolve_name(interface_uuid)
             
             # Resolve process model interfaces
             for interface in process.interfaces:

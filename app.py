@@ -74,6 +74,8 @@ def register_blueprints(app):
     from controllers.chat_controller import chat_bp
     from controllers.process_controller import process_bp
     from controllers.analyzer_controller import analyzer_bp
+    from controllers.merge_assistant_controller import merge_assistant_bp
+    from controllers.settings_controller import settings_bp
     
     app.register_blueprint(breakdown_bp)
     app.register_blueprint(verify_bp)
@@ -82,6 +84,8 @@ def register_blueprints(app):
     app.register_blueprint(chat_bp)
     app.register_blueprint(process_bp)
     app.register_blueprint(analyzer_bp)
+    app.register_blueprint(merge_assistant_bp)
+    app.register_blueprint(settings_bp)
 
 
 def register_routes(app):

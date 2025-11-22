@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+
+{% block title %}Settings - NexusGen{% endblock %}
+
+{% block breadcrumbs %}
+<nav class="breadcrumb-nav" aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item">
+            <a href="{{ url_for('dashboard') }}">
+                <i class="fas fa-home"></i>
+                Dashboard
+            </a>
+        </li>
+        <li class="breadcrumb-item active" aria-current="page">Settings</li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block page_title %}Settings{% endblock %}
+{% block page_subtitle %}Manage application configuration and administrative tasks{% endblock %}
+
+{% block content %}
+<div class="settings-container">
+    <!-- Theme Section -->
+    <div class="settings-section">
+        <div class="section-header">
+            <i class="fas fa-palette"></i>
+            <h3>Theme</h3>
+        </div>
+        <div class="section-content">
+            <p>Customize the visual appearance of the application.</p>
+            <div class="theme-toggle-container">
+                <label>Appearance</label>
+                <button id="themeToggleBtn" class="theme-switch">
+                    <span class="theme-option" data-theme="dark">Dark</span>
+                    <span class="theme-option" data-theme="light">Light</span>
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Data Cleanup Section -->
+    <div class="settings-section">
+        <div class="section-header">
+            <i class="fas fa-trash-alt"></i>
+            <h3>Data Cleanup</h3>
+        </div>
+        <div class="section-content">
+            <p>Remove all data from the database and uploaded files.</p>
+            <button id="cleanupBtn" class="btn btn-danger">
+                <i class="fas fa-exclamation-triangle"></i>
+                Clean Up Database
+            </button>
+        </div>
+    </div>
+    
+    <!-- Backup Section -->
+    <div class="settings-section">
+        <div class="section-header">
+            <i class="fas fa-download"></i>
+            <h3>Data Backup</h3>
+        </div>
+        <div class="section-content">
+            <p>Download a SQL backup of the database.</p>
+            <button id="backupBtn" class="btn btn-primary">
+                <i class="fas fa-database"></i>
+                Download Backup
+            </button>
+        </div>
+    </div>
+    
+    <!-- Restore Section -->
+    <div class="settings-section">
+        <div class="section-header">
+            <i class="fas fa-upload"></i>
+            <h3>Data Restore</h3>
+        </div>
+        <div class="section-content">
+            <p>Restore database from a SQL backup file.</p>
+            <input type="file" id="restoreFile" accept=".sql" class="form-control mb-2">
+            <button id="restoreBtn" class="btn btn-warning">
+                <i class="fas fa-undo"></i>
+                Restore Database
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/settings.js') }}"></script>
+{% endblock %}

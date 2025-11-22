@@ -108,3 +108,100 @@ class ChatSession(db.Model):
             'answer': self.answer,
             'created_at': self.created_at.isoformat()
         }
+
+
+class MergeSession(db.Model):
+    """Stores three-way merge session data"""
+    __tablename__ = 'merge_sessions'
+    
+    # Primary identification
+    id = db.Column(db.Integer, primary_key=True)
+    reference_id = db.Column(db.String(20), unique=True, nullable=False, index=True)  # MRG_001
+    
+    # Package information
+    base_package_name = db.Column(db.String(255), nullable=False)  # A
+    customized_package_name = db.Column(db.String(255), nullable=False)  # B
+    new_vendor_package_name = db.Column(db.String(255), nullable=False)  # C
+    
+    # Status tracking
+    status = db.Column(db.String(20), default='processing')  # 'processing', 'ready', 'in_progress', 'completed', 'error'
+    current_change_index = db.Column(db.Integer, default=0)
+    
+    # Analysis results (JSON strings)
+    base_blueprint = db.Column(db.Text)  # Blueprint A
+    customized_blueprint = db.Column(db.Text)  # Blueprint B
+    new_vendor_blueprint = db.Column(db.Text)  # Blueprint C
+    
+    vendor_changes = db.Column(db.Text)  # A→C comparison results
+    customer_changes = db.Column(db.Text)  # A→B comparison results
+    classification_results = db.Column(db.Text)  # Classified changes
+    ordered_changes = db.Column(db.Text)  # Smart-ordered change list
+    
+    # Progress tracking
+    total_changes = db.Column(db.Integer, default=0)
+    reviewed_count = db.Column(db.Integer, default=0)
+    skipped_count = db.Column(db.Integer, default=0)
+    
+    # Metadata
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    completed_at = db.Column(db.DateTime)
+    total_time = db.Column(db.Integer)  # seconds
+    error_log = db.Column(db.Text)
+    
+    # Relationships
+    change_reviews = db.relationship('ChangeReview', backref='session', lazy=True, cascade='all, delete-orphan')
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'reference_id': self.reference_id,
+            'base_package_name': self.base_package_name,
+            'customized_package_name': self.customized_package_name,
+            'new_vendor_package_name': self.new_vendor_package_name,
+            'status': self.status,
+            'current_change_index': self.current_change_index,
+            'total_changes': self.total_changes,
+            'reviewed_count': self.reviewed_count,
+            'skipped_count': self.skipped_count,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+            'completed_at': self.completed_at.isoformat() if self.completed_at else None,
+            'total_time': self.total_time
+        }
+
+
+class ChangeReview(db.Model):
+    """Stores user review actions for each change"""
+    __tablename__ = 'change_reviews'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    session_id = db.Column(db.Integer, db.ForeignKey('merge_sessions.id'), nullable=False, index=True)
+    
+    # Change identification
+    object_uuid = db.Column(db.String(255), nullable=False)
+    object_name = db.Column(db.String(255), nullable=False)
+    object_type = db.Column(db.String(50), nullable=False)
+    classification = db.Column(db.String(50), nullable=False)  # NO_CONFLICT, CONFLICT, etc.
+    
+    # Review status
+    review_status = db.Column(db.String(20), default='pending')  # 'pending', 'reviewed', 'skipped'
+    user_notes = db.Column(db.Text)
+    
+    # Timestamps
+    reviewed_at = db.Column(db.DateTime)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'session_id': self.session_id,
+            'object_uuid': self.object_uuid,
+            'object_name': self.object_name,
+            'object_type': self.object_type,
+            'classification': self.classification,
+            'review_status': self.review_status,
+            'user_notes': self.user_notes,
+            'reviewed_at': self.reviewed_at.isoformat() if self.reviewed_at else None,
+            'created_at': self.created_at.isoformat() if self.created_at else None
+        }

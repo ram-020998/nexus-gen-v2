@@ -782,3 +782,311 @@ body {
         height: 36px;
     }
 }
+
+/* Breadcrumb Navigation */
+.breadcrumb-nav {
+    margin-bottom: 1.5rem;
+}
+
+.breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0;
+    margin: 0;
+    list-style: none;
+    background: transparent;
+}
+
+.breadcrumb-item {
+    display: flex;
+    align-items: center;
+    font-size: 0.875rem;
+}
+
+.breadcrumb-item a {
+    color: var(--text-secondary);
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    transition: color 0.2s ease;
+}
+
+.breadcrumb-item a:hover {
+    color: var(--purple);
+}
+
+.breadcrumb-item.active {
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+.breadcrumb-item + .breadcrumb-item::before {
+    content: '/';
+    color: var(--text-secondary);
+    margin: 0 0.5rem;
+}
+
+/* Settings Page Styles */
+.settings-container {
+    max-width: 900px;
+}
+
+.settings-section {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.settings-section:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+[data-theme="light"] .settings-section:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.settings-section .section-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.settings-section .section-header i {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    background: rgba(139, 92, 246, 0.1);
+    color: var(--purple);
+    flex-shrink: 0;
+}
+
+.settings-section .section-header h3 {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.settings-section .section-content {
+    color: var(--text-secondary);
+}
+
+.settings-section .section-content p {
+    margin-bottom: 1rem;
+    font-size: 0.875rem;
+    line-height: 1.6;
+}
+
+/* Theme Toggle in Settings */
+.theme-toggle-container {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.theme-toggle-container label {
+    font-weight: 500;
+    color: var(--text-primary);
+    margin: 0;
+    font-size: 0.875rem;
+}
+
+.theme-switch {
+    display: flex;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 0.25rem;
+    gap: 0.25rem;
+    transition: border-color 0.2s ease;
+}
+
+.theme-switch:hover {
+    border-color: var(--purple);
+}
+
+.theme-option {
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: none;
+    background: transparent;
+    user-select: none;
+}
+
+.theme-option:hover {
+    color: var(--text-primary);
+    background: rgba(139, 92, 246, 0.05);
+}
+
+.theme-option.active {
+    background: var(--purple);
+    color: white;
+    box-shadow: 0 2px 4px rgba(139, 92, 246, 0.3);
+}
+
+/* Settings Buttons */
+.settings-section .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 1.25rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.settings-section .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none !important;
+}
+
+.settings-section .btn i {
+    font-size: 1rem;
+}
+
+.settings-section .btn-danger {
+    background: #ef4444;
+    color: white;
+}
+
+.settings-section .btn-danger:hover:not(:disabled) {
+    background: #dc2626;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(239, 68, 68, 0.3);
+}
+
+.settings-section .btn-primary {
+    background: var(--purple);
+    color: white;
+}
+
+.settings-section .btn-primary:hover:not(:disabled) {
+    background: #7c3aed;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(139, 92, 246, 0.3);
+}
+
+.settings-section .btn-warning {
+    background: #f59e0b;
+    color: white;
+}
+
+.settings-section .btn-warning:hover:not(:disabled) {
+    background: #d97706;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(245, 158, 11, 0.3);
+}
+
+/* File Upload Control */
+.settings-section .form-control {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    border-radius: 8px;
+    padding: 0.625rem;
+    font-size: 0.875rem;
+    transition: all 0.2s ease;
+}
+
+.settings-section .form-control:hover {
+    border-color: var(--purple);
+}
+
+.settings-section .form-control:focus {
+    background: var(--bg-primary);
+    border-color: var(--purple);
+    color: var(--text-primary);
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+}
+
+.settings-section .form-control::file-selector-button {
+    background: rgba(139, 92, 246, 0.1);
+    border: 1px solid var(--border-color);
+    color: var(--purple);
+    padding: 0.375rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    margin-right: 0.75rem;
+    transition: all 0.2s ease;
+}
+
+.settings-section .form-control::file-selector-button:hover {
+    background: rgba(139, 92, 246, 0.2);
+    border-color: var(--purple);
+}
+
+/* Spacing utilities for settings */
+.settings-section .mb-2 {
+    margin-bottom: 0.5rem;
+}
+
+/* Light theme adjustments for settings */
+[data-theme="light"] .settings-section .form-control {
+    background: #f8fafc;
+}
+
+[data-theme="light"] .settings-section .form-control:focus {
+    background: #f8fafc;
+}
+
+[data-theme="light"] .settings-section .form-control::file-selector-button {
+    background: rgba(139, 92, 246, 0.08);
+}
+
+[data-theme="light"] .settings-section .form-control::file-selector-button:hover {
+    background: rgba(139, 92, 246, 0.15);
+}
+
+/* Responsive adjustments for settings */
+@media (max-width: 768px) {
+    .settings-container {
+        max-width: 100%;
+    }
+    
+    .settings-section {
+        padding: 1rem;
+    }
+    
+    .theme-toggle-container {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.75rem;
+    }
+    
+    .theme-switch {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .settings-section .btn {
+        width: 100%;
+        justify-content: center;
+    }
+}

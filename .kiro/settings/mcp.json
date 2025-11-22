@@ -1,4 +1,21 @@
 {
   "mcpServers": {
+    "chrome-devtools": {
+      "command": "npx",
+      "args": [
+        "chrome-devtools-mcp@latest"
+      ],
+      "disabled": false,
+      "autoApprove": [
+        "take_snapshot",
+        "click",
+        "take_screenshot",
+        "navigate_page",
+        "list_console_messages",
+        "get_console_message",
+        "list_network_requests",
+        "evaluate_script"
+      ]
+    }
   }
 }
