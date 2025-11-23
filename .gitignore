@@ -85,3 +85,8 @@ accuracy_metrics.json
 .kiro/steering/byterover-rules.md
 .qoder/rules/byterover-rules.md
 .augment/rules/byterover-rules.md
+
+# Utility and reference folders
+utilityTools/
+referenceDocuments/
+deprecatedCode/
