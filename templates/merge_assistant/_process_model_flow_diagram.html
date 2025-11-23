@@ -55,7 +55,10 @@ graph TD
 {%- endif -%}
 {%- endfor -%}
 {%- endfor -%}
-{%- if pm_data.flow_comparison -%}
+{# Now render flows - check if flow_comparison has data, otherwise use flow_graph #}
+{%- set has_flow_comparison_data = pm_data.flow_comparison and (pm_data.flow_comparison.get('added_flows', []) or pm_data.flow_comparison.get('unchanged_flows', [])) -%}
+{%- if has_flow_comparison_data -%}
+{# Use flow_comparison data (added and unchanged flows) #}
 {%- for flow in pm_data.flow_comparison.get('added_flows', []) -%}
 {%- set from_id = flow.get('from_node_uuid', '')|replace('-', '_')|replace('.', '_') -%}
 {%- set to_id = flow.get('to_node_uuid', '')|replace('-', '_')|replace('.', '_') -%}
@@ -77,8 +80,8 @@ graph TD
     {{ from_id }} --> {{ to_id }}
 {%- endif -%}
 {%- endfor -%}
-{%- endif -%}
 {%- elif pm_data.get('flow_graph') and pm_data.get('flow_graph', {}).get('flows') -%}
+{# Fallback: Use flow_graph.flows if flow_comparison is empty #}
 {%- for flow in pm_data.get('flow_graph', {}).get('flows', []) -%}
 {%- set from_id = flow.get('from_node_uuid', '')|replace('-', '_')|replace('.', '_') -%}
 {%- set to_id = flow.get('to_node_uuid', '')|replace('-', '_')|replace('.', '_') -%}
@@ -89,6 +92,21 @@ graph TD
     {{ from_id }} --> {{ to_id }}
 {%- endif -%}
 {%- endfor -%}
+{%- endif -%}
+{%- else -%}
+{# No node_comparison - use flow_graph.flows directly #}
+{%- if pm_data.get('flow_graph') and pm_data.get('flow_graph', {}).get('flows') -%}
+{%- for flow in pm_data.get('flow_graph', {}).get('flows', []) -%}
+{%- set from_id = flow.get('from_node_uuid', '')|replace('-', '_')|replace('.', '_') -%}
+{%- set to_id = flow.get('to_node_uuid', '')|replace('-', '_')|replace('.', '_') -%}
+{%- if flow.get('condition') -%}
+{%- set condition_label = flow.get('condition', '')[:30]|replace('"', "'") %}
+    {{ from_id }} -->|"{{ condition_label }}..."| {{ to_id }}
+{%- else %}
+    {{ from_id }} --> {{ to_id }}
+{%- endif -%}
+{%- endfor -%}
+{%- endif -%}
 {%- endif -%}
 {%- endmacro %}
 

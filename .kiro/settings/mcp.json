@@ -14,7 +14,12 @@
         "list_console_messages",
         "get_console_message",
         "list_network_requests",
-        "evaluate_script"
+        "evaluate_script",
+        "list_pages",
+        "upload_file",
+        "wait_for",
+        "fill_form",
+        "handle_dialog"
       ]
     }
   }

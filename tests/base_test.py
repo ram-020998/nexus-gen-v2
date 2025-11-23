@@ -22,6 +22,10 @@ class BaseTestCase(unittest.TestCase):
         self.app_context.push()
 
         db.create_all()
+        
+        # Enable foreign key constraints for SQLite
+        db.session.execute(db.text("PRAGMA foreign_keys=ON"))
+        db.session.commit()
 
     def tearDown(self):
         """Clean up after tests"""

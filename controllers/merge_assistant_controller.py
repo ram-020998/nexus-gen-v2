@@ -137,7 +137,7 @@ def upload_packages():
             )
             return redirect(url_for('merge_assistant.merge_assistant_home'))
 
-        # Create merge session
+        # Create merge session (uses normalized schema: Package, AppianObject, Change tables)
         session = merge_service.create_session(
             str(base_path),
             str(customized_path),
@@ -230,7 +230,7 @@ def upload_packages():
     '/merge-assistant/session/<int:session_id>/summary'
 )
 def view_summary(session_id):
-    """Display merge summary with statistics"""
+    """Display merge summary with statistics (uses SQL aggregates on normalized schema)"""
     try:
         summary = merge_service.get_summary(session_id)
         session = merge_service.get_session(session_id)
@@ -323,7 +323,7 @@ def view_change(session_id, change_index):
             flash('Session not found', 'error')
             return redirect(url_for('merge_assistant.list_sessions'))
 
-        # Get ordered changes
+        # Get ordered changes using JOIN queries (normalized schema)
         ordered_changes = merge_service.get_ordered_changes(session_id)
         
         # Debug logging
@@ -344,27 +344,10 @@ def view_change(session_id, change_index):
         session.current_change_index = change_index
         db.session.commit()
 
-        # Get the specific change
+        # Get the specific change (already includes review status from JOIN)
         change = ordered_changes[change_index]
         print(f"📋 DEBUG: Change name: {change.get('name')}, type: {change.get('type')}")
-        print(f"📋 DEBUG: Has process_model_data: {'process_model_data' in change}")
-        if 'process_model_data' in change:
-            pm_data = change['process_model_data']
-            print(f"📋 DEBUG: has_enhanced_data: {pm_data.get('has_enhanced_data')}")
-
-        # Get review status if exists
-        from models import ChangeReview
-        review = ChangeReview.query.filter_by(
-            session_id=session_id,
-            object_uuid=change['uuid']
-        ).first()
-
-        if review:
-            change['review_status'] = review.review_status
-            change['user_notes'] = review.user_notes
-        else:
-            change['review_status'] = 'pending'
-            change['user_notes'] = None
+        print(f"📋 DEBUG: Review status: {change.get('review_status')}")
 
         # Calculate navigation info
         has_previous = change_index > 0
@@ -403,7 +386,7 @@ def view_change(session_id, change_index):
 )
 def review_change(session_id, change_index):
     """
-    Record user review action
+    Record user review action (updates ChangeReview table in normalized schema)
 
     Expected JSON:
     {
@@ -468,7 +451,7 @@ def review_change(session_id, change_index):
     '/merge-assistant/session/<int:session_id>/report'
 )
 def generate_report(session_id):
-    """Generate and display final merge report"""
+    """Generate and display final merge report (uses JOIN queries on normalized schema)"""
     try:
         report = merge_service.generate_report(session_id)
         session = merge_service.get_session(session_id)
@@ -515,9 +498,9 @@ def list_sessions():
     methods=['POST']
 )
 def delete_session(session_id):
-    """Delete a merge session and all related data"""
+    """Delete a merge session and all related data (cascade deletes handle normalized tables)"""
     try:
-        from models import db, MergeSession, ChangeReview
+        from models import db, MergeSession
 
         # Get the session
         session = MergeSession.query.get(session_id)
@@ -529,10 +512,14 @@ def delete_session(session_id):
 
         reference_id = session.reference_id
 
-        # Delete related change reviews
-        ChangeReview.query.filter_by(session_id=session_id).delete()
-
-        # Delete the session
+        # Delete the session (cascade deletes will handle all related records:
+        # - Packages
+        # - AppianObjects
+        # - ProcessModelMetadata, ProcessModelNodes, ProcessModelFlows
+        # - Changes
+        # - MergeGuidance, MergeConflicts, MergeChanges
+        # - ChangeReviews
+        # - ObjectDependencies)
         db.session.delete(session)
         db.session.commit()
 
@@ -575,7 +562,7 @@ def api_session_summary(session_id):
     '/merge-assistant/api/session/<int:session_id>/changes'
 )
 def api_session_changes(session_id):
-    """API endpoint for session changes"""
+    """API endpoint for session changes (uses indexed SQL WHERE clauses on normalized schema)"""
     try:
         # Get filter parameters
         classification = request.args.get('classification')
@@ -583,7 +570,7 @@ def api_session_changes(session_id):
         review_status = request.args.get('review_status')
         search_term = request.args.get('search')
 
-        # Get filtered changes
+        # Get filtered changes using SQL WHERE clauses on indexed columns
         changes = merge_service.filter_changes(
             session_id,
             classification=classification,

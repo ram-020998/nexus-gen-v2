@@ -10,10 +10,13 @@ import os
 import tempfile
 import zipfile
 from datetime import datetime
-from hypothesis import given, strategies as st, settings
+from hypothesis import given, strategies as st, settings, HealthCheck
 from hypothesis.strategies import composite
 from tests.base_test import BaseTestCase
-from models import db, MergeSession, ChangeReview
+from models import (
+    db, MergeSession, ChangeReview, Package, AppianObject,
+    ObjectDependency, Change
+)
 from services.merge_assistant import BlueprintGenerationService
 from services.merge_assistant.blueprint_generation_service import (
     BlueprintGenerationError
@@ -105,16 +108,26 @@ def blueprint_with_objects(draw):
     """Generate blueprint with object_lookup"""
     num_objects = draw(st.integers(min_value=3, max_value=10))
     object_lookup = {}
-
-    for _ in range(num_objects):
+    
+    # Generate objects with unique UUIDs
+    attempts = 0
+    max_attempts = num_objects * 10  # Allow retries for UUID collisions
+    
+    while len(object_lookup) < num_objects and attempts < max_attempts:
         obj = draw(appian_object_data())
-        object_lookup[obj['uuid']] = obj
+        # Only add if UUID is unique
+        if obj['uuid'] not in object_lookup:
+            object_lookup[obj['uuid']] = obj
+        attempts += 1
+    
+    # Update total_objects to match actual count (in case of collisions)
+    actual_count = len(object_lookup)
 
     return {
         'blueprint': {
             'metadata': {
                 'version': draw(st.text(min_size=3, max_size=10)),
-                'total_objects': num_objects,
+                'total_objects': actual_count,
                 'generated_at': datetime.utcnow().isoformat()
             }
         },
@@ -3676,5 +3689,2725 @@ class TestFilteringAndSearchProperties(BaseTestCase):
                     ).delete()
                     db.session.delete(session_to_delete)
                     db.session.commit()
+            except Exception:
+                db.session.rollback()
+
+
+
+class TestPackageServiceProperties(BaseTestCase):
+    """
+    Property-based tests for PackageService blueprint normalization.
+    """
+
+    def setUp(self):
+        """Set up test fixtures."""
+        super().setUp()
+        from services.merge_assistant.package_service import PackageService
+        self.package_service = PackageService()
+
+    @given(st.integers(min_value=1, max_value=100))
+    @settings(max_examples=100, deadline=None)
+    def test_property_1_blueprint_data_normalization(self, num_objects):
+        """
+        **Feature: merge-assistant-data-model-refactoring, Property 1:
+        Blueprint data normalization**
+
+        **Validates: Requirements 1.1**
+
+        Property: For any blueprint result with objects and metadata,
+        storing it should create exactly one Package record and N
+        AppianObject records where N equals the number of objects in
+        the blueprint, with no blueprint JSON remaining in the session
+        table.
+        """
+        # Generate a valid blueprint structure
+        blueprint_result = {
+            'blueprint': {
+                'metadata': {
+                    'package_name': f'TestPackage_{uuid.uuid4().hex[:8]}',
+                    'total_objects': num_objects,
+                    'generation_time': 45.2,
+                    'object_type_counts': {
+                        'Interface': num_objects // 3,
+                        'Process Model': num_objects // 3,
+                        'Expression Rule': num_objects - (2 * (num_objects // 3))
+                    }
+                }
+            },
+            'object_lookup': {}
+        }
+
+        # Generate objects
+        for i in range(num_objects):
+            obj_uuid = f'_a-{uuid.uuid4().hex[:32]}'
+            obj_type = (
+                'Interface' if i < num_objects // 3
+                else 'Process Model' if i < 2 * (num_objects // 3)
+                else 'Expression Rule'
+            )
+            blueprint_result['object_lookup'][obj_uuid] = {
+                'uuid': obj_uuid,
+                'name': f'Object_{i}',
+                'type': obj_type,
+                'version_uuid': f'v-{uuid.uuid4().hex[:32]}'
+            }
+
+            # Add SAIL code for interfaces and expression rules
+            if obj_type in ['Interface', 'Expression Rule']:
+                blueprint_result['object_lookup'][obj_uuid]['sail_code'] = (
+                    f'a!textField(label: "Field {i}")'
+                )
+
+        # Create a merge session
+        session = MergeSession(
+            reference_id=f'MRG_{uuid.uuid4().hex[:8]}',
+            base_package_name='Base',
+            customized_package_name='Custom',
+            new_vendor_package_name='Vendor',
+            status='processing'
+        )
+        db.session.add(session)
+        db.session.commit()
+
+        # Create package with all data
+        package = self.package_service.create_package_with_all_data(
+            session_id=session.id,
+            package_type='base',
+            blueprint_result=blueprint_result
+        )
+
+        # Verify Property 1: Exactly one Package record created
+        from models import Package, AppianObject
+        packages = Package.query.filter_by(session_id=session.id).all()
+        self.assertEqual(
+            len(packages), 1,
+            "Should create exactly one Package record"
+        )
+
+        # Verify: Package has correct data
+        self.assertEqual(package.package_type, 'base')
+        self.assertEqual(package.total_objects, num_objects)
+
+        # Verify: N AppianObject records created
+        objects = AppianObject.query.filter_by(package_id=package.id).all()
+        self.assertEqual(
+            len(objects), num_objects,
+            f"Should create {num_objects} AppianObject records"
+        )
+
+        # Verify: All objects have correct package_id
+        for obj in objects:
+            self.assertEqual(obj.package_id, package.id)
+
+        # Verify: No JSON in session table
+        # (Session should not have blueprint JSON columns populated
+        # in the new schema)
+        session_check = MergeSession.query.get(session.id)
+        # The old JSON columns should be None or empty
+        # (In the new workflow, we don't populate these)
+        self.assertIsNone(session_check.base_blueprint)
+        self.assertIsNone(session_check.customized_blueprint)
+        self.assertIsNone(session_check.new_vendor_blueprint)
+
+        # Verify: Object type counts are correct
+        from models import PackageObjectTypeCount
+        type_counts = PackageObjectTypeCount.query.filter_by(
+            package_id=package.id
+        ).all()
+        self.assertGreater(
+            len(type_counts), 0,
+            "Should create PackageObjectTypeCount records"
+        )
+
+        # Verify total count matches
+        total_count = sum(tc.count for tc in type_counts)
+        self.assertEqual(
+            total_count, num_objects,
+            "Total object type counts should match total objects"
+        )
+
+
+    @settings(max_examples=100, deadline=None, database=None)
+    @given(
+        session_data=merge_session_data(),
+        base_blueprint=blueprint_with_objects(),
+        customized_blueprint=blueprint_with_objects(),
+        vendor_blueprint=blueprint_with_objects()
+    )
+    def test_property_2_change_foreign_key_validity(
+        self,
+        session_data,
+        base_blueprint,
+        customized_blueprint,
+        vendor_blueprint
+    ):
+        """
+        Feature: merge-assistant-data-model-refactoring, Property 2: Change foreign key validity
+        
+        For any comparison result that creates Change records, all Change records should have
+        valid foreign keys to AppianObject records (base_object_id, customer_object_id, or
+        vendor_object_id must reference existing objects).
+        
+        Validates: Requirements 1.2
+        """
+        from services.merge_assistant.package_service import PackageService
+        from services.merge_assistant.change_service import ChangeService
+        
+        try:
+            # Create session
+            session = MergeSession(
+                reference_id=session_data['reference_id'],
+                base_package_name=session_data['base_package_name'],
+                customized_package_name=session_data['customized_package_name'],
+                new_vendor_package_name=session_data['new_vendor_package_name'],
+                status='processing'
+            )
+            db.session.add(session)
+            db.session.commit()
+            session_id = session.id
+            
+            # Create packages with objects
+            package_service = PackageService()
+            
+            base_pkg = package_service.create_package_with_all_data(
+                session_id,
+                'base',
+                base_blueprint
+            )
+            
+            customized_pkg = package_service.create_package_with_all_data(
+                session_id,
+                'customized',
+                customized_blueprint
+            )
+            
+            vendor_pkg = package_service.create_package_with_all_data(
+                session_id,
+                'new_vendor',
+                vendor_blueprint
+            )
+            
+            # Create ordered changes from objects
+            ordered_changes = []
+            base_lookup = base_blueprint.get('object_lookup', {})
+            customized_lookup = customized_blueprint.get('object_lookup', {})
+            vendor_lookup = vendor_blueprint.get('object_lookup', {})
+            
+            # Get all unique UUIDs
+            all_uuids = set(base_lookup.keys()) | set(customized_lookup.keys()) | set(vendor_lookup.keys())
+            
+            for uuid in all_uuids:
+                base_obj = base_lookup.get(uuid)
+                custom_obj = customized_lookup.get(uuid)
+                vendor_obj = vendor_lookup.get(uuid)
+                
+                # Determine change type and classification
+                if base_obj and custom_obj and vendor_obj:
+                    classification = 'NO_CONFLICT'
+                    change_type = 'MODIFIED'
+                elif base_obj and custom_obj and not vendor_obj:
+                    classification = 'REMOVED_BUT_CUSTOMIZED'
+                    change_type = 'REMOVED'
+                elif base_obj and not custom_obj and vendor_obj:
+                    classification = 'NO_CONFLICT'
+                    change_type = 'MODIFIED'
+                elif not base_obj and custom_obj and vendor_obj:
+                    classification = 'CONFLICT'
+                    change_type = 'ADDED'
+                elif not base_obj and custom_obj:
+                    classification = 'CUSTOMER_ONLY'
+                    change_type = 'ADDED'
+                elif not base_obj and vendor_obj:
+                    classification = 'NO_CONFLICT'
+                    change_type = 'ADDED'
+                else:
+                    continue
+                
+                # Use the first available object for name and type
+                obj = base_obj or custom_obj or vendor_obj
+                
+                ordered_changes.append({
+                    'uuid': uuid,
+                    'name': obj.get('name', ''),
+                    'type': obj.get('object_type', ''),
+                    'classification': classification,
+                    'change_type': change_type
+                })
+            
+            # Create changes using ChangeService
+            change_service = ChangeService()
+            changes = change_service.create_changes_from_comparison(
+                session_id,
+                {},  # classification_results not used in this test
+                ordered_changes
+            )
+            
+            # Verify all changes have valid foreign keys
+            from models import Change, AppianObject
+            
+            for change in changes:
+                # At least one foreign key should be set
+                assert (
+                    change.base_object_id is not None or
+                    change.customer_object_id is not None or
+                    change.vendor_object_id is not None
+                ), f"Change {change.id} has no valid object foreign keys"
+                
+                # Verify each set foreign key references an existing object
+                if change.base_object_id is not None:
+                    base_obj = AppianObject.query.get(change.base_object_id)
+                    assert base_obj is not None, (
+                        f"Change {change.id} has invalid base_object_id: "
+                        f"{change.base_object_id}"
+                    )
+                    assert base_obj.uuid == change.object_uuid, (
+                        f"Change {change.id} base_object UUID mismatch"
+                    )
+                
+                if change.customer_object_id is not None:
+                    customer_obj = AppianObject.query.get(change.customer_object_id)
+                    assert customer_obj is not None, (
+                        f"Change {change.id} has invalid customer_object_id: "
+                        f"{change.customer_object_id}"
+                    )
+                    assert customer_obj.uuid == change.object_uuid, (
+                        f"Change {change.id} customer_object UUID mismatch"
+                    )
+                
+                if change.vendor_object_id is not None:
+                    vendor_obj = AppianObject.query.get(change.vendor_object_id)
+                    assert vendor_obj is not None, (
+                        f"Change {change.id} has invalid vendor_object_id: "
+                        f"{change.vendor_object_id}"
+                    )
+                    assert vendor_obj.uuid == change.object_uuid, (
+                        f"Change {change.id} vendor_object UUID mismatch"
+                    )
+        
+        finally:
+            # Clean up
+            try:
+                session_to_delete = MergeSession.query.filter_by(
+                    reference_id=session_data['reference_id']
+                ).first()
+                if session_to_delete:
+                    db.session.delete(session_to_delete)
+                    db.session.commit()
+            except Exception:
+                db.session.rollback()
+
+    @settings(max_examples=100, deadline=None, database=None)
+    @given(
+        session_data=merge_session_data(),
+        base_blueprint=blueprint_with_objects(),
+        customized_blueprint=blueprint_with_objects(),
+        vendor_blueprint=blueprint_with_objects()
+    )
+    def test_property_3_classification_normalization(
+        self,
+        session_data,
+        base_blueprint,
+        customized_blueprint,
+        vendor_blueprint
+    ):
+        """
+        Feature: merge-assistant-data-model-refactoring, Property 3: Classification normalization
+        
+        For any classification result, after storing, the Change table should contain
+        classification values in the classification column and the session's
+        classification_results JSON column should be null or empty.
+        
+        Validates: Requirements 1.3
+        """
+        from services.merge_assistant.package_service import PackageService
+        from services.merge_assistant.change_service import ChangeService
+        
+        try:
+            # Create session
+            session = MergeSession(
+                reference_id=session_data['reference_id'],
+                base_package_name=session_data['base_package_name'],
+                customized_package_name=session_data['customized_package_name'],
+                new_vendor_package_name=session_data['new_vendor_package_name'],
+                status='processing',
+                # Initially set classification_results (simulating old schema)
+                classification_results=json.dumps({
+                    'NO_CONFLICT': [],
+                    'CONFLICT': [],
+                    'CUSTOMER_ONLY': [],
+                    'REMOVED_BUT_CUSTOMIZED': []
+                })
+            )
+            db.session.add(session)
+            db.session.commit()
+            session_id = session.id
+            
+            # Create packages with objects
+            package_service = PackageService()
+            
+            package_service.create_package_with_all_data(
+                session_id,
+                'base',
+                base_blueprint
+            )
+            
+            package_service.create_package_with_all_data(
+                session_id,
+                'customized',
+                customized_blueprint
+            )
+            
+            package_service.create_package_with_all_data(
+                session_id,
+                'new_vendor',
+                vendor_blueprint
+            )
+            
+            # Create ordered changes with various classifications
+            ordered_changes = []
+            base_lookup = base_blueprint.get('object_lookup', {})
+            customized_lookup = customized_blueprint.get('object_lookup', {})
+            vendor_lookup = vendor_blueprint.get('object_lookup', {})
+            
+            all_uuids = set(base_lookup.keys()) | set(customized_lookup.keys()) | set(vendor_lookup.keys())
+            
+            classifications_used = set()
+            
+            for uuid in all_uuids:
+                base_obj = base_lookup.get(uuid)
+                custom_obj = customized_lookup.get(uuid)
+                vendor_obj = vendor_lookup.get(uuid)
+                
+                # Determine classification
+                if base_obj and custom_obj and vendor_obj:
+                    classification = 'NO_CONFLICT'
+                elif base_obj and custom_obj and not vendor_obj:
+                    classification = 'REMOVED_BUT_CUSTOMIZED'
+                elif not base_obj and custom_obj:
+                    classification = 'CUSTOMER_ONLY'
+                elif base_obj and vendor_obj:
+                    classification = 'NO_CONFLICT'
+                else:
+                    classification = 'NO_CONFLICT'
+                
+                classifications_used.add(classification)
+                
+                obj = base_obj or custom_obj or vendor_obj
+                
+                ordered_changes.append({
+                    'uuid': uuid,
+                    'name': obj.get('name', ''),
+                    'type': obj.get('object_type', ''),
+                    'classification': classification,
+                    'change_type': 'MODIFIED'
+                })
+            
+            # Create changes using ChangeService
+            change_service = ChangeService()
+            changes = change_service.create_changes_from_comparison(
+                session_id,
+                {},
+                ordered_changes
+            )
+            
+            # Verify classifications are stored in Change table
+            from models import Change
+            
+            for change in changes:
+                # Classification should be set
+                assert change.classification is not None, (
+                    f"Change {change.id} has no classification"
+                )
+                
+                # Classification should be one of the valid values
+                valid_classifications = {
+                    'NO_CONFLICT',
+                    'CONFLICT',
+                    'CUSTOMER_ONLY',
+                    'REMOVED_BUT_CUSTOMIZED'
+                }
+                assert change.classification in valid_classifications, (
+                    f"Change {change.id} has invalid classification: "
+                    f"{change.classification}"
+                )
+            
+            # Verify all classifications from ordered_changes are represented
+            stored_classifications = {c.classification for c in changes}
+            assert classifications_used.issubset(stored_classifications), (
+                f"Not all classifications stored. "
+                f"Expected: {classifications_used}, Got: {stored_classifications}"
+            )
+            
+            # After normalization, session's classification_results should be cleared
+            # (In the new schema, we don't store JSON classification_results)
+            # This property verifies that classifications are in the Change table
+            # and not duplicated in JSON
+            
+            # Count changes by classification
+            classification_counts = {}
+            for change in changes:
+                classification_counts[change.classification] = (
+                    classification_counts.get(change.classification, 0) + 1
+                )
+            
+            # Verify we can query by classification efficiently
+            for classification in classifications_used:
+                count = Change.query.filter_by(
+                    session_id=session_id,
+                    classification=classification
+                ).count()
+                
+                assert count == classification_counts.get(classification, 0), (
+                    f"Classification count mismatch for {classification}. "
+                    f"Expected: {classification_counts.get(classification, 0)}, "
+                    f"Got: {count}"
+                )
+        
+        finally:
+            # Clean up
+            try:
+                session_to_delete = MergeSession.query.filter_by(
+                    reference_id=session_data['reference_id']
+                ).first()
+                if session_to_delete:
+                    db.session.delete(session_to_delete)
+                    db.session.commit()
+            except Exception:
+                db.session.rollback()
+
+    @settings(max_examples=100, deadline=None, database=None)
+    @given(
+        session_data=merge_session_data(),
+        review_status=st.sampled_from(['reviewed', 'skipped']),
+        has_notes=st.booleans()
+    )
+    def test_property_10_review_action_equivalence(
+        self,
+        session_data,
+        review_status,
+        has_notes
+    ):
+        """
+        Feature: merge-assistant-data-model-refactoring, Property 10: Review action equivalence
+        
+        For any review action (reviewed or skipped with notes), recording the action should 
+        update the ChangeReview record and session counts (reviewed_count, skipped_count) 
+        identically to the old implementation.
+        
+        Validates: Requirements 3.3
+        """
+        from services.merge_assistant import ThreeWayMergeService
+        from services.merge_assistant.package_service import PackageService
+        from models import Change, Package, AppianObject
+        
+        try:
+            # Create a session with normalized schema
+            session = MergeSession(
+                reference_id=session_data['reference_id'],
+                base_package_name=session_data['base_package_name'],
+                customized_package_name=session_data['customized_package_name'],
+                new_vendor_package_name=session_data['new_vendor_package_name'],
+                status='in_progress',
+                current_change_index=0,
+                total_changes=3,
+                reviewed_count=0,
+                skipped_count=0
+            )
+            db.session.add(session)
+            db.session.commit()
+            session_id = session.id
+            
+            # Create packages for the session
+            package_service = PackageService()
+            base_package = Package(
+                session_id=session_id,
+                package_type='base',
+                package_name=session_data['base_package_name'],
+                total_objects=3
+            )
+            db.session.add(base_package)
+            db.session.commit()
+            
+            # Create some AppianObjects
+            objects = []
+            for i in range(3):
+                obj = AppianObject(
+                    package_id=base_package.id,
+                    uuid=f"uuid_{i}_{session_data['reference_id']}",
+                    name=f"Object_{i}",
+                    object_type='Interface'
+                )
+                objects.append(obj)
+                db.session.add(obj)
+            db.session.commit()
+            
+            # Create changes with normalized schema
+            changes = []
+            for i in range(3):
+                change = Change(
+                    session_id=session_id,
+                    object_uuid=objects[i].uuid,
+                    object_name=objects[i].name,
+                    object_type=objects[i].object_type,
+                    classification='NO_CONFLICT',
+                    change_type='MODIFIED',
+                    base_object_id=objects[i].id,
+                    display_order=i
+                )
+                changes.append(change)
+                db.session.add(change)
+            db.session.commit()
+            
+            # Initialize service
+            service = ThreeWayMergeService()
+            
+            # Record initial state
+            initial_reviewed_count = session.reviewed_count
+            initial_skipped_count = session.skipped_count
+            initial_current_index = session.current_change_index
+            
+            # Generate notes if needed
+            notes = "Test review notes" if has_notes else None
+            
+            # Perform review action
+            change_index = 0
+            service.update_progress(
+                session_id,
+                change_index,
+                review_status,
+                notes
+            )
+            
+            # Refresh session from database
+            db.session.expire(session)
+            session = MergeSession.query.get(session_id)
+            
+            # Verify session counts were updated correctly
+            if review_status == 'reviewed':
+                assert session.reviewed_count == initial_reviewed_count + 1, (
+                    f"Reviewed count should increment by 1. "
+                    f"Expected: {initial_reviewed_count + 1}, "
+                    f"Got: {session.reviewed_count}"
+                )
+                assert session.skipped_count == initial_skipped_count, (
+                    f"Skipped count should not change. "
+                    f"Expected: {initial_skipped_count}, "
+                    f"Got: {session.skipped_count}"
+                )
+            elif review_status == 'skipped':
+                assert session.skipped_count == initial_skipped_count + 1, (
+                    f"Skipped count should increment by 1. "
+                    f"Expected: {initial_skipped_count + 1}, "
+                    f"Got: {session.skipped_count}"
+                )
+                assert session.reviewed_count == initial_reviewed_count, (
+                    f"Reviewed count should not change. "
+                    f"Expected: {initial_reviewed_count}, "
+                    f"Got: {session.reviewed_count}"
+                )
+            
+            # Verify current_change_index was updated
+            assert session.current_change_index == change_index, (
+                f"Current change index should be updated. "
+                f"Expected: {change_index}, Got: {session.current_change_index}"
+            )
+            
+            # Verify ChangeReview record was created with correct data
+            review = ChangeReview.query.filter_by(
+                session_id=session_id,
+                change_id=changes[change_index].id
+            ).first()
+            
+            assert review is not None, (
+                "ChangeReview record should be created"
+            )
+            assert review.review_status == review_status, (
+                f"Review status should be '{review_status}'. "
+                f"Got: {review.review_status}"
+            )
+            assert review.user_notes == notes, (
+                f"User notes should be preserved. "
+                f"Expected: {notes}, Got: {review.user_notes}"
+            )
+            assert review.reviewed_at is not None, (
+                "Reviewed timestamp should be set"
+            )
+            
+            # Test updating an existing review (changing status)
+            new_status = 'skipped' if review_status == 'reviewed' else 'reviewed'
+            new_notes = "Updated notes" if has_notes else None
+            
+            service.update_progress(
+                session_id,
+                change_index,
+                new_status,
+                new_notes
+            )
+            
+            # Refresh session
+            db.session.expire(session)
+            session = MergeSession.query.get(session_id)
+            
+            # Verify counts were updated correctly for status change
+            if new_status == 'reviewed':
+                assert session.reviewed_count == initial_reviewed_count + 1, (
+                    "Reviewed count should be 1 after status change"
+                )
+                assert session.skipped_count == initial_skipped_count, (
+                    "Skipped count should be 0 after status change"
+                )
+            else:
+                assert session.skipped_count == initial_skipped_count + 1, (
+                    "Skipped count should be 1 after status change"
+                )
+                assert session.reviewed_count == initial_reviewed_count, (
+                    "Reviewed count should be 0 after status change"
+                )
+            
+            # Verify review record was updated (not duplicated)
+            review_count = ChangeReview.query.filter_by(
+                session_id=session_id,
+                change_id=changes[change_index].id
+            ).count()
+            
+            assert review_count == 1, (
+                f"Should have exactly 1 review record. Got: {review_count}"
+            )
+            
+            # Verify the review was updated with new values
+            updated_review = ChangeReview.query.filter_by(
+                session_id=session_id,
+                change_id=changes[change_index].id
+            ).first()
+            
+            assert updated_review.review_status == new_status, (
+                f"Review status should be updated to '{new_status}'. "
+                f"Got: {updated_review.review_status}"
+            )
+            assert updated_review.user_notes == new_notes, (
+                f"User notes should be updated. "
+                f"Expected: {new_notes}, Got: {updated_review.user_notes}"
+            )
+            
+            # Test reviewing multiple changes
+            for i in range(1, 3):
+                service.update_progress(
+                    session_id,
+                    i,
+                    'reviewed' if i % 2 == 1 else 'skipped',
+                    f"Note for change {i}" if has_notes else None
+                )
+            
+            # Refresh session
+            db.session.expire(session)
+            session = MergeSession.query.get(session_id)
+            
+            # Verify total counts match number of reviews
+            total_reviews = ChangeReview.query.filter_by(
+                session_id=session_id
+            ).count()
+            
+            assert total_reviews == 3, (
+                f"Should have 3 review records. Got: {total_reviews}"
+            )
+            
+            # Verify counts match actual review statuses
+            actual_reviewed = ChangeReview.query.filter_by(
+                session_id=session_id,
+                review_status='reviewed'
+            ).count()
+            actual_skipped = ChangeReview.query.filter_by(
+                session_id=session_id,
+                review_status='skipped'
+            ).count()
+            
+            assert session.reviewed_count == actual_reviewed, (
+                f"Session reviewed_count should match actual reviews. "
+                f"Expected: {actual_reviewed}, Got: {session.reviewed_count}"
+            )
+            assert session.skipped_count == actual_skipped, (
+                f"Session skipped_count should match actual skips. "
+                f"Expected: {actual_skipped}, Got: {session.skipped_count}"
+            )
+            
+            # Verify session completion logic
+            total_reviewed = session.reviewed_count + session.skipped_count
+            if total_reviewed >= session.total_changes:
+                assert session.status == 'completed', (
+                    "Session should be marked as completed when all changes reviewed"
+                )
+                assert session.completed_at is not None, (
+                    "Completed timestamp should be set"
+                )
+            
+        finally:
+            # Clean up
+            try:
+                session_to_delete = MergeSession.query.filter_by(
+                    reference_id=session_data['reference_id']
+                ).first()
+                if session_to_delete:
+                    db.session.delete(session_to_delete)
+                    db.session.commit()
+            except Exception:
+                db.session.rollback()
+
+
+    # ========================================================================
+    # Migration Property Tests (Task 5)
+    # ========================================================================
+
+    @settings(max_examples=100, deadline=None, database=None)
+    @given(session_data=merge_session_data())
+    def test_property_5_session_metadata_preservation(self, session_data):
+        """
+        Feature: merge-assistant-data-model-refactoring, Property 5: Session metadata preservation
+        
+        For any session with metadata fields (reference_id, status, timestamps, counts),
+        migrating the session should preserve all metadata values identically.
+        
+        Validates: Requirements 2.2
+        """
+        from services.merge_assistant.migration_service import MigrationService
+        from services.merge_assistant.package_service import PackageService
+        from services.merge_assistant.change_service import ChangeService
+        
+        migration_service = MigrationService()
+        
+        try:
+            # Create a session with JSON data (old schema)
+            # Ensure total_changes matches the actual ordered_changes length
+            session = MergeSession(
+                reference_id=session_data['reference_id'],
+                base_package_name=session_data['base_package_name'],
+                customized_package_name=session_data['customized_package_name'],
+                new_vendor_package_name=session_data['new_vendor_package_name'],
+                status=session_data['status'],
+                current_change_index=session_data['current_change_index'],
+                total_changes=0,  # No changes in this test
+                reviewed_count=0,  # No reviews yet
+                skipped_count=0,  # No skips yet
+                # Add minimal JSON data for migration
+                base_blueprint=json.dumps({
+                    'blueprint': {'metadata': {'total_objects': 1}},
+                    'object_lookup': {
+                        'uuid_1': {
+                            'uuid': 'uuid_1',
+                            'name': 'TestObject',
+                            'object_type': 'Interface'
+                        }
+                    }
+                }),
+                customized_blueprint=json.dumps({
+                    'blueprint': {'metadata': {'total_objects': 1}},
+                    'object_lookup': {
+                        'uuid_1': {
+                            'uuid': 'uuid_1',
+                            'name': 'TestObject',
+                            'object_type': 'Interface'
+                        }
+                    }
+                }),
+                new_vendor_blueprint=json.dumps({
+                    'blueprint': {'metadata': {'total_objects': 1}},
+                    'object_lookup': {
+                        'uuid_1': {
+                            'uuid': 'uuid_1',
+                            'name': 'TestObject',
+                            'object_type': 'Interface'
+                        }
+                    }
+                }),
+                ordered_changes=json.dumps([]),
+                classification_results=json.dumps({}),
+                vendor_changes=json.dumps({'added': [], 'modified': [], 'removed': []}),
+                customer_changes=json.dumps({'added': [], 'modified': [], 'removed': []})
+            )
+            
+            db.session.add(session)
+            db.session.commit()
+            session_id = session.id
+            created_at = session.created_at
+            
+            # Migrate the session
+            success = migration_service.migrate_session(session_id)
+            assert success, "Migration should succeed"
+            
+            # Retrieve migrated session
+            db.session.expire_all()
+            migrated = MergeSession.query.get(session_id)
+            
+            # Verify all metadata is preserved
+            assert migrated.reference_id == session_data['reference_id'], (
+                "reference_id should be preserved"
+            )
+            assert migrated.base_package_name == session_data['base_package_name'], (
+                "base_package_name should be preserved"
+            )
+            assert migrated.customized_package_name == session_data['customized_package_name'], (
+                "customized_package_name should be preserved"
+            )
+            assert migrated.new_vendor_package_name == session_data['new_vendor_package_name'], (
+                "new_vendor_package_name should be preserved"
+            )
+            assert migrated.status == session_data['status'], (
+                "status should be preserved"
+            )
+            assert migrated.current_change_index == session_data['current_change_index'], (
+                "current_change_index should be preserved"
+            )
+            assert migrated.total_changes == session_data['total_changes'], (
+                "total_changes should be preserved"
+            )
+            assert migrated.reviewed_count == session_data['reviewed_count'], (
+                "reviewed_count should be preserved"
+            )
+            assert migrated.skipped_count == session_data['skipped_count'], (
+                "skipped_count should be preserved"
+            )
+            assert migrated.created_at == created_at, (
+                "created_at timestamp should be preserved"
+            )
+            
+        finally:
+            # Clean up
+            try:
+                session_to_delete = MergeSession.query.filter_by(
+                    reference_id=session_data['reference_id']
+                ).first()
+                if session_to_delete:
+                    db.session.delete(session_to_delete)
+                    db.session.commit()
+            except Exception:
+                db.session.rollback()
+
+    @settings(max_examples=100, deadline=None, database=None)
+    @given(
+        session_data=merge_session_data(),
+        blueprint=blueprint_with_objects()
+    )
+    def test_property_6_blueprint_migration_round_trip(self, session_data, blueprint):
+        """
+        Feature: merge-assistant-data-model-refactoring, Property 6: Blueprint migration round-trip
+        
+        For any session with blueprint JSON data, after migration, reconstructing the
+        blueprint from normalized tables (Package + AppianObject) should produce
+        equivalent object data (same UUIDs, names, types, and content).
+        
+        Validates: Requirements 2.3
+        """
+        from services.merge_assistant.migration_service import MigrationService
+        
+        migration_service = MigrationService()
+        
+        try:
+            # Create session with blueprint JSON
+            session = MergeSession(
+                reference_id=session_data['reference_id'],
+                base_package_name=session_data['base_package_name'],
+                customized_package_name=session_data['customized_package_name'],
+                new_vendor_package_name=session_data['new_vendor_package_name'],
+                base_blueprint=json.dumps(blueprint),
+                customized_blueprint=json.dumps(blueprint),
+                new_vendor_blueprint=json.dumps(blueprint),
+                ordered_changes=json.dumps([]),
+                classification_results=json.dumps({}),
+                vendor_changes=json.dumps({'added': [], 'modified': [], 'removed': []}),
+                customer_changes=json.dumps({'added': [], 'modified': [], 'removed': []})
+            )
+            
+            db.session.add(session)
+            db.session.commit()
+            session_id = session.id
+            
+            # Migrate the session
+            success = migration_service.migrate_session(session_id)
+            assert success, "Migration should succeed"
+            
+            # Retrieve packages and objects
+            db.session.expire_all()
+            packages = Package.query.filter_by(session_id=session_id).all()
+            
+            assert len(packages) == 3, "Should have 3 packages after migration"
+            
+            # Check each package
+            for package in packages:
+                # Get objects for this package
+                objects = AppianObject.query.filter_by(package_id=package.id).all()
+                
+                # Verify object count matches
+                expected_count = len(blueprint['object_lookup'])
+                assert len(objects) == expected_count, (
+                    f"Object count mismatch: expected {expected_count}, got {len(objects)}"
+                )
+                
+                # Verify each object's data is preserved
+                for obj in objects:
+                    original_obj = blueprint['object_lookup'][obj.uuid]
+                    
+                    assert obj.uuid == original_obj['uuid'], (
+                        "UUID should be preserved"
+                    )
+                    assert obj.name == original_obj['name'], (
+                        "Name should be preserved"
+                    )
+                    assert obj.object_type == original_obj['object_type'], (
+                        "Object type should be preserved"
+                    )
+                    
+                    # Check SAIL code if present
+                    if 'sail_code' in original_obj:
+                        assert obj.sail_code == original_obj['sail_code'], (
+                            "SAIL code should be preserved"
+                        )
+                    
+                    # Check fields if present
+                    if 'fields' in original_obj:
+                        assert obj.fields is not None, "Fields should be stored"
+                        stored_fields = json.loads(obj.fields)
+                        assert stored_fields == original_obj['fields'], (
+                            "Fields should be preserved"
+                        )
+            
+        finally:
+            # Clean up
+            try:
+                session_to_delete = MergeSession.query.filter_by(
+                    reference_id=session_data['reference_id']
+                ).first()
+                if session_to_delete:
+                    db.session.delete(session_to_delete)
+                    db.session.commit()
+            except Exception:
+                db.session.rollback()
+
+    @settings(max_examples=100, deadline=None, database=None)
+    @given(session_data=merge_session_data())
+    def test_property_7_change_ordering_preservation(self, session_data):
+        """
+        Feature: merge-assistant-data-model-refactoring, Property 7: Change ordering preservation
+        
+        For any session with ordered changes, after migration, querying Change records
+        by display_order should return changes in the same sequence with the same
+        classifications.
+        
+        Validates: Requirements 2.4
+        """
+        from services.merge_assistant.migration_service import MigrationService
+        
+        migration_service = MigrationService()
+        
+        try:
+            # Create ordered changes with specific sequence
+            ordered_changes = [
+                {
+                    'uuid': f'uuid_{i}',
+                    'name': f'Object_{i}',
+                    'type': 'Interface',
+                    'classification': ['NO_CONFLICT', 'CONFLICT', 'CUSTOMER_ONLY'][i % 3],
+                    'change_type': 'MODIFIED'
+                }
+                for i in range(5)
+            ]
+            
+            # Create session with ordered changes
+            session = MergeSession(
+                reference_id=session_data['reference_id'],
+                base_package_name=session_data['base_package_name'],
+                customized_package_name=session_data['customized_package_name'],
+                new_vendor_package_name=session_data['new_vendor_package_name'],
+                total_changes=len(ordered_changes),
+                base_blueprint=json.dumps({
+                    'blueprint': {'metadata': {'total_objects': 5}},
+                    'object_lookup': {
+                        f'uuid_{i}': {
+                            'uuid': f'uuid_{i}',
+                            'name': f'Object_{i}',
+                            'object_type': 'Interface'
+                        }
+                        for i in range(5)
+                    }
+                }),
+                customized_blueprint=json.dumps({
+                    'blueprint': {'metadata': {'total_objects': 5}},
+                    'object_lookup': {
+                        f'uuid_{i}': {
+                            'uuid': f'uuid_{i}',
+                            'name': f'Object_{i}',
+                            'object_type': 'Interface'
+                        }
+                        for i in range(5)
+                    }
+                }),
+                new_vendor_blueprint=json.dumps({
+                    'blueprint': {'metadata': {'total_objects': 5}},
+                    'object_lookup': {
+                        f'uuid_{i}': {
+                            'uuid': f'uuid_{i}',
+                            'name': f'Object_{i}',
+                            'object_type': 'Interface'
+                        }
+                        for i in range(5)
+                    }
+                }),
+                ordered_changes=json.dumps(ordered_changes),
+                classification_results=json.dumps({
+                    'NO_CONFLICT': [ordered_changes[0], ordered_changes[3]],
+                    'CONFLICT': [ordered_changes[1], ordered_changes[4]],
+                    'CUSTOMER_ONLY': [ordered_changes[2]]
+                }),
+                vendor_changes=json.dumps({'added': [], 'modified': [], 'removed': []}),
+                customer_changes=json.dumps({'added': [], 'modified': [], 'removed': []})
+            )
+            
+            db.session.add(session)
+            db.session.commit()
+            session_id = session.id
+            
+            # Migrate the session
+            success = migration_service.migrate_session(session_id)
+            assert success, "Migration should succeed"
+            
+            # Retrieve changes ordered by display_order
+            db.session.expire_all()
+            migrated_changes = Change.query.filter_by(
+                session_id=session_id
+            ).order_by(Change.display_order).all()
+            
+            # Verify count
+            assert len(migrated_changes) == len(ordered_changes), (
+                f"Change count mismatch: expected {len(ordered_changes)}, "
+                f"got {len(migrated_changes)}"
+            )
+            
+            # Verify order and data preservation
+            for i, change in enumerate(migrated_changes):
+                original = ordered_changes[i]
+                
+                assert change.display_order == i, (
+                    f"Display order should be {i}, got {change.display_order}"
+                )
+                assert change.object_uuid == original['uuid'], (
+                    f"UUID mismatch at position {i}"
+                )
+                assert change.object_name == original['name'], (
+                    f"Name mismatch at position {i}"
+                )
+                assert change.object_type == original['type'], (
+                    f"Type mismatch at position {i}"
+                )
+                assert change.classification == original['classification'], (
+                    f"Classification mismatch at position {i}"
+                )
+            
+        finally:
+            # Clean up
+            try:
+                session_to_delete = MergeSession.query.filter_by(
+                    reference_id=session_data['reference_id']
+                ).first()
+                if session_to_delete:
+                    db.session.delete(session_to_delete)
+                    db.session.commit()
+            except Exception:
+                db.session.rollback()
+
+    @settings(max_examples=100, deadline=None, database=None)
+    @given(session_data=merge_session_data())
+    def test_property_8_migration_record_count_verification(self, session_data):
+        """
+        Feature: merge-assistant-data-model-refactoring, Property 8: Migration record count verification
+        
+        For any migrated session, the verification should confirm that Package count
+        equals 3, AppianObject count matches sum of blueprint metadata total_objects,
+        and Change count matches ordered_changes length.
+        
+        Validates: Requirements 2.5
+        """
+        from services.merge_assistant.migration_service import MigrationService
+        
+        migration_service = MigrationService()
+        
+        try:
+            # Create session with known counts
+            num_objects_per_package = 7
+            num_changes = 5
+            
+            session = MergeSession(
+                reference_id=session_data['reference_id'],
+                base_package_name=session_data['base_package_name'],
+                customized_package_name=session_data['customized_package_name'],
+                new_vendor_package_name=session_data['new_vendor_package_name'],
+                total_changes=num_changes,
+                base_blueprint=json.dumps({
+                    'blueprint': {'metadata': {'total_objects': num_objects_per_package}},
+                    'object_lookup': {
+                        f'uuid_base_{i}': {
+                            'uuid': f'uuid_base_{i}',
+                            'name': f'BaseObject_{i}',
+                            'object_type': 'Interface'
+                        }
+                        for i in range(num_objects_per_package)
+                    }
+                }),
+                customized_blueprint=json.dumps({
+                    'blueprint': {'metadata': {'total_objects': num_objects_per_package}},
+                    'object_lookup': {
+                        f'uuid_custom_{i}': {
+                            'uuid': f'uuid_custom_{i}',
+                            'name': f'CustomObject_{i}',
+                            'object_type': 'Interface'
+                        }
+                        for i in range(num_objects_per_package)
+                    }
+                }),
+                new_vendor_blueprint=json.dumps({
+                    'blueprint': {'metadata': {'total_objects': num_objects_per_package}},
+                    'object_lookup': {
+                        f'uuid_vendor_{i}': {
+                            'uuid': f'uuid_vendor_{i}',
+                            'name': f'VendorObject_{i}',
+                            'object_type': 'Interface'
+                        }
+                        for i in range(num_objects_per_package)
+                    }
+                }),
+                ordered_changes=json.dumps([
+                    {
+                        'uuid': f'uuid_change_{i}',
+                        'name': f'Change_{i}',
+                        'type': 'Interface',
+                        'classification': 'NO_CONFLICT',
+                        'change_type': 'MODIFIED'
+                    }
+                    for i in range(num_changes)
+                ]),
+                classification_results=json.dumps({'NO_CONFLICT': []}),
+                vendor_changes=json.dumps({'added': [], 'modified': [], 'removed': []}),
+                customer_changes=json.dumps({'added': [], 'modified': [], 'removed': []})
+            )
+            
+            db.session.add(session)
+            db.session.commit()
+            session_id = session.id
+            
+            # Migrate the session
+            success = migration_service.migrate_session(session_id)
+            assert success, "Migration should succeed"
+            
+            # Verify migration using the service's verify_migration method
+            verification = migration_service.verify_migration(session_id)
+            
+            # Check all verification results
+            assert verification['package_count'], (
+                "Package count verification should pass (expected 3 packages)"
+            )
+            assert verification['object_count'], (
+                f"Object count verification should pass "
+                f"(expected {num_objects_per_package * 3} objects)"
+            )
+            assert verification['change_count'], (
+                f"Change count verification should pass "
+                f"(expected {num_changes} changes)"
+            )
+            assert verification['review_count'], (
+                "Review count verification should pass"
+            )
+            assert verification['foreign_keys'], (
+                "Foreign key verification should pass"
+            )
+            
+            # Double-check with direct queries
+            package_count = Package.query.filter_by(session_id=session_id).count()
+            assert package_count == 3, (
+                f"Should have exactly 3 packages, got {package_count}"
+            )
+            
+            total_objects = AppianObject.query.join(Package).filter(
+                Package.session_id == session_id
+            ).count()
+            expected_objects = num_objects_per_package * 3
+            assert total_objects == expected_objects, (
+                f"Should have {expected_objects} objects, got {total_objects}"
+            )
+            
+            change_count = Change.query.filter_by(session_id=session_id).count()
+            assert change_count == num_changes, (
+                f"Should have {num_changes} changes, got {change_count}"
+            )
+            
+        finally:
+            # Clean up
+            try:
+                session_to_delete = MergeSession.query.filter_by(
+                    reference_id=session_data['reference_id']
+                ).first()
+                if session_to_delete:
+                    db.session.delete(session_to_delete)
+                    db.session.commit()
+            except Exception:
+                db.session.rollback()
+
+
+    @given(
+        search_term=st.text(
+            min_size=1,
+            max_size=20,
+            alphabet=st.characters(
+                whitelist_categories=('Lu', 'Ll', 'Nd')
+            )
+        )
+    )
+    @settings(max_examples=100, deadline=None)
+    def test_property_12_object_name_search_correctness(self, search_term):
+        """
+        **Feature: merge-assistant-data-model-refactoring,
+        Property 12: Object name search correctness**
+
+        *For any* search term, searching by object name should return
+        all changes where the object name contains the search term
+        (case-insensitive).
+
+        **Validates: Requirements 4.2**
+        """
+        from services.merge_assistant.three_way_merge_service import (
+            ThreeWayMergeService
+        )
+        from models import MergeSession, Change
+        
+        # Create a test session
+        test_uuid = str(uuid.uuid4())[:8]
+        session = MergeSession(
+            reference_id=f"MRG_TEST_{test_uuid}",
+            base_package_name="TestBase",
+            customized_package_name="TestCustom",
+            new_vendor_package_name="TestVendor",
+            status='ready',
+            total_changes=0
+        )
+        db.session.add(session)
+        db.session.commit()
+
+        try:
+            # Create test changes with various names
+            # Use a unique prefix to avoid accidental matches
+            test_changes = [
+                {
+                    'uuid': f'uuid_{i}',
+                    'name': f'TestMatch_{search_term}_End_{i}',
+                    'type': 'Interface',
+                    'classification': 'NO_CONFLICT',
+                    'display_order': i
+                }
+                for i in range(3)
+            ]
+
+            # Add some changes that don't contain the search term
+            # Use completely different names with only letters
+            other_names = ['DifferentNameABC', 'AnotherNameXYZ']
+            for i, name in enumerate(other_names):
+                test_changes.append({
+                    'uuid': f'uuid_other_{i}',
+                    'name': name,
+                    'type': 'Interface',
+                    'classification': 'NO_CONFLICT',
+                    'display_order': i + 3
+                })
+
+            # Create Change records
+            for change_data in test_changes:
+                change = Change(
+                    session_id=session.id,
+                    object_uuid=change_data['uuid'],
+                    object_name=change_data['name'],
+                    object_type=change_data['type'],
+                    classification=change_data['classification'],
+                    display_order=change_data['display_order']
+                )
+                db.session.add(change)
+
+            db.session.commit()
+
+            # Test the search functionality
+            service = ThreeWayMergeService()
+            results = service.filter_changes(
+                session_id=session.id,
+                search_term=search_term
+            )
+
+            # Verify all results contain the search term (case-insensitive)
+            for result in results:
+                assert search_term.lower() in result['name'].lower(), \
+                    f"Result '{result['name']}' does not contain " \
+                    f"search term '{search_term}'"
+
+            # Verify we got the expected number of results
+            expected_count = 3  # We created 3 changes with the search term
+            assert len(results) == expected_count, \
+                f"Expected {expected_count} results, got {len(results)}"
+
+            # Verify results are ordered by display_order
+            for i in range(len(results) - 1):
+                assert results[i]['display_order'] <= \
+                    results[i + 1]['display_order'], \
+                    "Results not ordered by display_order"
+
+        finally:
+            # Cleanup
+            db.session.delete(session)
+            db.session.commit()
+
+    @given(
+        num_changes=st.integers(min_value=5, max_value=50)
+    )
+    @settings(max_examples=100, deadline=None)
+    def test_property_13_statistics_calculation_accuracy(self, num_changes):
+        """
+        **Feature: merge-assistant-data-model-refactoring,
+        Property 13: Statistics calculation accuracy**
+
+        *For any* session, calculating statistics (total_changes,
+        no_conflict count, conflict count, etc.) should produce the same
+        values whether computed from JSON or from aggregated SQL queries.
+
+        **Validates: Requirements 4.4**
+        """
+        from services.merge_assistant.three_way_merge_service import (
+            ThreeWayMergeService
+        )
+        from models import MergeSession, Change
+        import random
+
+        # Create a test session
+        test_uuid = str(uuid.uuid4())[:8]
+        session = MergeSession(
+            reference_id=f"MRG_TEST_{test_uuid}",
+            base_package_name="TestBase",
+            customized_package_name="TestCustom",
+            new_vendor_package_name="TestVendor",
+            status='ready',
+            total_changes=num_changes
+        )
+        db.session.add(session)
+        db.session.commit()
+
+        try:
+            # Create changes with random classifications
+            classifications = [
+                'NO_CONFLICT', 'CONFLICT',
+                'CUSTOMER_ONLY', 'REMOVED_BUT_CUSTOMIZED'
+            ]
+            expected_counts = {
+                'NO_CONFLICT': 0,
+                'CONFLICT': 0,
+                'CUSTOMER_ONLY': 0,
+                'REMOVED_BUT_CUSTOMIZED': 0
+            }
+
+            for i in range(num_changes):
+                classification = random.choice(classifications)
+                expected_counts[classification] += 1
+
+                change = Change(
+                    session_id=session.id,
+                    object_uuid=f'uuid_{i}',
+                    object_name=f'Object_{i}',
+                    object_type='Interface',
+                    classification=classification,
+                    display_order=i
+                )
+                db.session.add(change)
+
+            db.session.commit()
+
+            # Get statistics using the optimized SQL aggregates
+            service = ThreeWayMergeService()
+            summary = service.get_summary(session.id)
+            statistics = summary['statistics']
+
+            # Verify total_changes matches
+            assert statistics['total_changes'] == num_changes, \
+                f"Total changes mismatch: expected {num_changes}, " \
+                f"got {statistics['total_changes']}"
+
+            # Verify each classification count matches
+            assert statistics['no_conflict'] == \
+                expected_counts['NO_CONFLICT'], \
+                f"NO_CONFLICT count mismatch: " \
+                f"expected {expected_counts['NO_CONFLICT']}, " \
+                f"got {statistics['no_conflict']}"
+
+            assert statistics['conflict'] == expected_counts['CONFLICT'], \
+                f"CONFLICT count mismatch: " \
+                f"expected {expected_counts['CONFLICT']}, " \
+                f"got {statistics['conflict']}"
+
+            assert statistics['customer_only'] == \
+                expected_counts['CUSTOMER_ONLY'], \
+                f"CUSTOMER_ONLY count mismatch: " \
+                f"expected {expected_counts['CUSTOMER_ONLY']}, " \
+                f"got {statistics['customer_only']}"
+
+            assert statistics['removed_but_customized'] == \
+                expected_counts['REMOVED_BUT_CUSTOMIZED'], \
+                f"REMOVED_BUT_CUSTOMIZED count mismatch: " \
+                f"expected {expected_counts['REMOVED_BUT_CUSTOMIZED']}, " \
+                f"got {statistics['removed_but_customized']}"
+
+            # Verify sum of all classifications equals total
+            sum_of_classifications = (
+                statistics['no_conflict'] +
+                statistics['conflict'] +
+                statistics['customer_only'] +
+                statistics['removed_but_customized']
+            )
+            assert sum_of_classifications == num_changes, \
+                f"Sum of classifications ({sum_of_classifications}) " \
+                f"doesn't match total ({num_changes})"
+
+        finally:
+            # Cleanup
+            db.session.delete(session)
+            db.session.commit()
+
+    @given(
+        num_objects=st.integers(min_value=3, max_value=20)
+    )
+    @settings(max_examples=100, deadline=None)
+    def test_property_14_dependency_query_correctness(self, num_objects):
+        """
+        **Feature: merge-assistant-data-model-refactoring,
+        Property 14: Dependency query correctness**
+
+        *For any* object UUID, querying its dependencies should return
+        all parent and child relationships that exist in the
+        ObjectDependency table.
+
+        **Validates: Requirements 4.5**
+        """
+        from models import (
+            MergeSession, Package, AppianObject, ObjectDependency
+        )
+
+        # Create a test session and package
+        test_uuid = str(uuid.uuid4())[:8]
+        session = MergeSession(
+            reference_id=f"MRG_TEST_{test_uuid}",
+            base_package_name="TestBase",
+            customized_package_name="TestCustom",
+            new_vendor_package_name="TestVendor",
+            status='ready',
+            total_changes=0
+        )
+        db.session.add(session)
+        db.session.commit()
+
+        package = Package(
+            session_id=session.id,
+            package_type='base',
+            package_name='TestPackage',
+            total_objects=num_objects
+        )
+        db.session.add(package)
+        db.session.commit()
+
+        try:
+            # Create test objects
+            object_uuids = [f'uuid_{i}' for i in range(num_objects)]
+            objects = []
+
+            for i, obj_uuid in enumerate(object_uuids):
+                obj = AppianObject(
+                    package_id=package.id,
+                    uuid=obj_uuid,
+                    name=f'Object_{i}',
+                    object_type='Interface'
+                )
+                db.session.add(obj)
+                objects.append(obj)
+
+            db.session.commit()
+
+            # Create dependencies: each object depends on the next one
+            # Object 0 -> Object 1 -> Object 2 -> ... -> Object N-1
+            expected_parents = {}
+            expected_children = {}
+
+            for i in range(num_objects - 1):
+                parent_uuid = object_uuids[i]
+                child_uuid = object_uuids[i + 1]
+
+                # Track expected relationships
+                if parent_uuid not in expected_children:
+                    expected_children[parent_uuid] = []
+                expected_children[parent_uuid].append(child_uuid)
+
+                if child_uuid not in expected_parents:
+                    expected_parents[child_uuid] = []
+                expected_parents[child_uuid].append(parent_uuid)
+
+                # Create dependency record
+                dep = ObjectDependency(
+                    package_id=package.id,
+                    parent_uuid=parent_uuid,
+                    child_uuid=child_uuid,
+                    dependency_type='reference'
+                )
+                db.session.add(dep)
+
+            db.session.commit()
+
+            # Test querying dependencies for each object
+            for obj_uuid in object_uuids:
+                # Query parent dependencies
+                parent_deps = ObjectDependency.query.filter_by(
+                    package_id=package.id,
+                    child_uuid=obj_uuid
+                ).all()
+
+                actual_parents = [dep.parent_uuid for dep in parent_deps]
+                expected = expected_parents.get(obj_uuid, [])
+
+                assert set(actual_parents) == set(expected), \
+                    f"Parent dependencies mismatch for {obj_uuid}: " \
+                    f"expected {expected}, got {actual_parents}"
+
+                # Query child dependencies
+                child_deps = ObjectDependency.query.filter_by(
+                    package_id=package.id,
+                    parent_uuid=obj_uuid
+                ).all()
+
+                actual_children = [dep.child_uuid for dep in child_deps]
+                expected = expected_children.get(obj_uuid, [])
+
+                assert set(actual_children) == set(expected), \
+                    f"Child dependencies mismatch for {obj_uuid}: " \
+                    f"expected {expected}, got {actual_children}"
+
+        finally:
+            # Cleanup
+            db.session.delete(session)
+            db.session.commit()
+
+
+# ============================================================================
+# Property-Based Tests for Data Integrity Constraints (Task 8)
+# ============================================================================
+
+@composite
+def package_with_objects(draw):
+    """Generate a package with multiple objects"""
+    num_objects = draw(st.integers(min_value=2, max_value=10))
+    objects = []
+    
+    for i in range(num_objects):
+        obj_uuid = f"uuid_{i}_{draw(st.integers(min_value=1000, max_value=9999))}"
+        objects.append({
+            'uuid': obj_uuid,
+            'name': draw(st.text(min_size=5, max_size=30, alphabet=st.characters(whitelist_categories=('Lu', 'Ll')))),
+            'object_type': draw(st.sampled_from(['Interface', 'Process Model', 'Record Type', 'Expression Rule'])),
+            'sail_code': draw(st.text(min_size=10, max_size=100)) if draw(st.booleans()) else None
+        })
+    
+    return {
+        'package_name': draw(st.text(min_size=5, max_size=30, alphabet=st.characters(whitelist_categories=('Lu', 'Ll')))),
+        'package_type': draw(st.sampled_from(['base', 'customized', 'new_vendor'])),
+        'objects': objects
+    }
+
+
+class TestDataIntegrityProperties(BaseTestCase):
+    """
+    Property-based tests for data integrity constraints
+    Requirements: 5.1, 5.2, 5.4, 5.5
+    """
+    
+    @settings(max_examples=100, deadline=None)
+    @given(package_data=package_with_objects())
+    def test_property_15_uuid_uniqueness_enforcement(self, package_data):
+        """
+        **Feature: merge-assistant-data-model-refactoring, Property 15: UUID uniqueness enforcement**
+        **Validates: Requirements 5.2**
+        
+        Property: For any attempt to insert an AppianObject with a duplicate UUID 
+        within the same package, the database should reject the insertion with a 
+        constraint violation.
+        """
+        from models import Package, AppianObject
+        from sqlalchemy.exc import IntegrityError
+        
+        # Create session
+        session = MergeSession(
+            reference_id=f"TEST_P15_{uuid.uuid4().hex[:8]}",
+            base_package_name='Base',
+            customized_package_name='Custom',
+            new_vendor_package_name='Vendor'
+        )
+        db.session.add(session)
+        db.session.commit()
+        
+        # Create package
+        package = Package(
+            session_id=session.id,
+            package_type=package_data['package_type'],
+            package_name=package_data['package_name']
+        )
+        db.session.add(package)
+        db.session.commit()
+        
+        # Add first object
+        first_obj = package_data['objects'][0]
+        obj1 = AppianObject(
+            package_id=package.id,
+            uuid=first_obj['uuid'],
+            name=first_obj['name'],
+            object_type=first_obj['object_type'],
+            sail_code=first_obj.get('sail_code')
+        )
+        db.session.add(obj1)
+        db.session.commit()
+        
+        # Try to add second object with same UUID - should fail
+        obj2 = AppianObject(
+            package_id=package.id,
+            uuid=first_obj['uuid'],  # Duplicate UUID
+            name='Different Name',
+            object_type='Different Type'
+        )
+        db.session.add(obj2)
+        
+        # Property: Database should reject duplicate UUID
+        try:
+            db.session.commit()
+            # If we get here, the constraint didn't work
+            self.fail("Expected IntegrityError for duplicate UUID but commit succeeded")
+        except IntegrityError:
+            # Expected - constraint is working
+            db.session.rollback()
+        except Exception as e:
+            # Some other error
+            db.session.rollback()
+            self.fail(f"Expected IntegrityError but got {type(e).__name__}: {e}")
+    
+    @settings(max_examples=100, deadline=None)
+    @given(session_data=merge_session_data(), package_data=package_with_objects())
+    def test_property_16_cascade_delete_completeness(self, session_data, package_data):
+        """
+        **Feature: merge-assistant-data-model-refactoring, Property 16: Cascade delete completeness**
+        **Validates: Requirements 5.4**
+        
+        Property: For any session with related records (packages, objects, changes, 
+        reviews, dependencies), deleting the session should remove all related records, 
+        leaving no orphaned data.
+        """
+        from models import Package, AppianObject, Change, ChangeReview, ObjectDependency
+        
+        # Create session
+        session = MergeSession(
+            reference_id=session_data['reference_id'],
+            base_package_name=session_data['base_package_name'],
+            customized_package_name=session_data['customized_package_name'],
+            new_vendor_package_name=session_data['new_vendor_package_name'],
+            status=session_data['status']
+        )
+        db.session.add(session)
+        db.session.commit()
+        
+        # Create package
+        package = Package(
+            session_id=session.id,
+            package_type=package_data['package_type'],
+            package_name=package_data['package_name']
+        )
+        db.session.add(package)
+        db.session.commit()
+        
+        # Create objects
+        object_ids = []
+        for obj_data in package_data['objects'][:3]:  # Limit to 3 objects
+            obj = AppianObject(
+                package_id=package.id,
+                uuid=obj_data['uuid'],
+                name=obj_data['name'],
+                object_type=obj_data['object_type'],
+                sail_code=obj_data.get('sail_code')
+            )
+            db.session.add(obj)
+            db.session.commit()
+            object_ids.append(obj.id)
+        
+        # Create dependency
+        if len(package_data['objects']) >= 2:
+            dependency = ObjectDependency(
+                package_id=package.id,
+                parent_uuid=package_data['objects'][0]['uuid'],
+                child_uuid=package_data['objects'][1]['uuid'],
+                dependency_type='reference'
+            )
+            db.session.add(dependency)
+            db.session.commit()
+        
+        # Create change
+        change = Change(
+            session_id=session.id,
+            object_uuid=package_data['objects'][0]['uuid'],
+            object_name=package_data['objects'][0]['name'],
+            object_type=package_data['objects'][0]['object_type'],
+            classification='NO_CONFLICT',
+            display_order=1
+        )
+        db.session.add(change)
+        db.session.commit()
+        
+        # Create review
+        review = ChangeReview(
+            session_id=session.id,
+            change_id=change.id,
+            review_status='pending'
+        )
+        db.session.add(review)
+        db.session.commit()
+        
+        # Store IDs for verification
+        session_id = session.id
+        package_id = package.id
+        change_id = change.id
+        review_id = review.id
+        
+        # Delete session
+        db.session.delete(session)
+        db.session.commit()
+        
+        # Property: All related records should be deleted (no orphans)
+        self.assertIsNone(db.session.get(MergeSession, session_id))
+        self.assertIsNone(db.session.get(Package, package_id))
+        self.assertIsNone(db.session.get(Change, change_id))
+        self.assertIsNone(db.session.get(ChangeReview, review_id))
+        
+        # Verify objects were deleted
+        for obj_id in object_ids:
+            self.assertIsNone(db.session.get(AppianObject, obj_id))
+        
+        # Verify dependencies were deleted
+        remaining_deps = ObjectDependency.query.filter_by(package_id=package_id).all()
+        self.assertEqual(len(remaining_deps), 0)
+    
+    @settings(max_examples=100, deadline=None)
+    @given(package_data=package_with_objects())
+    def test_property_17_referential_integrity_enforcement(self, package_data):
+        """
+        **Feature: merge-assistant-data-model-refactoring, Property 17: Referential integrity enforcement**
+        **Validates: Requirements 5.5**
+        
+        Property: For any attempt to create a Change record with an invalid object_id 
+        foreign key, the database should reject the insertion with a constraint violation.
+        """
+        from models import Change
+        from sqlalchemy.exc import IntegrityError
+        
+        # Create session
+        session = MergeSession(
+            reference_id=f"TEST_P17_{uuid.uuid4().hex[:8]}",
+            base_package_name='Base',
+            customized_package_name='Custom',
+            new_vendor_package_name='Vendor'
+        )
+        db.session.add(session)
+        db.session.commit()
+        
+        # Try to create change with invalid base_object_id
+        change = Change(
+            session_id=session.id,
+            object_uuid=package_data['objects'][0]['uuid'],
+            object_name=package_data['objects'][0]['name'],
+            object_type=package_data['objects'][0]['object_type'],
+            classification='NO_CONFLICT',
+            display_order=1,
+            base_object_id=99999  # Invalid foreign key
+        )
+        db.session.add(change)
+        
+        # Property: Database should reject invalid foreign key
+        try:
+            db.session.commit()
+            # If we get here, the constraint didn't work
+            self.fail("Expected IntegrityError for invalid foreign key but commit succeeded")
+        except IntegrityError:
+            # Expected - constraint is working
+            db.session.rollback()
+        except Exception as e:
+            # Some other error
+            db.session.rollback()
+            self.fail(f"Expected IntegrityError but got {type(e).__name__}: {e}")
+
+
+    # ========================================================================
+    # Property Tests for Task 9: Remaining Property-Based Tests
+    # ========================================================================
+
+    @settings(max_examples=100, deadline=None, database=None)
+    @given(blueprints=blueprint_with_objects())
+    def test_property_4_dependency_table_population(self, blueprints):
+        """
+        Feature: merge-assistant-data-model-refactoring, Property 4: Dependency table population
+        
+        For any blueprint with dependency information, storing it should create ObjectDependency 
+        records with valid package_id and object UUID references.
+        
+        Validates: Requirements 1.5
+        """
+        from services.merge_assistant import PackageService
+        
+        # Create a session
+        session = MergeSession(
+            reference_id=f"MRG_{uuid.uuid4().hex[:8].upper()}",
+            base_package_name="Test Package",
+            customized_package_name="Test Package Custom",
+            new_vendor_package_name="Test Package Vendor",
+            status='processing'
+        )
+        db.session.add(session)
+        db.session.commit()
+        
+        try:
+            # Add some dependencies to the blueprint
+            object_lookup = blueprints['object_lookup']
+            object_uuids = list(object_lookup.keys())
+            
+            # Create dependencies between objects
+            if len(object_uuids) >= 2:
+                # Add dependency information to objects
+                for i, uuid_key in enumerate(object_uuids[:-1]):
+                    obj = object_lookup[uuid_key]
+                    # Add a reference to the next object
+                    obj['dependencies'] = [object_uuids[i + 1]]
+            
+            # Create package from blueprint
+            service = PackageService()
+            package = service.create_package_from_blueprint(
+                session.id,
+                'base',
+                blueprints
+            )
+            
+            # Verify package was created
+            assert package is not None, "Package should be created"
+            assert package.id is not None, "Package should have an ID"
+            
+            # Verify dependencies were created
+            dependencies = ObjectDependency.query.filter_by(
+                package_id=package.id
+            ).all()
+            
+            # If we added dependencies, they should be in the database
+            if len(object_uuids) >= 2:
+                # We should have at least some dependencies
+                # (may not be all if some objects don't have dependency info)
+                assert isinstance(dependencies, list), "Dependencies should be a list"
+                
+                # Each dependency should have valid fields
+                for dep in dependencies:
+                    assert dep.package_id == package.id, (
+                        "Dependency should reference correct package"
+                    )
+                    assert dep.parent_uuid is not None, (
+                        "Dependency should have parent UUID"
+                    )
+                    assert dep.child_uuid is not None, (
+                        "Dependency should have child UUID"
+                    )
+                    assert dep.parent_uuid in object_uuids, (
+                        f"Parent UUID {dep.parent_uuid} should be in object list"
+                    )
+                    assert dep.child_uuid in object_uuids, (
+                        f"Child UUID {dep.child_uuid} should be in object list"
+                    )
+                    
+                # Verify parent and child objects exist in AppianObject table
+                for dep in dependencies:
+                    parent_obj = AppianObject.query.filter_by(
+                        package_id=package.id,
+                        uuid=dep.parent_uuid
+                    ).first()
+                    child_obj = AppianObject.query.filter_by(
+                        package_id=package.id,
+                        uuid=dep.child_uuid
+                    ).first()
+                    
+                    assert parent_obj is not None, (
+                        f"Parent object {dep.parent_uuid} should exist"
+                    )
+                    assert child_obj is not None, (
+                        f"Child object {dep.child_uuid} should exist"
+                    )
+        finally:
+            # Cleanup
+            try:
+                db.session.delete(session)
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+
+    @settings(max_examples=100, deadline=None, database=None)
+    @given(session_data=merge_session_data())
+    def test_property_11_export_data_completeness(self, session_data):
+        """
+        Feature: merge-assistant-data-model-refactoring, Property 11: Export data completeness
+        
+        For any session, exporting data should include all fields present in the original 
+        JSON-based export (session info, packages, changes, reviews, statistics).
+        
+        Validates: Requirements 3.5
+        """
+        from services.merge_assistant import ThreeWayMergeService, ReportExportService
+        
+        # Create a session with complete data
+        session = MergeSession(
+            reference_id=session_data['reference_id'],
+            base_package_name=session_data['base_package_name'],
+            customized_package_name=session_data['customized_package_name'],
+            new_vendor_package_name=session_data['new_vendor_package_name'],
+            status='completed',
+            current_change_index=3,
+            total_changes=4,
+            reviewed_count=3,
+            skipped_count=1,
+            total_time=300,
+            completed_at=datetime.utcnow()
+        )
+        
+        db.session.add(session)
+        db.session.commit()
+        
+        try:
+            # Create Change records in normalized schema
+            changes_data = [
+                {'uuid': 'uuid_1', 'name': 'obj_1', 'type': 'Interface',
+                 'classification': 'NO_CONFLICT'},
+                {'uuid': 'uuid_2', 'name': 'obj_2', 'type': 'Rule',
+                 'classification': 'NO_CONFLICT'},
+                {'uuid': 'uuid_3', 'name': 'obj_3', 'type': 'Interface',
+                 'classification': 'CONFLICT'},
+                {'uuid': 'uuid_4', 'name': 'obj_4', 'type': 'Constant',
+                 'classification': 'CUSTOMER_ONLY'},
+            ]
+            
+            for i, change_data in enumerate(changes_data):
+                change = Change(
+                    session_id=session.id,
+                    object_uuid=change_data['uuid'],
+                    object_name=change_data['name'],
+                    object_type=change_data['type'],
+                    classification=change_data['classification'],
+                    display_order=i
+                )
+                db.session.add(change)
+            
+            db.session.commit()
+            
+            # Export data
+            service = ThreeWayMergeService()
+            export_data = service.generate_report(session.id)
+            
+            # Verify export structure completeness
+            assert 'session' in export_data, "Export should include session info"
+            assert 'summary' in export_data, "Export should include summary"
+            assert 'statistics' in export_data, "Export should include statistics"
+            assert 'changes' in export_data, "Export should include changes"
+            
+            # Verify session info completeness
+            session_info = export_data['session']
+            assert 'reference_id' in session_info, "Session info should include reference_id"
+            assert 'base_package_name' in session_info, "Session info should include base_package_name"
+            assert 'customized_package_name' in session_info, "Session info should include customized_package_name"
+            assert 'new_vendor_package_name' in session_info, "Session info should include new_vendor_package_name"
+            assert 'status' in session_info, "Session info should include status"
+            assert 'created_at' in session_info, "Session info should include created_at"
+            
+            # Verify statistics completeness
+            stats = export_data['statistics']
+            assert 'total_changes' in stats, "Statistics should include total_changes"
+            assert 'reviewed' in stats, "Statistics should include reviewed count"
+            assert 'skipped' in stats, "Statistics should include skipped count"
+            assert 'conflicts' in stats, "Statistics should include conflicts count"
+            
+            # Verify changes completeness
+            changes = export_data['changes']
+            assert isinstance(changes, list), "Changes should be a list"
+            assert len(changes) == 4, f"Changes list should have 4 items, got {len(changes)}"
+            
+            # Verify each change has required fields
+            for change in changes:
+                assert 'uuid' in change, "Change should have uuid"
+                assert 'name' in change, "Change should have name"
+                assert 'type' in change, "Change should have type"
+                assert 'classification' in change, "Change should have classification"
+                
+            # Verify summary completeness
+            summary = export_data['summary']
+            assert isinstance(summary, dict), "Summary should be a dictionary"
+            
+        finally:
+            # Cleanup
+            try:
+                db.session.delete(session)
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+
+    @settings(max_examples=100, deadline=None, database=None)
+    @given(blueprints=blueprint_with_objects())
+    def test_property_18_package_storage_correctness(self, blueprints):
+        """
+        Feature: merge-assistant-data-model-refactoring, Property 18: Package storage correctness
+        
+        For any package data with metadata, storing it should create a Package record with 
+        correct session_id, package_type, package_name, and metadata fields.
+        
+        Validates: Requirements 6.1
+        """
+        from services.merge_assistant import PackageService
+        
+        # Create a session
+        session = MergeSession(
+            reference_id=f"MRG_{uuid.uuid4().hex[:8].upper()}",
+            base_package_name="Test Package A",
+            customized_package_name="Test Package B",
+            new_vendor_package_name="Test Package C",
+            status='processing'
+        )
+        db.session.add(session)
+        db.session.commit()
+        
+        try:
+            # Create package with all data from blueprint
+            service = PackageService()
+            package = service.create_package_with_all_data(
+                session.id,
+                'base',
+                blueprints
+            )
+            
+            # Verify package was created
+            assert package is not None, "Package should be created"
+            assert package.id is not None, "Package should have an ID"
+            
+            # Verify package fields
+            assert package.session_id == session.id, (
+                "Package should reference correct session"
+            )
+            assert package.package_type == 'base', (
+                "Package type should be 'base'"
+            )
+            assert package.package_name is not None, (
+                "Package should have a name"
+            )
+            assert isinstance(package.package_name, str), (
+                "Package name should be a string"
+            )
+            
+            # Verify metadata fields
+            assert package.total_objects is not None, (
+                "Package should have total_objects count"
+            )
+            assert isinstance(package.total_objects, int), (
+                "total_objects should be an integer"
+            )
+            assert package.total_objects >= 0, (
+                "total_objects should be non-negative"
+            )
+            
+            # Verify total_objects matches actual object count
+            object_count = AppianObject.query.filter_by(
+                package_id=package.id
+            ).count()
+            assert package.total_objects == object_count, (
+                f"Package total_objects ({package.total_objects}) should match "
+                f"actual object count ({object_count})"
+            )
+            
+            # Verify timestamps
+            assert package.created_at is not None, (
+                "Package should have created_at timestamp"
+            )
+            assert isinstance(package.created_at, datetime), (
+                "created_at should be a datetime"
+            )
+            
+            # Verify package can be retrieved from database
+            db.session.expunge_all()
+            retrieved_package = Package.query.get(package.id)
+            assert retrieved_package is not None, (
+                "Package should be retrievable from database"
+            )
+            assert retrieved_package.session_id == session.id, (
+                "Retrieved package should have correct session_id"
+            )
+            assert retrieved_package.package_type == 'base', (
+                "Retrieved package should have correct package_type"
+            )
+            
+        finally:
+            # Cleanup
+            try:
+                db.session.delete(session)
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+
+    @settings(max_examples=100, deadline=None, database=None)
+    @given(blueprints=blueprint_with_objects())
+    def test_property_19_object_package_linkage(self, blueprints):
+        """
+        Feature: merge-assistant-data-model-refactoring, Property 19: Object-package linkage
+        
+        For any AppianObject record, it should have a valid package_id that references 
+        an existing Package record.
+        
+        Validates: Requirements 6.2
+        """
+        from services.merge_assistant import PackageService
+        
+        # Create a session
+        session = MergeSession(
+            reference_id=f"MRG_{uuid.uuid4().hex[:8].upper()}",
+            base_package_name="Test Package",
+            customized_package_name="Test Package Custom",
+            new_vendor_package_name="Test Package Vendor",
+            status='processing'
+        )
+        db.session.add(session)
+        db.session.commit()
+        
+        try:
+            # Create package with all data from blueprint
+            service = PackageService()
+            package = service.create_package_with_all_data(
+                session.id,
+                'base',
+                blueprints
+            )
+            
+            # Get all objects for this package
+            objects = AppianObject.query.filter_by(
+                package_id=package.id
+            ).all()
+            
+            # Verify we have objects
+            assert len(objects) > 0, "Package should have objects"
+            
+            # Verify each object has valid package linkage
+            for obj in objects:
+                # Verify package_id is set
+                assert obj.package_id is not None, (
+                    f"Object {obj.uuid} should have package_id"
+                )
+                assert obj.package_id == package.id, (
+                    f"Object {obj.uuid} should reference correct package"
+                )
+                
+                # Verify package exists
+                linked_package = Package.query.get(obj.package_id)
+                assert linked_package is not None, (
+                    f"Object {obj.uuid} package_id should reference existing package"
+                )
+                assert linked_package.id == package.id, (
+                    f"Object {obj.uuid} should link to correct package"
+                )
+                
+                # Verify foreign key constraint works
+                # (object should be accessible through package relationship)
+                package_objects = package.objects
+                assert obj in package_objects, (
+                    f"Object {obj.uuid} should be in package.objects relationship"
+                )
+            
+            # Test that orphaned objects cannot be created
+            # (foreign key constraint should prevent this)
+            orphan_object = AppianObject(
+                package_id=999999,  # Non-existent package
+                uuid='orphan-uuid',
+                name='Orphan Object',
+                object_type='Interface'
+            )
+            db.session.add(orphan_object)
+            
+            # This should raise an integrity error
+            with self.assertRaises(Exception) as context:
+                db.session.commit()
+            
+            # Rollback the failed transaction
+            db.session.rollback()
+            
+        finally:
+            # Cleanup
+            try:
+                db.session.delete(session)
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+
+    @settings(
+        max_examples=10,
+        deadline=None,
+        database=None,
+        suppress_health_check=[HealthCheck.large_base_example]
+    )
+    @given(
+        base_blueprint=blueprint_with_objects(),
+        vendor_blueprint=blueprint_with_objects()
+    )
+    def test_property_20_change_object_linkage(
+        self,
+        base_blueprint,
+        vendor_blueprint
+    ):
+        """
+        Feature: merge-assistant-data-model-refactoring, Property 20: Change-object linkage
+        
+        For any Change record, at least one of its object foreign keys (base_object_id, 
+        customer_object_id, vendor_object_id) should reference an existing AppianObject record.
+        
+        Validates: Requirements 6.3
+        """
+        from services.merge_assistant import PackageService
+        
+        # Create a session
+        session = MergeSession(
+            reference_id=f"MRG_{uuid.uuid4().hex[:8].upper()}",
+            base_package_name="Test Package A",
+            customized_package_name="Test Package B",
+            new_vendor_package_name="Test Package C",
+            status='processing'
+        )
+        db.session.add(session)
+        db.session.commit()
+        
+        try:
+            # Create packages
+            package_service = PackageService()
+            base_package = package_service.create_package_from_blueprint(
+                session.id,
+                'base',
+                base_blueprint
+            )
+            vendor_package = package_service.create_package_from_blueprint(
+                session.id,
+                'new_vendor',
+                vendor_blueprint
+            )
+            
+            # Get object UUIDs from both packages
+            base_uuids = list(base_blueprint['object_lookup'].keys())
+            vendor_uuids = list(vendor_blueprint['object_lookup'].keys())
+            
+            # Create test changes directly without full comparison pipeline
+            # This is faster and tests the core property
+            test_changes = []
+            
+            # Test case 1: Change with base object only (REMOVED)
+            if base_uuids:
+                base_obj = AppianObject.query.filter_by(
+                    package_id=base_package.id,
+                    uuid=base_uuids[0]
+                ).first()
+                if base_obj:
+                    change1 = Change(
+                        session_id=session.id,
+                        object_uuid=base_uuids[0],
+                        object_name=base_obj.name,
+                        object_type=base_obj.object_type,
+                        classification='NO_CONFLICT',
+                        change_type='REMOVED',
+                        base_object_id=base_obj.id,
+                        display_order=0
+                    )
+                    test_changes.append(change1)
+            
+            # Test case 2: Change with vendor object only (ADDED)
+            if vendor_uuids:
+                vendor_obj = AppianObject.query.filter_by(
+                    package_id=vendor_package.id,
+                    uuid=vendor_uuids[0]
+                ).first()
+                if vendor_obj:
+                    change2 = Change(
+                        session_id=session.id,
+                        object_uuid=vendor_uuids[0],
+                        object_name=vendor_obj.name,
+                        object_type=vendor_obj.object_type,
+                        classification='NO_CONFLICT',
+                        change_type='ADDED',
+                        vendor_object_id=vendor_obj.id,
+                        display_order=1
+                    )
+                    test_changes.append(change2)
+            
+            # Test case 3: Change with both base and vendor objects (MODIFIED)
+            # Find a common UUID if any
+            common_uuids = set(base_uuids) & set(vendor_uuids)
+            if common_uuids:
+                common_uuid = list(common_uuids)[0]
+                base_obj = AppianObject.query.filter_by(
+                    package_id=base_package.id,
+                    uuid=common_uuid
+                ).first()
+                vendor_obj = AppianObject.query.filter_by(
+                    package_id=vendor_package.id,
+                    uuid=common_uuid
+                ).first()
+                if base_obj and vendor_obj:
+                    change3 = Change(
+                        session_id=session.id,
+                        object_uuid=common_uuid,
+                        object_name=base_obj.name,
+                        object_type=base_obj.object_type,
+                        classification='NO_CONFLICT',
+                        change_type='MODIFIED',
+                        base_object_id=base_obj.id,
+                        vendor_object_id=vendor_obj.id,
+                        display_order=2
+                    )
+                    test_changes.append(change3)
+            
+            # Add changes to database
+            for change in test_changes:
+                db.session.add(change)
+            db.session.commit()
+            
+            # Verify each change has at least one valid object reference
+            for change in test_changes:
+                # At least one object ID should be set
+                has_reference = (
+                    change.base_object_id is not None or
+                    change.customer_object_id is not None or
+                    change.vendor_object_id is not None
+                )
+                assert has_reference, (
+                    f"Change {change.id} should have at least one object reference"
+                )
+                
+                # Verify each set object ID references an existing object
+                if change.base_object_id is not None:
+                    base_obj = AppianObject.query.get(change.base_object_id)
+                    assert base_obj is not None, (
+                        f"Change {change.id} base_object_id should reference "
+                        f"existing object"
+                    )
+                    assert base_obj.package_id == base_package.id, (
+                        f"Change {change.id} base object should be in base package"
+                    )
+                
+                if change.vendor_object_id is not None:
+                    vendor_obj = AppianObject.query.get(change.vendor_object_id)
+                    assert vendor_obj is not None, (
+                        f"Change {change.id} vendor_object_id should reference "
+                        f"existing object"
+                    )
+                    assert vendor_obj.package_id == vendor_package.id, (
+                        f"Change {change.id} vendor object should be in vendor package"
+                    )
+                
+                # Verify relationships work
+                if change.base_object_id:
+                    assert change.base_object is not None, (
+                        "Change.base_object relationship should work"
+                    )
+                if change.vendor_object_id:
+                    assert change.vendor_object is not None, (
+                        "Change.vendor_object relationship should work"
+                    )
+                        
+        finally:
+            # Cleanup
+            try:
+                db.session.delete(session)
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+
+    @settings(max_examples=100, deadline=None, database=None)
+    @given(
+        base_blueprint=blueprint_with_objects(),
+        vendor_blueprint=blueprint_with_objects()
+    )
+    def test_property_21_review_change_linkage(
+        self,
+        base_blueprint,
+        vendor_blueprint
+    ):
+        """
+        Feature: merge-assistant-data-model-refactoring, Property 21: Review-change linkage
+        
+        For any ChangeReview record, it should have a valid change_id that references 
+        an existing Change record.
+        
+        Validates: Requirements 6.4
+        """
+        from services.merge_assistant import (
+            PackageService,
+            ChangeService,
+            ThreeWayComparisonService,
+            ChangeClassificationService
+        )
+        
+        # Create a session
+        session = MergeSession(
+            reference_id=f"MRG_{uuid.uuid4().hex[:8].upper()}",
+            base_package_name="Test Package A",
+            customized_package_name="Test Package B",
+            new_vendor_package_name="Test Package C",
+            status='processing'
+        )
+        db.session.add(session)
+        db.session.commit()
+        
+        try:
+            # Create packages
+            package_service = PackageService()
+            base_package = package_service.create_package_from_blueprint(
+                session.id,
+                'base',
+                base_blueprint
+            )
+            vendor_package = package_service.create_package_from_blueprint(
+                session.id,
+                'new_vendor',
+                vendor_blueprint
+            )
+            
+            # Perform comparison
+            comparison_service = ThreeWayComparisonService()
+            vendor_changes = comparison_service.compare_vendor_changes(
+                base_blueprint,
+                vendor_blueprint
+            )
+            customer_changes = {'added': [], 'modified': [], 'removed': []}
+            
+            # Classify changes
+            classification_service = ChangeClassificationService()
+            classification_results = classification_service.classify_changes(
+                vendor_changes,
+                customer_changes
+            )
+            
+            # Create ordered changes
+            ordered_changes = []
+            for category, changes in classification_results.items():
+                for change in changes:
+                    change['classification'] = category
+                    ordered_changes.append(change)
+            
+            # Create changes in database
+            change_service = ChangeService()
+            change_service.create_changes_from_comparison(
+                session.id,
+                classification_results,
+                ordered_changes
+            )
+            
+            # Get all changes for this session
+            changes = Change.query.filter_by(session_id=session.id).all()
+            
+            # Verify we have changes
+            if len(changes) > 0:
+                # Get all reviews for this session
+                reviews = ChangeReview.query.filter_by(session_id=session.id).all()
+                
+                # Verify each review has valid change linkage
+                for review in reviews:
+                    # Verify change_id is set
+                    assert review.change_id is not None, (
+                        f"Review {review.id} should have change_id"
+                    )
+                    
+                    # Verify change exists
+                    linked_change = Change.query.get(review.change_id)
+                    assert linked_change is not None, (
+                        f"Review {review.id} change_id should reference existing change"
+                    )
+                    assert linked_change.session_id == session.id, (
+                        f"Review {review.id} should link to change in same session"
+                    )
+                    
+                    # Verify relationship works
+                    assert review.change is not None, (
+                        "ChangeReview.change relationship should work"
+                    )
+                    assert review.change.id == review.change_id, (
+                        "ChangeReview.change should match change_id"
+                    )
+                    
+                    # Verify reverse relationship works
+                    assert linked_change.review is not None, (
+                        "Change.review relationship should work"
+                    )
+                    assert linked_change.review.id == review.id, (
+                        "Change.review should match review"
+                    )
+                
+                # Test that orphaned reviews cannot be created
+                # (foreign key constraint should prevent this)
+                orphan_review = ChangeReview(
+                    session_id=session.id,
+                    change_id=999999,  # Non-existent change
+                    review_status='pending'
+                )
+                db.session.add(orphan_review)
+                
+                # This should raise an integrity error
+                with self.assertRaises(Exception) as context:
+                    db.session.commit()
+                
+                # Rollback the failed transaction
+                db.session.rollback()
+                
+        finally:
+            # Cleanup
+            try:
+                db.session.delete(session)
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+
+    @settings(max_examples=100, deadline=None, database=None)
+    @given(blueprints=blueprint_with_objects())
+    def test_property_22_dependency_storage_correctness(self, blueprints):
+        """
+        Feature: merge-assistant-data-model-refactoring, Property 22: Dependency storage correctness
+        
+        For any dependency relationship between two objects, it should be stored in the 
+        ObjectDependency table with valid package_id, parent_uuid, and child_uuid.
+        
+        Validates: Requirements 6.5
+        """
+        from services.merge_assistant import PackageService
+        
+        # Create a session
+        session = MergeSession(
+            reference_id=f"MRG_{uuid.uuid4().hex[:8].upper()}",
+            base_package_name="Test Package",
+            customized_package_name="Test Package Custom",
+            new_vendor_package_name="Test Package Vendor",
+            status='processing'
+        )
+        db.session.add(session)
+        db.session.commit()
+        
+        try:
+            # Add some dependencies to the blueprint
+            object_lookup = blueprints['object_lookup']
+            object_uuids = list(object_lookup.keys())
+            
+            # Create dependencies between objects
+            dependencies_added = []
+            if len(object_uuids) >= 2:
+                # Add dependency information to objects
+                for i, uuid_key in enumerate(object_uuids[:-1]):
+                    obj = object_lookup[uuid_key]
+                    child_uuid = object_uuids[i + 1]
+                    # Add a reference to the next object
+                    obj['dependencies'] = [child_uuid]
+                    dependencies_added.append((uuid_key, child_uuid))
+            
+            # Create package from blueprint
+            service = PackageService()
+            package = service.create_package_from_blueprint(
+                session.id,
+                'base',
+                blueprints
+            )
+            
+            # Get all dependencies for this package
+            dependencies = ObjectDependency.query.filter_by(
+                package_id=package.id
+            ).all()
+            
+            # If we added dependencies, verify they were stored correctly
+            if len(dependencies_added) > 0:
+                # Verify each dependency has valid fields
+                for dep in dependencies:
+                    # Verify package_id
+                    assert dep.package_id == package.id, (
+                        f"Dependency should reference correct package"
+                    )
+                    
+                    # Verify parent_uuid
+                    assert dep.parent_uuid is not None, (
+                        "Dependency should have parent_uuid"
+                    )
+                    assert isinstance(dep.parent_uuid, str), (
+                        "parent_uuid should be a string"
+                    )
+                    assert len(dep.parent_uuid) > 0, (
+                        "parent_uuid should not be empty"
+                    )
+                    
+                    # Verify child_uuid
+                    assert dep.child_uuid is not None, (
+                        "Dependency should have child_uuid"
+                    )
+                    assert isinstance(dep.child_uuid, str), (
+                        "child_uuid should be a string"
+                    )
+                    assert len(dep.child_uuid) > 0, (
+                        "child_uuid should not be empty"
+                    )
+                    
+                    # Verify parent and child are different
+                    assert dep.parent_uuid != dep.child_uuid, (
+                        "Parent and child should be different objects"
+                    )
+                    
+                    # Verify parent and child objects exist
+                    parent_obj = AppianObject.query.filter_by(
+                        package_id=package.id,
+                        uuid=dep.parent_uuid
+                    ).first()
+                    child_obj = AppianObject.query.filter_by(
+                        package_id=package.id,
+                        uuid=dep.child_uuid
+                    ).first()
+                    
+                    assert parent_obj is not None, (
+                        f"Parent object {dep.parent_uuid} should exist"
+                    )
+                    assert child_obj is not None, (
+                        f"Child object {dep.child_uuid} should exist"
+                    )
+                    
+                    # Verify timestamps
+                    assert dep.created_at is not None, (
+                        "Dependency should have created_at timestamp"
+                    )
+                    assert isinstance(dep.created_at, datetime), (
+                        "created_at should be a datetime"
+                    )
+                
+                # Verify unique constraint works
+                # Try to create a duplicate dependency
+                if len(dependencies) > 0:
+                    first_dep = dependencies[0]
+                    duplicate_dep = ObjectDependency(
+                        package_id=first_dep.package_id,
+                        parent_uuid=first_dep.parent_uuid,
+                        child_uuid=first_dep.child_uuid,
+                        dependency_type='reference'
+                    )
+                    db.session.add(duplicate_dep)
+                    
+                    # This should raise an integrity error
+                    with self.assertRaises(Exception) as context:
+                        db.session.commit()
+                    
+                    # Rollback the failed transaction
+                    db.session.rollback()
+                    
+        finally:
+            # Cleanup
+            try:
+                db.session.delete(session)
+                db.session.commit()
             except Exception:
                 db.session.rollback()

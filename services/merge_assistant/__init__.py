@@ -22,6 +22,9 @@ from .package_validation_service import (
     PackageValidationError,
     ValidationError
 )
+from .package_service import PackageService
+from .change_service import ChangeService
+from .report_export_service import ReportExportService
 
 __all__ = [
     "BlueprintGenerationService",
@@ -35,5 +38,8 @@ __all__ = [
     "ThreeWayMergeService",
     "PackageValidationService",
     "PackageValidationError",
-    "ValidationError"
+    "ValidationError",
+    "PackageService",
+    "ChangeService",
+    "ReportExportService"
 ]
