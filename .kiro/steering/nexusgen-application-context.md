@@ -4,23 +4,28 @@ inclusion: always
 
 # NexusGen Application Context & Testing Guide
 
+**Version:** 4.0.0  
+**Port:** 5002  
+**Database:** SQLite at `instance/docflow.db`
+
 ## Application Overview
 
-**NexusGen** is a Flask-based web application for analyzing and comparing Appian applications. It provides document intelligence, SQL conversion, and comprehensive Appian application version comparison capabilities.
+Flask-based platform for document intelligence and Appian application analysis with SAIL code diff visualization.
 
 ### Core Features
-1. **Document Breakdown** - Extract and analyze document structures
-2. **Design Creation** - Generate design documents
-3. **SQL Conversion** - Convert between MariaDB and Oracle SQL
-4. **Appian Analyzer** - Compare two versions of Appian applications and identify changes
+1. **Document Intelligence** - Breakdown, verification, creation with AI
+2. **Appian Analyzer** - Version comparison with SAIL code diffs
+3. **Three-Way Merge** - Package comparison and conflict resolution
+4. **SQL Conversion** - MariaDB ↔ Oracle conversion
 
-## Application Architecture
+## Architecture
 
 ### Technology Stack
-- **Backend:** Flask (Python)
-- **Database:** SQLite (via SQLAlchemy)
-- **Frontend:** HTML/CSS/JavaScript with Bootstrap
-- **Port:** 5002 (default)
+- **Backend:** Flask 2.3+, Python 3.8+
+- **Database:** SQLite + SQLAlchemy ORM
+- **AI:** AWS Bedrock, Amazon Q CLI Agents
+- **Frontend:** Bootstrap 5, Font Awesome 6
+- **Port:** 5002
 
 ## Starting the Application
 
@@ -104,59 +109,100 @@ lsof -i :5002
 ### Key Directories
 ```
 nexus-gen-v2/
-├── app.py                          # Main Flask application
-├── controllers/                    # Route controllers
-│   ├── analyzer_controller.py      # Appian comparison routes
-│   └── ...
+├── app.py                          # Main Flask app with DI container
+├── config.py                       # Configuration
+├── models.py                       # SQLAlchemy models
+├── controllers/                    # Route handlers
+│   ├── analyzer_controller.py      # Appian analyzer routes
+│   ├── merge_assistant_controller.py  # Three-way merge routes
+│   ├── breakdown_controller.py     # Document breakdown
+│   └── base_controller.py          # Base controller
 ├── services/
-│   ├── comparison_service.py       # Comparison orchestration
-│   └── appian_analyzer/            # Appian analysis engine
-│       ├── analyzer.py             # Blueprint generation
-│       ├── enhanced_version_comparator.py
-│       ├── web_compatibility_layer.py
-│       └── models.py
+│   ├── ai/                         # AI integrations
+│   │   ├── bedrock_service.py      # AWS Bedrock RAG
+│   │   └── q_agent_service.py      # Amazon Q CLI agents
+│   ├── appian_analyzer/            # Appian analysis engine
+│   │   ├── analyzer.py             # Main analyzer (OOP)
+│   │   ├── parsers.py              # XML parsers
+│   │   ├── sail_formatter.py       # SAIL code formatter
+│   │   ├── enhanced_comparison_service.py  # Dual-layer comparison
+│   │   ├── logger.py               # Request-specific logging
+│   │   └── models.py               # Appian object models
+│   ├── comparison/                 # Comparison orchestration
+│   │   ├── comparison_service.py   # Main workflow
+│   │   ├── blueprint_analyzer.py   # Blueprint generation
+│   │   └── comparison_engine.py    # Comparison logic
+│   ├── merge/                      # Three-way merge
+│   │   ├── three_way_merge_service.py
+│   │   ├── package_service.py
+│   │   └── change_service.py
+│   └── request/                    # Request management
+│       ├── request_service.py
+│       ├── file_service.py
+│       └── document_service.py
+├── repositories/                   # Data access layer
+│   ├── comparison_repository.py
+│   ├── request_repository.py
+│   └── merge_session_repository.py
+├── core/                           # Clean architecture
+│   ├── dependency_container.py     # DI container
+│   ├── interfaces.py               # Abstract base classes
+│   ├── exceptions.py               # Custom exceptions
+│   └── base_service.py             # Base service
 ├── templates/                      # Jinja2 templates
-│   └── analyzer/
-│       ├── home.html
-│       ├── request_details.html
-│       └── object_details.html
-├── models.py                       # Database models
-└── applicationArtifacts/           # Test data
-    └── Testing Files/
-        ├── SourceSelectionv2.4.0.zip
-        └── SourceSelectionv2.6.0.zip
+├── static/                         # CSS, JS, images
+├── logs/                           # Application logs
+└── applicationArtifacts/Testing Files/  # Test data
+    ├── SourceSelectionv2.4.0.zip
+    └── SourceSelectionv2.6.0.zip
 ```
 
 ## How the Application Works
 
 ### Appian Comparison Workflow
 
-1. **Upload Phase**
-   - User uploads two Appian application ZIP files (old and new versions)
-   - Files are temporarily saved to `uploads/` directory
+**1. Upload Phase**
+- User uploads two ZIP files (old/new versions) via `/analyzer`
+- Files saved to `uploads/` temporarily
+- Controller: `analyzer_controller.py::compare_versions()`
 
-2. **Blueprint Generation Phase**
-   - Each ZIP is analyzed by `AppianAnalyzer`
-   - Extracts all objects: Sites, Record Types, Process Models, Interfaces, Expression Rules, etc.
-   - Builds an `object_lookup` table mapping UUIDs to objects
-   - Resolves all UUID references to actual object names
-   - Formats SAIL code for readability
-   - Generates metadata and complexity assessment
+**2. Blueprint Generation Phase**
+- Service: `AppianAnalyzer` (services/appian_analyzer/analyzer.py)
+- Parses XML objects: Sites, Records, Process Models, Interfaces, Rules, etc.
+- Builds `object_lookup` table (UUID → object mapping)
+- Resolves UUID references to readable names
+- Formats SAIL code via `SAILFormatter`
+- Generates metadata and complexity assessment
 
-3. **Comparison Phase**
-   - Uses `EnhancedComparisonService` with dual-layer comparison:
-     - **Layer 1:** Version History Comparison (checks version UUIDs)
-     - **Layer 2:** Content Diff Hash Comparison (detects actual changes)
-   - Identifies: ADDED, REMOVED, MODIFIED, NOT_CHANGED objects
-   - Detects specific changes: SAIL code, business logic, fields, etc.
+**3. Comparison Phase**
+- Service: `EnhancedComparisonService` with dual-layer comparison
+  - **Layer 1:** Version History (checks version UUIDs)
+  - **Layer 2:** Content Diff Hash (detects actual changes)
+- Identifies: ADDED, REMOVED, MODIFIED, NOT_CHANGED
+- Detects specific changes: SAIL code, business logic, fields
 
-4. **Storage Phase**
-   - Results stored in `ComparisonRequest` database table
-   - Includes: blueprints, comparison results, processing time, status
+**4. Storage Phase**
+- Stored in `comparison_requests` table
+- Fields: blueprints (JSON), comparison_results (JSON), processing time, status
+- Reference ID format: `CMP_001`, `CMP_002`, etc.
 
-5. **Display Phase**
-   - Summary view: Shows all changes by category
-   - Detail view: Shows individual object changes with SAIL code diffs
+**5. Display Phase**
+- Summary: `/analyzer/request/<id>` - All changes by category
+- Detail: `/analyzer/object/<id>/<uuid>` - SAIL code diffs with highlighting
+
+### Service Layer Architecture
+
+**Dependency Injection:**
+- Container: `core/dependency_container.py`
+- Services registered in `app.py::_register_services()`
+- Repositories registered in `app.py::_register_repositories()`
+
+**Key Services:**
+- `ComparisonService` - Orchestrates comparison workflow
+- `BlueprintAnalyzer` - Wraps AppianAnalyzer for web use
+- `ComparisonRequestManager` - Manages database operations
+- `BedrockRAGService` - AWS Bedrock integration
+- `QAgentService` - Amazon Q CLI agent integration
 
 ## Testing the Application
 
@@ -370,38 +416,90 @@ with app.app_context():
 
 ## Database Schema
 
-### ComparisonRequest Table
-- `id` - Primary key
-- `reference_id` - Human-readable ID (e.g., "CMP_007")
-- `old_app_name` - Name of old version
-- `new_app_name` - Name of new version
-- `status` - processing/completed/error
-- `old_app_blueprint` - JSON string of old version blueprint
-- `new_app_blueprint` - JSON string of new version blueprint
-- `comparison_results` - JSON string with all changes
-- `total_time` - Processing time in seconds
-- `created_at` - Timestamp
-- `updated_at` - Timestamp
+### comparison_requests
+```python
+id: INTEGER PRIMARY KEY
+reference_id: VARCHAR(20)           # CMP_001, CMP_002, etc.
+old_app_name: VARCHAR(255)
+new_app_name: VARCHAR(255)
+status: VARCHAR(20)                 # processing/completed/error
+old_app_blueprint: TEXT             # JSON blueprint
+new_app_blueprint: TEXT             # JSON blueprint
+comparison_results: TEXT            # JSON comparison data
+total_time: INTEGER                 # Seconds
+created_at: DATETIME
+updated_at: DATETIME
+```
+
+### requests
+```python
+id: INTEGER PRIMARY KEY
+action_type: VARCHAR(20)            # breakdown/verify/create
+filename: VARCHAR(255)
+input_text: TEXT
+status: VARCHAR(20)
+rag_query: TEXT
+rag_response: TEXT
+final_output: TEXT                  # JSON format
+reference_id: VARCHAR(20)           # RQ_BR_001, etc.
+total_time: INTEGER
+created_at: DATETIME
+updated_at: DATETIME
+```
+
+### merge_sessions
+```python
+id: INTEGER PRIMARY KEY
+session_id: VARCHAR(36)             # UUID
+base_package_name: VARCHAR(255)
+source_package_name: VARCHAR(255)
+target_package_name: VARCHAR(255)
+status: VARCHAR(20)
+merge_results: TEXT                 # JSON
+created_at: DATETIME
+```
+
+### chat_sessions
+```python
+id: INTEGER PRIMARY KEY
+session_id: VARCHAR(36)             # UUID
+question: TEXT
+rag_response: TEXT
+answer: TEXT
+created_at: DATETIME
+```
 
 ## Important Code Patterns
 
-### Adding Debug Logging
-
+### Request-Specific Logging
 ```python
-# In comparison code
-print(f"🔍 DEBUG: {variable_name}")
-print(f"   Detail: {value}")
+from services.appian_analyzer.logger import create_request_logger
+
+logger = create_request_logger(request.reference_id)
+logger.info("Starting comparison")
+logger.log_stage("Analysis", {"objects": 1000})
+logger.log_metrics({"total_changes": 50, "impact_level": "MEDIUM"})
+logger.log_completion(status='success', total_changes=50)
+```
+
+### Accessing Services via DI
+```python
+from core.dependency_container import DependencyContainer
+
+container = DependencyContainer.get_instance()
+comparison_service = container.get_service(ComparisonService)
 ```
 
 ### Accessing Comparison Data
-
 ```python
-# In controller
 comparison_data = json.loads(comparison_request.comparison_results)
 
 # Structure:
 {
-    "comparison_summary": {...},
+    "comparison_summary": {
+        "total_changes": 78,
+        "impact_level": "MEDIUM"
+    },
     "changes_by_category": {
         "interfaces": {
             "added": 22,
@@ -409,13 +507,11 @@ comparison_data = json.loads(comparison_request.comparison_results)
             "removed": 0,
             "details": [...]
         }
-    },
-    "detailed_changes": [...]
+    }
 }
 ```
 
-### SAIL Code in Change Objects
-
+### SAIL Code Diff Requirements
 ```python
 # Required fields for SAIL code diff display:
 change_obj = {
@@ -423,33 +519,51 @@ change_obj = {
     "name": "...",
     "type": "Interface",
     "change_type": "MODIFIED",
-    "sail_code_before": "...",  # Required for diff
-    "sail_code_after": "..."    # Required for diff
+    "sail_code_before": "...",  # Required
+    "sail_code_after": "..."    # Required
 }
+```
+
+### Repository Pattern
+```python
+from repositories.comparison_repository import ComparisonRepository
+
+repo = ComparisonRepository(container)
+request = repo.find_by_id(request_id)
+all_requests = repo.find_all()
 ```
 
 ## Quick Reference Commands
 
 ```bash
 # Start app
-python app.py
+python app.py  # Runs on port 5002
 
-# Run tests
-pytest
+# Check if running
+lsof -i :5002
+curl -s http://localhost:5002/analyzer | head -5
 
-# Check syntax
-python -m py_compile <file.py>
+# Stop app
+lsof -ti :5002 | xargs kill -9
+
+# Run tests (MANDATORY PATTERN)
+python -m pytest > /tmp/test_output.txt 2>&1; cat /tmp/test_output.txt
+
+# Check diagnostics
+getDiagnostics(paths=["services/appian_analyzer/analyzer.py"])
 
 # Database shell
 python
 >>> from app import create_app
->>> from models import db
+>>> from models import db, ComparisonRequest
 >>> app = create_app()
 >>> with app.app_context():
-...     # database operations
+...     requests = ComparisonRequest.query.all()
+...     for req in requests:
+...         print(f"{req.reference_id}: {req.status}")
 
 # View logs
-tail -f logs/*.log  # if logging to file
+tail -f logs/appian_analyzer.log
 ```
 
 ## Development Log
@@ -500,135 +614,51 @@ How the fix was tested
 - Documentation: `SAIL_CODE_DIFF_FIX.md`, `QUICK_TEST_GUIDE.md`
 
 
-## Recent Enhancements (2025-11-21)
+## Key Technical Details
 
 ### Logging System
-A comprehensive logging system has been implemented for the Appian analyzer:
-
-**Features:**
-- Request-specific tracking with automatic request ID tagging (e.g., [CMP_013])
-- Stage tracking (Upload, Analysis, Comparison)
-- Metrics logging (total_changes, impact_level, object counts)
-- Completion logging with elapsed time
-- Dual output: detailed file logs (DEBUG) + console logs (INFO)
-- Automatic file rotation (10MB per file, 5 backups)
-
-**Location:** `logs/appian_analyzer.log`
-
-**Usage:**
-```python
-from services.appian_analyzer.logger import create_request_logger, get_logger
-
-# For request-specific logging
-logger = create_request_logger(request.reference_id)
-logger.info("Starting comparison")
-logger.log_stage("Analysis", {"objects": 1000})
-logger.log_metrics({"total_changes": 50, "impact_level": "MEDIUM"})
-logger.log_completion(status='success', total_changes=50)
-
-# For general logging
-logger = get_logger()
-logger.info("General message")
-```
+- **Location:** `logs/appian_analyzer.log`
+- **Features:** Request-specific tracking, stage logging, metrics, auto-rotation (10MB, 5 backups)
+- **Usage:** `create_request_logger(reference_id)` for request-specific logs
 
 ### SAIL Code Formatter
-The SAIL formatter now properly formats code in comparison results:
+- **Location:** `services/appian_analyzer/sail_formatter.py`
+- **Features:** UUID → name resolution, internal → public function names
+- **Examples:**
+  - `#"SYSTEM_SYSRULES_headerContentLayout"` → `a!headerContentLayout`
+  - `#"_a-uuid"` → `rule!ObjectName`
+  - `cons!uuid` → `cons!ConstantName`
 
-**Features:**
-- Replaces UUID references with readable object names
-- Converts internal Appian functions to public names
-- Cleans up escape sequences and formatting
+### Dual-Layer Comparison
+- **Layer 1:** Version History (checks version UUIDs)
+- **Layer 2:** Content Diff Hash (detects actual changes)
+- **Service:** `EnhancedComparisonService`
+- **Fallback:** Basic comparison if enhanced fails
 
-**Examples:**
-- `#"SYSTEM_SYSRULES_headerContentLayout"` → `a!headerContentLayout`
-- `#"_a-uuid"` → `rule!ObjectName`
-- `cons!uuid` → `cons!ConstantName`
+### Performance Benchmarks
+- Small apps (<500 objects): 2-3 seconds
+- Medium apps (500-1500 objects): 4-5 seconds
+- Large apps (1500+ objects): 6-8 seconds
 
-**Location:** `services/appian_analyzer/sail_formatter.py`
+### Clean Architecture
+- **DI Container:** `core/dependency_container.py`
+- **Base Classes:** `BaseService`, `BaseController`, `RepositoryInterface`
+- **Exception Hierarchy:** `NexusGenException` → `ServiceException`, `ValidationException`
+- **Pattern:** Repository → Service → Controller
 
-### UI/UX Improvements
+### Critical Files
+- `app.py` - Main app with DI registration
+- `services/comparison/comparison_service.py` - Comparison orchestration
+- `services/appian_analyzer/analyzer.py` - Main analyzer (OOP design)
+- `services/appian_analyzer/enhanced_comparison_service.py` - Dual-layer comparison
+- `controllers/analyzer_controller.py` - Analyzer routes
+- `repositories/comparison_repository.py` - Data access
 
-#### Application Comparison Page
-- **Pagination:** 10 rows per page with navigation
-- **Horizontal Layout:** Applications displayed side-by-side (Old → New)
-- **Pagination Info:** Shows "Showing X to Y of Z entries"
-
-#### Comparison Results Page
-- **Grid Layout:** Table format instead of cards
-- **Default Display:** All data shown by default
-- **Filters:** Additional filtering on top of displayed data
-- **Pagination:** 10 rows per page
-- **Improved Colors:** Better text visibility and contrast
-
-#### Object Details Page
-- **Clean Header:** No duplicate object names
-- **Type Display:** Shows "ObjectName (Type)" format
-- **Removed Duplicates:** Change type badge only in Basic Information section
-- **Better Colors:** Improved text visibility throughout
-
-### Key Files
-
-**Logging:**
-- `services/appian_analyzer/logger.py` - Logger implementation
-- `LOGGING_IMPLEMENTATION_GUIDE.md` - Usage guide
-
-**SAIL Formatting:**
-- `services/appian_analyzer/sail_formatter.py` - Formatter implementation
-- `services/appian_analyzer/analyzer.py` - Integration point
-
-**UI Templates:**
-- `templates/analyzer/home.html` - Application comparison page
-- `templates/analyzer/request_details.html` - Comparison results page
-- `templates/analyzer/object_details.html` - Object details page
-
-### Testing Workflow
-
-1. **Check for existing instances:**
-   ```bash
-   listProcesses
-   lsof -i :5002
-   ```
-
-2. **Start fresh instance:**
-   ```bash
-   controlBashProcess(action="stop", processId=<id>)
-   controlBashProcess(action="start", command="python3.13 app.py")
-   ```
-
-3. **Upload test files:**
-   - Navigate to `http://localhost:5002/analyzer`
-   - Upload `applicationArtifacts/Testing Files/SourceSelectionv2.4.0.zip`
-   - Upload `applicationArtifacts/Testing Files/SourceSelectionv2.6.0.zip`
-   - Click "Start Comparison"
-
-4. **Verify results:**
-   - Check pagination on home page
-   - View comparison results (grid layout)
-   - Check object details (SAIL code formatting)
-   - Review logs at `logs/appian_analyzer.log`
-
-### Performance Notes
-
-**Typical Processing Times:**
-- Small applications (< 500 objects): 2-3 seconds
-- Medium applications (500-1500 objects): 4-5 seconds
-- Large applications (1500+ objects): 6-8 seconds
-
-**Database:**
-- SQLite database at `instance/docflow.db`
-- Stores comparison requests, blueprints, and results
-- No manual cleanup needed (managed by application)
-
-### Troubleshooting
-
-**Issue: SAIL code shows UUIDs instead of names**
-- Solution: This was fixed on 2025-11-21. Ensure you're using CMP_014 or later requests.
-
-**Issue: Pagination not working**
-- Solution: Clear browser cache and reload page
-
-**Issue: Colors not visible**
-- Solution: Check if using dark theme. All colors have been optimized for dark background.
-
-**Issue: Multiple app instances**
-- Solution: Always check `listProcesses` and `lsof -i :5002` before starting new instance
+### Environment Variables
+```bash
+AWS_REGION=us-east-1
+BEDROCK_KB_ID=WAQ6NJLGKN
+SECRET_KEY=<secret>
+SQLALCHEMY_DATABASE_URI=sqlite:///instance/docflow.db
+MAX_CONTENT_LENGTH=16777216  # 16MB
+```

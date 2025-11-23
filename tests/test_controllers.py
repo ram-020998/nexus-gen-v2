@@ -20,11 +20,9 @@ class TestBreakdownController(BaseTestCase):
     @patch('services.q_agent_service.QAgentService.process_breakdown')
     def test_file_upload(self, mock_process, mock_service):
         """Test file upload for breakdown"""
-        from services.process_tracker import ProcessTracker
-        
         mock_service.return_value = MockBedrockService()
-        mock_tracker = ProcessTracker(1, 'breakdown')
-        mock_process.return_value = ({'epics': [], 'stories': []}, mock_tracker)
+        # process_breakdown returns a dictionary, not a tuple
+        mock_process.return_value = {'epics': [], 'stories': []}
 
         data = {
             'file': (io.BytesIO(b'Test document content'), 'test.txt')
@@ -35,9 +33,10 @@ class TestBreakdownController(BaseTestCase):
                                     content_type='multipart/form-data')
 
         self.assertEqual(response.status_code, 200)
-        data = json.loads(response.data)
-        self.assertTrue(data['success'])
-        self.assertIn('request_id', data)
+        response_data = json.loads(response.data)
+        self.assertTrue(response_data['success'])
+        self.assertIn('data', response_data)
+        self.assertIn('request_id', response_data['data'])
 
 
 class TestVerifyController(BaseTestCase):
@@ -52,11 +51,9 @@ class TestVerifyController(BaseTestCase):
     @patch('services.q_agent_service.QAgentService.process_verification')
     def test_process_verification(self, mock_process, mock_service):
         """Test design verification"""
-        from services.process_tracker import ProcessTracker
-        
         mock_service.return_value = MockBedrockService()
-        mock_tracker = ProcessTracker(1, 'verification')
-        mock_process.return_value = ({'missing_objects': [], 'recommendations': []}, mock_tracker)
+        # process_verification returns a dictionary, not a tuple
+        mock_process.return_value = {'missing_objects': [], 'recommendations': []}
 
         data = {'design_content': 'Test design document content'}
 
@@ -81,11 +78,9 @@ class TestCreateController(BaseTestCase):
     @patch('services.q_agent_service.QAgentService.process_creation')
     def test_generate_design(self, mock_process, mock_service):
         """Test design generation"""
-        from services.process_tracker import ProcessTracker
-        
         mock_service.return_value = MockBedrockService()
-        mock_tracker = ProcessTracker(1, 'creation')
-        mock_process.return_value = ({'objects': [], 'implementation': {}}, mock_tracker)
+        # process_creation returns a dictionary, not a tuple
+        mock_process.return_value = {'objects': [], 'implementation': {}}
 
         data = {'acceptance_criteria': 'Test acceptance criteria'}
 

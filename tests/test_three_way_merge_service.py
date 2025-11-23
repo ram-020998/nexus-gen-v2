@@ -16,7 +16,7 @@ from app import create_app
 from models import (
     db, Package, AppianObject, Change, ChangeReview
 )
-from test_config import TestConfig
+from utilityTools.test_config import TestConfig
 from services.merge_assistant.three_way_merge_service import (
     ThreeWayMergeService
 )

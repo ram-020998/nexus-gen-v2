@@ -195,7 +195,9 @@ async function verifyDocument() {
         const data = await response.json();
         
         if (data.success) {
-            showVerificationResults(data.verification_data);
+            // Access nested data from refactored json_success response
+            const verificationData = data.data?.verification_data || data.verification_data;
+            showVerificationResults(verificationData);
             DocFlow.showNotification('Document verified successfully!', 'success');
         } else {
             throw new Error(data.error || 'Verification failed');
@@ -217,28 +219,56 @@ async function verifyDocument() {
 function showVerificationResults(data) {
     const resultsContent = document.getElementById('resultsContent');
     
+    // Handle missing_objects - can be array of strings or objects
+    const missingObjectsHtml = (data.missing_objects || []).map(obj => {
+        if (typeof obj === 'string') {
+            return `<li>${obj}</li>`;
+        } else {
+            return `<li><strong>${obj.name}</strong> (${obj.type})<br><small>${obj.reason}</small></li>`;
+        }
+    }).join('');
+    
+    // Handle recommendations - array of strings
+    const recommendationsHtml = (data.recommendations || []).map(rec => `<li>${rec}</li>`).join('');
+    
+    // Handle similar_designs - may not exist
+    const similarDesignsHtml = (data.similar_designs || []).map(design => `<li>${design}</li>`).join('');
+    
     resultsContent.innerHTML = `
         <div class="verification-results w-100">
+            ${missingObjectsHtml ? `
             <div class="result-section">
                 <h5><i class="fas fa-exclamation-triangle"></i> Missing Objects</h5>
                 <ul class="result-list">
-                    ${data.missing_objects.map(obj => `<li>${obj}</li>`).join('')}
+                    ${missingObjectsHtml}
                 </ul>
             </div>
+            ` : ''}
             
+            ${recommendationsHtml ? `
             <div class="result-section">
                 <h5><i class="fas fa-lightbulb"></i> Recommendations</h5>
                 <ul class="result-list">
-                    ${data.recommendations.map(rec => `<li>${rec}</li>`).join('')}
+                    ${recommendationsHtml}
                 </ul>
             </div>
+            ` : ''}
             
+            ${similarDesignsHtml ? `
             <div class="result-section">
                 <h5><i class="fas fa-link"></i> Similar Designs</h5>
                 <ul class="result-list">
-                    ${data.similar_designs.map(design => `<li>${design}</li>`).join('')}
+                    ${similarDesignsHtml}
                 </ul>
             </div>
+            ` : ''}
+            
+            ${!missingObjectsHtml && !recommendationsHtml && !similarDesignsHtml ? `
+            <div class="empty-state">
+                <i class="fas fa-check-circle text-success"></i>
+                <p>No issues found. Design looks good!</p>
+            </div>
+            ` : ''}
         </div>
     `;
     

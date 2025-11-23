@@ -182,7 +182,9 @@ async function convertSql() {
         const data = await response.json();
         
         if (data.success) {
-            showConversionResults(data.oracle_sql);
+            // Access nested data from refactored json_success response
+            const oracleSql = data.data?.oracle_sql || data.oracle_sql;
+            showConversionResults(oracleSql);
             copyButton.style.display = 'inline-block';
             DocFlow.showNotification('SQL converted successfully!', 'success');
         } else {

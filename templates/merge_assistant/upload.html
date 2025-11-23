@@ -776,7 +776,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 await sleep(500);
                 
                 // Redirect to summary page
-                window.location.href = `/merge-assistant/session/${result.session_id}/summary`;
+                // Access nested data from refactored json_success response
+                const sessionId = result.data?.session_id || result.session_id;
+                window.location.href = `/merge-assistant/session/${sessionId}/summary`;
             } else {
                 const error = await response.json();
                 progressModal.hide();

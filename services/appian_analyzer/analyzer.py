@@ -3,17 +3,17 @@ Refactored Appian Application Analyzer with proper OOP design
 """
 import zipfile
 import xml.etree.ElementTree as ET
-import json
 import os
 from typing import Dict, List, Any, Optional
 from dataclasses import asdict
 
-from .models import AppianObject, Blueprint, Site, RecordType, ProcessModel, SimpleObject
+from .models import AppianObject, Blueprint, Site, RecordType, ProcessModel
 from .parsers import (
     XMLParser, SiteParser, RecordTypeParser, ProcessModelParser, 
     ContentParser, SimpleObjectParser
 )
 from .sail_formatter import SAILFormatter
+
 
 class ObjectLookup:
     """Manages object lookup table"""
@@ -49,6 +49,7 @@ class ObjectLookup:
     def count(self) -> int:
         """Get total object count"""
         return len(self._objects)
+
 
 class AnalysisEngine:
     """Handles analysis logic and summary generation"""
@@ -97,6 +98,7 @@ class AnalysisEngine:
             recommendations.append("Review security group structure for consolidation opportunities")
         
         return recommendations
+
 
 class AppianAnalyzer:
     """Main analyzer class with proper OOP design"""
@@ -333,10 +335,10 @@ class AppianAnalyzer:
         """Close the ZIP file"""
         self.zip_file.close()
 
+
 def main():
     """CLI entry point"""
     import sys
-    import json
     import os
     
     if len(sys.argv) != 2:
@@ -411,6 +413,7 @@ def main():
         import traceback
         traceback.print_exc()
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()

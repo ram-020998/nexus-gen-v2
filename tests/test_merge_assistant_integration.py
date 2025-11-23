@@ -16,7 +16,7 @@ from unittest.mock import patch, MagicMock
 
 from app import create_app
 from models import db, MergeSession, ChangeReview
-from test_config import TestConfig
+from utilityTools.test_config import TestConfig
 from tests.fixtures.three_way_merge.fixture_loader import (
     SMALL_PACKAGES,
     MEDIUM_PACKAGES,

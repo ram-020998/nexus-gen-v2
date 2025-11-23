@@ -2,16 +2,22 @@
 Process Controller - Handle process history and details
 """
 import json
-from flask import Blueprint, render_template, request, flash, redirect, url_for, jsonify, Response
-from services.request_service import RequestService
+from flask import Blueprint, request, Response
+from controllers.base_controller import BaseController
+from services.request.request_service import RequestService
 
 process_bp = Blueprint('process', __name__, url_prefix='/process')
-request_service = RequestService()
+
+# Create controller instance
+controller = BaseController()
 
 
 @process_bp.route('/history')
 def history():
     """View process history with filters"""
+    # Access services through base controller
+    request_service = controller.get_service(RequestService)
+    
     # Get filter parameters
     action_type = request.args.get('type', '')
     status = request.args.get('status', '')
@@ -24,30 +30,41 @@ def history():
     filtered_requests = all_requests
     
     if action_type:
-        filtered_requests = [r for r in filtered_requests if r.action_type == action_type]
-    
+        filtered_requests = [
+            r for r in filtered_requests
+            if r.action_type == action_type
+        ]
+
     if status:
-        filtered_requests = [r for r in filtered_requests if r.status == status]
-    
+        filtered_requests = [
+            r for r in filtered_requests
+            if r.status == status
+        ]
+
     if search:
-        filtered_requests = [r for r in filtered_requests 
-                           if search.lower() in (r.reference_id or '').lower() 
-                           or search.lower() in (r.filename or '').lower()]
+        filtered_requests = [
+            r for r in filtered_requests
+            if search.lower() in (r.reference_id or '').lower()
+            or search.lower() in (r.filename or '').lower()
+        ]
     
-    return render_template('process/history.html',
-                         requests=filtered_requests,
-                         current_type=action_type,
-                         current_status=status,
-                         current_search=search)
+    return controller.render('process/history.html',
+                             requests=filtered_requests,
+                             current_type=action_type,
+                             current_status=status,
+                             current_search=search)
 
 
 @process_bp.route('/details/<int:request_id>')
 def details(request_id):
     """View detailed process information"""
+    # Access services through base controller
+    request_service = controller.get_service(RequestService)
+    
     req = request_service.get_request(request_id)
     if not req:
-        flash('Request not found', 'error')
-        return redirect(url_for('process.history'))
+        controller.flash_error('Request not found')
+        return controller.redirect_to('process.history')
 
     # Parse timeline data if available
     timeline_data = None
@@ -57,17 +74,20 @@ def details(request_id):
         except json.JSONDecodeError:
             timeline_data = None
 
-    return render_template('process_details.html',
-                         request=req,
-                         timeline_data=timeline_data)
+    return controller.render('process_details.html',
+                             request=req,
+                             timeline_data=timeline_data)
 
 
 @process_bp.route('/download/<artifact_type>/<int:request_id>')
 def download_artifact(artifact_type, request_id):
     """Download process artifacts"""
+    # Access services through base controller
+    request_service = controller.get_service(RequestService)
+    
     req = request_service.get_request(request_id)
     if not req:
-        return jsonify({'error': 'Request not found'}), 404
+        return controller.json_error('Request not found', status_code=404)
     
     if artifact_type == 'bedrock':
         content = req.rag_response or '{}'
@@ -76,11 +96,15 @@ def download_artifact(artifact_type, request_id):
         content = req.raw_agent_output or '{}'
         filename = f'agent_output_{request_id}.txt'
     else:
-        return jsonify({'error': 'Invalid artifact type'}), 400
+        return controller.json_error('Invalid artifact type', status_code=400)
     
+    mimetype = (
+        'application/json' if artifact_type == 'bedrock'
+        else 'text/plain'
+    )
     return Response(
         content,
-        mimetype='application/json' if artifact_type == 'bedrock' else 'text/plain',
+        mimetype=mimetype,
         headers={'Content-Disposition': f'attachment; filename={filename}'}
     )
 
@@ -88,15 +112,21 @@ def download_artifact(artifact_type, request_id):
 @process_bp.route('/reprocess/<int:request_id>', methods=['POST'])
 def reprocess_request(request_id):
     """Reprocess a request with the same input"""
+    # Access services through base controller
+    request_service = controller.get_service(RequestService)
+    
     req = request_service.get_request(request_id)
     if not req:
-        return jsonify({'error': 'Request not found'}), 404
+        return controller.json_error('Request not found', status_code=404)
     
     try:
         # Create a new request with the same input
         if req.action_type == 'breakdown':
-            # For breakdown, we need the original file - this would need file handling
-            return jsonify({'error': 'Breakdown reprocessing not supported yet'}), 400
+            # For breakdown, we need the original file
+            return controller.json_error(
+                'Breakdown reprocessing not supported yet',
+                status_code=400
+            )
         elif req.action_type == 'verify':
             # For verify, use the input_text
             new_req = request_service.create_request(
@@ -110,13 +140,17 @@ def reprocess_request(request_id):
                 input_text=req.input_text
             )
         else:
-            return jsonify({'error': 'Unknown action type'}), 400
+            return controller.json_error(
+                'Unknown action type',
+                status_code=400
+            )
         
-        return jsonify({
-            'success': True,
-            'new_request_id': new_req.id,
-            'message': 'Reprocessing started'
-        })
+        return controller.json_success(
+            data={
+                'new_request_id': new_req.id
+            },
+            message='Reprocessing started'
+        )
     
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return controller.handle_error(e, return_json=True)

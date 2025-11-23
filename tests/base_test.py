@@ -5,7 +5,7 @@ import unittest
 import shutil
 from app import create_app
 from models import db
-from test_config import TestConfig
+from utilityTools.test_config import TestConfig
 
 
 class BaseTestCase(unittest.TestCase):
