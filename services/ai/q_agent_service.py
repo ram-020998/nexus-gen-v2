@@ -344,32 +344,46 @@ class QAgentService(BaseService):
             clean_output = re.sub(r'mmm+', '', clean_output)
             clean_output = re.sub(r'mm+', '', clean_output)
             
-            # Split into lines and clean each line
+            # Look for SQL code blocks (between ```sql and ```)
+            sql_block_match = re.search(r'```sql\s*(.*?)\s*```', clean_output, re.DOTALL | re.IGNORECASE)
+            if sql_block_match:
+                sql_content = sql_block_match.group(1).strip()
+                return sql_content
+            
+            # If no code block found, try to extract SQL by finding SQL keywords
             lines = clean_output.split('\n')
             sql_lines = []
+            in_sql_block = False
+            
+            # SQL statement start keywords
+            sql_start_keywords = ['CREATE', 'ALTER', 'DROP', 'INSERT', 'UPDATE', 'DELETE', 'MERGE', 'SELECT', 'WITH', 'EXECUTE', '--']
             
             for line in lines:
-                line = line.strip()
-                # Skip empty lines and Q CLI UI elements
-                if not line or any(ui in line for ui in ['╭', '╮', '│', '━', '🤖', '🛠️', '●', '✓', 'WARNING:', 'Using tool:', 'Completed in']):
+                line_stripped = line.strip()
+                
+                # Skip Q CLI UI elements
+                if any(ui in line for ui in ['╭', '╮', '│', '━', '🤖', '🛠️', '●', '✓', 'WARNING:', 'Using tool:', 'Completed in', '> ']):
                     continue
                 
-                # Include SQL-related lines
-                if (line.startswith('CREATE') or 
-                    line.startswith('EXECUTE') or 
-                    line.startswith('--') or
-                    'VARCHAR2' in line or 
-                    'NUMBER' in line or
-                    'TIMESTAMP' in line or
-                    'CONSTRAINT' in line or
-                    'PRIMARY KEY' in line or
-                    line.startswith(')') or
-                    line.endswith(',') or
-                    line.endswith(';')):
-                    sql_lines.append(line)
+                # Check if line starts a SQL statement
+                if any(line_stripped.startswith(keyword) for keyword in sql_start_keywords):
+                    in_sql_block = True
+                
+                # If we're in a SQL block, collect lines
+                if in_sql_block and line_stripped:
+                    sql_lines.append(line.rstrip())
+                    
+                    # Check if statement ends with semicolon
+                    if line_stripped.endswith(';'):
+                        # Continue collecting if there might be more statements
+                        continue
             
             if sql_lines:
-                return self._format_sql(sql_lines)
+                # Join lines and clean up extra whitespace
+                sql_content = '\n'.join(sql_lines)
+                # Remove multiple blank lines
+                sql_content = re.sub(r'\n\s*\n\s*\n', '\n\n', sql_content)
+                return sql_content.strip()
             
             # If no SQL found using filters, return cleaned output
             return clean_output.strip() if clean_output.strip() else None
@@ -377,42 +391,6 @@ class QAgentService(BaseService):
         except Exception as e:
             print(f"SQL extraction error: {e}")
             return None
-
-    def _format_sql(self, sql_lines: list) -> str:
-        """
-        Format SQL lines with proper indentation and spacing
-        
-        Args:
-            sql_lines: List of SQL lines to format
-            
-        Returns:
-            Formatted SQL string
-        """
-        formatted_lines = []
-        indent_level = 0
-        
-        for line in sql_lines:
-            line = line.strip()
-            
-            # Decrease indent for closing parenthesis
-            if line.startswith(')'):
-                indent_level = max(0, indent_level - 1)
-            
-            # Add proper indentation
-            if line.startswith('CREATE') or line.startswith('EXECUTE') or line.startswith('--'):
-                formatted_lines.append(line)
-            else:
-                formatted_lines.append('  ' + line)
-            
-            # Increase indent after opening parenthesis
-            if line.endswith('('):
-                indent_level += 1
-            
-            # Add blank line after each statement
-            if line.endswith(';'):
-                formatted_lines.append('')
-        
-        return '\n'.join(formatted_lines).strip()
 
     def _create_breakdown_prompt(self, file_content: str, bedrock_context: dict) -> str:
         """Create breakdown prompt with Bedrock context and application artifacts"""
@@ -569,26 +547,48 @@ Please answer the user's question based on the available context and artifacts.
 """
 
     def _create_conversion_prompt(self, maria_sql: str) -> str:
-        """Create conversion prompt with guide content"""
-        # Read the conversion guide
+        """Create conversion prompt with comprehensive steering document"""
+        # Read the comprehensive MariaDB to Oracle conversion steering document
         from config import Config
-        guide_content = ""
+        steering_content = ""
         try:
-            guide_path = Path(Config.BASE_DIR) / "mariaToOracleConversionGuid.md"
-            if guide_path.exists():
-                guide_content = guide_path.read_text(encoding='utf-8')
+            steering_path = Path(Config.BASE_DIR) / "applicationArtifacts" / "SQL Conversion Support Files" / "MariaDB_to_Oracle_Conversion_Steering_Document.md"
+            if steering_path.exists():
+                steering_content = steering_path.read_text(encoding='utf-8')
+            else:
+                # Fallback to old guide if steering document not found
+                old_guide_path = Path(Config.BASE_DIR) / "mariaToOracleConversionGuid.md"
+                if old_guide_path.exists():
+                    steering_content = old_guide_path.read_text(encoding='utf-8')
         except Exception as e:
-            print(f"Warning: Could not read conversion guide: {e}")
+            print(f"Warning: Could not read conversion steering document: {e}")
         
         return f"""
-CONVERSION GUIDE:
-{guide_content}
+COMPREHENSIVE MARIADB TO ORACLE CONVERSION STEERING DOCUMENT:
+{steering_content}
 
 MARIADB SQL TO CONVERT:
 {maria_sql}
 
 INSTRUCTIONS:
-Follow the conversion guide above exactly. Convert the MariaDB SQL to Oracle format using the patterns and rules specified in the guide. Return only the converted Oracle SQL script.
+1. Follow the comprehensive conversion steering document above exactly
+2. Apply all data type conversions (int → NUMBER, varchar → VARCHAR2, datetime → TIMESTAMP, tinyint(1) → NUMBER(1))
+3. Convert table creation patterns (remove backticks, IF NOT EXISTS, handle AUTO_INCREMENT)
+4. Convert INSERT statements (INSERT IGNORE → INSERT ALL, true/false → 1/0, multiple rows pattern)
+5. Create sequences for all AUTO_INCREMENT columns
+6. Convert triggers (DROP IF EXISTS → CREATE OR REPLACE, add DECLARE section, :NEW/:OLD references)
+7. Apply table name truncation rules to fit Oracle's 30-character limit
+8. Convert date/time functions (NOW() → CURRENT_TIMESTAMP)
+9. Handle string escaping (backslash → double quotes)
+10. Return ONLY the converted Oracle SQL script with proper formatting
+
+OUTPUT FORMAT:
+- Start with CREATE TABLE statements
+- Follow with CREATE SEQUENCE statements for AUTO_INCREMENT columns
+- Include CREATE INDEX statements if needed
+- Add CREATE OR REPLACE TRIGGER statements if triggers exist
+- Include INSERT ALL statements for data
+- Use proper Oracle SQL formatting and indentation
 """
 
     def _generate_fallback_breakdown(self) -> dict:

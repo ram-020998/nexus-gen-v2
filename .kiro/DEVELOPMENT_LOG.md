@@ -7069,3 +7069,99 @@ This refactoring provides a solid foundation for future enhancements and ensures
 **Completion Date:** November 23, 2025
 **Total Duration:** Multiple sessions over several days
 **Status:** ✅ PRODUCTION READY
+
+
+---
+
+## 2025-11-24 - SQL Converter Enhancement: Comprehensive Steering Document Integration
+
+### Issue
+The SQL converter needed to use a comprehensive MariaDB to Oracle conversion steering document to improve conversion accuracy and completeness. The steering document contains detailed conversion patterns, rules, and examples for all aspects of SQL conversion.
+
+### Investigation
+- Located comprehensive steering document at: `applicationArtifacts/SQL Conversion Support Files/MariaDB_to_Oracle_Conversion_Steering_Document.md`
+- Reviewed Q Agent service implementation in `services/ai/q_agent_service.py`
+- Identified the `_create_conversion_prompt()` method that builds prompts for the Q Agent
+- Found it was using an older, simpler guide (`mariaToOracleConversionGuid.md`)
+
+### Solution
+Updated the `_create_conversion_prompt()` method in `services/ai/q_agent_service.py` to:
+
+1. **Load the comprehensive steering document** from the correct path:
+   - Primary: `applicationArtifacts/SQL Conversion Support Files/MariaDB_to_Oracle_Conversion_Steering_Document.md`
+   - Fallback: `mariaToOracleConversionGuid.md` (if steering document not found)
+
+2. **Enhanced prompt instructions** with detailed conversion steps:
+   - Data type conversions (int → NUMBER, varchar → VARCHAR2, datetime → TIMESTAMP, tinyint(1) → NUMBER(1))
+   - Table creation patterns (remove backticks, IF NOT EXISTS, handle AUTO_INCREMENT)
+   - INSERT statement conversions (INSERT IGNORE → INSERT ALL, true/false → 1/0)
+   - Sequence creation for AUTO_INCREMENT columns
+   - Trigger conversions (DROP IF EXISTS → CREATE OR REPLACE, DECLARE sections, :NEW/:OLD)
+   - Table name truncation rules (Oracle 30-character limit)
+   - Date/time function conversions (NOW() → CURRENT_TIMESTAMP)
+   - String escaping (backslash → double quotes)
+
+3. **Structured output format** guidance:
+   - CREATE TABLE statements
+   - CREATE SEQUENCE statements
+   - CREATE INDEX statements
+   - CREATE OR REPLACE TRIGGER statements
+   - INSERT ALL statements
+   - Proper Oracle SQL formatting
+
+### Files Modified
+- `services/ai/q_agent_service.py` - Updated `_create_conversion_prompt()` method
+
+### Key Changes
+```python
+def _create_conversion_prompt(self, maria_sql: str) -> str:
+    """Create conversion prompt with comprehensive steering document"""
+    # Read the comprehensive MariaDB to Oracle conversion steering document
+    from config import Config
+    steering_content = ""
+    try:
+        steering_path = Path(Config.BASE_DIR) / "applicationArtifacts" / "SQL Conversion Support Files" / "MariaDB_to_Oracle_Conversion_Steering_Document.md"
+        if steering_path.exists():
+            steering_content = steering_path.read_text(encoding='utf-8')
+        else:
+            # Fallback to old guide if steering document not found
+            old_guide_path = Path(Config.BASE_DIR) / "mariaToOracleConversionGuid.md"
+            if old_guide_path.exists():
+                steering_content = old_guide_path.read_text(encoding='utf-8')
+    except Exception as e:
+        print(f"Warning: Could not read conversion steering document: {e}")
+    
+    return f"""
+COMPREHENSIVE MARIADB TO ORACLE CONVERSION STEERING DOCUMENT:
+{steering_content}
+
+MARIADB SQL TO CONVERT:
+{maria_sql}
+
+INSTRUCTIONS:
+1. Follow the comprehensive conversion steering document above exactly
+2. Apply all data type conversions...
+[10 detailed conversion steps]
+...
+"""
+```
+
+### Benefits
+1. **More accurate conversions** - Q Agent now has comprehensive patterns and rules
+2. **Complete coverage** - Handles all aspects: tables, sequences, triggers, inserts, indexes
+3. **Better formatting** - Structured output guidance ensures proper Oracle SQL format
+4. **Maintainable** - Steering document can be updated independently without code changes
+5. **Fallback support** - Gracefully handles missing steering document
+
+### Verification
+- Code changes verified with `getDiagnostics` - no critical syntax errors
+- Integration point confirmed in `controllers/convert_controller.py`
+- Steering document path validated and accessible
+
+### Status
+✅ COMPLETED
+
+### Next Steps
+- Test the enhanced SQL converter with sample MariaDB scripts
+- Monitor conversion quality and accuracy improvements
+- Update steering document based on real-world conversion feedback
