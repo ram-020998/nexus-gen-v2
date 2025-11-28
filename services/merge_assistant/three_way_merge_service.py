@@ -29,6 +29,9 @@ from services.merge_assistant.merge_guidance_service import (
 )
 from services.merge_assistant.package_service import PackageService
 from services.merge_assistant.change_service import ChangeService
+from services.merge_assistant.complexity_calculator_service import (
+    ComplexityCalculatorService
+)
 
 
 class ThreeWayMergeService:
@@ -48,6 +51,7 @@ class ThreeWayMergeService:
         self.guidance_service = MergeGuidanceService()
         self.package_service = PackageService()
         self.change_service = ChangeService()
+        self.complexity_calculator = ComplexityCalculatorService()
 
     def create_session(
         self,
@@ -280,14 +284,40 @@ class ThreeWayMergeService:
                 )
                 change['dependencies'] = deps
 
+            # Step 8: Add customer_only changes for tracking (not in workflow)
+            # Customer-only changes need to be in the database for statistics
+            # but are excluded from the workflow since they don't need review
+            customer_only_changes = classification_results.get('CUSTOMER_ONLY', [])
+            
+            # Add basic data to customer_only changes for database storage
+            for change in customer_only_changes:
+                uuid = change['uuid']
+                
+                # Get objects from each version
+                base_obj = base_lookup.get(uuid)
+                customer_obj = customized_lookup.get(uuid)
+                vendor_obj = new_vendor_lookup.get(uuid)
+                
+                # Add three-way objects
+                change['base_object'] = base_obj
+                change['customer_object'] = customer_obj
+                change['vendor_object'] = vendor_obj
+                
+                # No merge guidance needed for customer-only changes
+                change['merge_guidance'] = None
+                change['dependencies'] = {'parents': [], 'children': []}
+            
+            # Combine ordered changes (for workflow) with customer_only (for tracking)
+            all_changes_for_db = ordered_changes + customer_only_changes
+            
             # Normalize changes into Change and ChangeReview tables
-            logger.log_stage('Change Normalization', {'changes': len(ordered_changes)})
+            logger.log_stage('Change Normalization', {'changes': len(all_changes_for_db)})
             change_normalization_start = time.time()
             
             created_changes = self.change_service.create_changes_from_comparison(
                 session.id,
                 classification_results,
-                ordered_changes
+                all_changes_for_db
             )
             
             change_normalization_time = time.time() - change_normalization_start
@@ -452,8 +482,9 @@ class ThreeWayMergeService:
             if classification_key in breakdown_by_type[obj_type]:
                 breakdown_by_type[obj_type][classification_key] = count
 
-        # Estimate complexity and time
-        complexity, estimated_hours = self._estimate_complexity(statistics)
+        # Calculate complexity and time using new rules
+        # Exclude CUSTOMER_ONLY changes from workflow calculations (Requirement 5.5)
+        complexity_summary = self._calculate_complexity_and_time(session_id)
 
         return {
             'session_id': session.id,
@@ -465,8 +496,9 @@ class ThreeWayMergeService:
             },
             'statistics': statistics,
             'breakdown_by_type': breakdown_by_type,
-            'estimated_complexity': complexity,
-            'estimated_time_hours': estimated_hours,
+            'estimated_complexity': complexity_summary['overall_complexity'],
+            'estimated_time_minutes': complexity_summary['total_time_minutes'],
+            'estimated_time_hours': complexity_summary['total_time_hours'],
             'status': session.status,
             'created_at': session.created_at.isoformat(),
             'reviewed_count': session.reviewed_count,
@@ -481,6 +513,9 @@ class ThreeWayMergeService:
     ) -> List[Dict[str, Any]]:
         """
         Get smart-ordered list of changes using SQL JOIN with optional pagination
+        
+        Note: This method excludes CUSTOMER_ONLY changes from the workflow as they
+        do not require merge decisions (they are tracked separately for reference).
 
         Args:
             session_id: Session ID
@@ -498,6 +533,7 @@ class ThreeWayMergeService:
             raise ValueError(f"Session {session_id} not found")
 
         # Query changes with eager loading of related objects
+        # Exclude CUSTOMER_ONLY changes from workflow (Requirement 5.5)
         from models import AppianObject, ProcessModelMetadata
         query = db.session.query(Change)\
             .options(
@@ -511,6 +547,7 @@ class ThreeWayMergeService:
                 joinedload(Change.review)
             )\
             .filter(Change.session_id == session_id)\
+            .filter(Change.classification != 'CUSTOMER_ONLY')\
             .order_by(Change.display_order)
 
         # Apply pagination if requested
@@ -879,42 +916,101 @@ class ThreeWayMergeService:
 
 
 
-    def _estimate_complexity(
+    def _calculate_complexity_and_time(
         self,
-        statistics: Dict[str, int]
-    ) -> tuple[str, int]:
+        session_id: int
+    ) -> Dict[str, Any]:
         """
-        Estimate merge complexity and time
-
+        Calculate complexity and time estimates using new rules.
+        
+        This method:
+        1. Retrieves all workflow changes (excluding CUSTOMER_ONLY)
+        2. Calculates complexity for each change using ComplexityCalculatorService
+        3. Aggregates complexity levels and time estimates
+        4. Returns overall complexity and total time
+        
+        Requirements: 7.1, 7.2, 7.4, 7.5
+        
         Args:
-            statistics: Statistics dictionary with counts
-
+            session_id: Session ID
+            
         Returns:
-            Tuple of (complexity_level, estimated_hours)
+            Dictionary with:
+            - overall_complexity: str (Low, Medium, High)
+            - total_time_minutes: int
+            - total_time_hours: float
+            - complexity_counts: dict with counts per level
         """
-        conflicts = statistics.get('conflict', 0)
-        total = statistics.get('total_changes', 0)
-
-        # Calculate complexity based on conflict ratio
-        if total == 0:
-            return 'LOW', 0
-
-        conflict_ratio = conflicts / total
-
-        if conflict_ratio < 0.1:
-            complexity = 'LOW'
-            # Estimate 2 minutes per change
-            estimated_hours = max(1, int((total * 2) / 60))
-        elif conflict_ratio < 0.3:
-            complexity = 'MEDIUM'
-            # Estimate 5 minutes per change
-            estimated_hours = max(2, int((total * 5) / 60))
+        from sqlalchemy.orm import joinedload
+        from models import Change, AppianObject, ProcessModelMetadata
+        
+        # Get all workflow changes (excluding CUSTOMER_ONLY per Requirement 5.5)
+        changes = db.session.query(Change)\
+            .options(
+                joinedload(Change.base_object).joinedload(AppianObject.process_model_metadata).joinedload(ProcessModelMetadata.nodes),
+                joinedload(Change.customer_object).joinedload(AppianObject.process_model_metadata).joinedload(ProcessModelMetadata.nodes),
+                joinedload(Change.vendor_object).joinedload(AppianObject.process_model_metadata).joinedload(ProcessModelMetadata.nodes)
+            )\
+            .filter(Change.session_id == session_id)\
+            .filter(Change.classification != 'CUSTOMER_ONLY')\
+            .all()
+        
+        if not changes:
+            return {
+                'overall_complexity': 'Low',
+                'total_time_minutes': 0,
+                'total_time_hours': 0,
+                'complexity_counts': {'Low': 0, 'Medium': 0, 'High': 0}
+            }
+        
+        # Calculate complexity for each change
+        complexity_counts = {'Low': 0, 'Medium': 0, 'High': 0}
+        total_time_minutes = 0
+        
+        for change in changes:
+            # Build change dict for complexity calculator
+            change_dict = {
+                'object_type': change.object_type,
+                'classification': change.classification
+            }
+            
+            # Calculate complexity
+            complexity = self.complexity_calculator.calculate_complexity(
+                change_dict,
+                base_object=change.base_object,
+                customer_object=change.customer_object,
+                vendor_object=change.vendor_object
+            )
+            
+            # Count complexity levels
+            if complexity in complexity_counts:
+                complexity_counts[complexity] += 1
+            
+            # Calculate time for this change
+            time_minutes = self.complexity_calculator.calculate_estimated_time(complexity)
+            total_time_minutes += time_minutes
+        
+        # Determine overall complexity based on distribution
+        # If >30% are High, overall is High
+        # If >50% are Medium or High, overall is Medium
+        # Otherwise, overall is Low
+        total_changes = len(changes)
+        high_ratio = complexity_counts['High'] / total_changes
+        medium_high_ratio = (complexity_counts['Medium'] + complexity_counts['High']) / total_changes
+        
+        if high_ratio > 0.3:
+            overall_complexity = 'High'
+        elif medium_high_ratio > 0.5:
+            overall_complexity = 'Medium'
         else:
-            complexity = 'HIGH'
-            # Estimate 10 minutes per change
-            estimated_hours = max(4, int((total * 10) / 60))
-
-        return complexity, estimated_hours
+            overall_complexity = 'Low'
+        
+        return {
+            'overall_complexity': overall_complexity,
+            'total_time_minutes': total_time_minutes,
+            'total_time_hours': total_time_minutes / 60,
+            'complexity_counts': complexity_counts
+        }
 
     def _build_change_dict(self, change) -> Dict[str, Any]:
         """
@@ -1324,4 +1420,413 @@ class ThreeWayMergeService:
             'conflict': result.conflict or 0,
             'customer_only': result.customer_only or 0,
             'removed_but_customized': result.removed_but_customized or 0
+        }
+
+    def get_objects_by_type(
+        self,
+        session_id: int,
+        object_type: str,
+        classification: Optional[str] = None,
+        page: int = 1,
+        page_size: int = 5
+    ) -> Dict[str, Any]:
+        """
+        Get objects filtered by type with pagination.
+
+        Uses optimized SQL queries with JOIN to retrieve changes filtered
+        by object type, with optional classification filter and pagination.
+
+        Args:
+            session_id: Session ID
+            object_type: Object type to filter by (e.g., "Interface", "Process Model")
+            classification: Optional classification filter (e.g., "NO_CONFLICT", "CONFLICT")
+            page: Page number (1-indexed) for pagination
+            page_size: Number of results per page (default: 5)
+
+        Returns:
+            Dictionary with paginated results:
+            {
+                'objects': List[Dict],  # List of change objects with complexity
+                'total': int,           # Total number of matching objects
+                'page': int,            # Current page number
+                'page_size': int,       # Page size
+                'total_pages': int      # Total number of pages
+            }
+
+        Example:
+            >>> service = ThreeWayMergeService()
+            >>> result = service.get_objects_by_type(
+            ...     session_id=1,
+            ...     object_type="Interface",
+            ...     classification="CONFLICT",
+            ...     page=1,
+            ...     page_size=5
+            ... )
+            >>> print(result['total'])  # 12
+            >>> print(len(result['objects']))  # 5
+        """
+        from sqlalchemy.orm import joinedload
+        from models import Change, AppianObject, ProcessModelMetadata
+
+        session = self.get_session(session_id)
+        if not session:
+            raise ValueError(f"Session {session_id} not found")
+
+        # Initialize logger
+        logger = create_merge_session_logger(session.reference_id)
+
+        # Build base query with eager loading
+        query = db.session.query(Change)\
+            .options(
+                joinedload(Change.base_object).joinedload(AppianObject.process_model_metadata).joinedload(ProcessModelMetadata.nodes),
+                joinedload(Change.base_object).joinedload(AppianObject.process_model_metadata).joinedload(ProcessModelMetadata.flows),
+                joinedload(Change.customer_object).joinedload(AppianObject.process_model_metadata).joinedload(ProcessModelMetadata.nodes),
+                joinedload(Change.customer_object).joinedload(AppianObject.process_model_metadata).joinedload(ProcessModelMetadata.flows),
+                joinedload(Change.vendor_object).joinedload(AppianObject.process_model_metadata).joinedload(ProcessModelMetadata.nodes),
+                joinedload(Change.vendor_object).joinedload(AppianObject.process_model_metadata).joinedload(ProcessModelMetadata.flows),
+                joinedload(Change.merge_guidance),
+                joinedload(Change.review)
+            )\
+            .filter(Change.session_id == session_id)\
+            .filter(Change.object_type == object_type)
+
+        # Apply optional classification filter
+        if classification:
+            query = query.filter(Change.classification == classification)
+
+        # Get total count before pagination
+        total = query.count()
+
+        # Calculate total pages
+        total_pages = (total + page_size - 1) // page_size if total > 0 else 0
+
+        # Apply pagination
+        offset = (page - 1) * page_size
+        query = query.order_by(Change.display_order)\
+            .limit(page_size)\
+            .offset(offset)
+
+        # Execute query
+        changes = query.all()
+
+        # Convert to dictionaries with enriched data
+        objects = []
+        for change in changes:
+            change_dict = self._build_change_dict(change)
+            
+            # Calculate complexity for this change
+            # We need to pass the actual objects to the complexity calculator
+            from services.merge_assistant.complexity_calculator_service import ComplexityCalculatorService
+            complexity_calculator = ComplexityCalculatorService()
+            
+            complexity = complexity_calculator.calculate_complexity(
+                change_dict,
+                change.base_object,
+                change.customer_object,
+                change.vendor_object
+            )
+            
+            # Add complexity to the change dict
+            change_dict['complexity'] = complexity
+            
+            objects.append(change_dict)
+
+        # Log the filter operation
+        logger.info(
+            f"Filtered objects by type '{object_type}' "
+            f"(classification: {classification or 'all'}): "
+            f"{len(objects)} objects on page {page}/{total_pages}"
+        )
+
+        return {
+            'objects': objects,
+            'total': total,
+            'page': page,
+            'page_size': page_size,
+            'total_pages': total_pages
+        }
+
+    def get_summary_with_complexity(
+        self,
+        session_id: int
+    ) -> Dict[str, Any]:
+        """
+        Get merge summary with enhanced complexity and time calculations.
+
+        Extends the standard get_summary() method with complexity calculations
+        for all changes in the workflow. Uses ComplexityCalculatorService to
+        calculate complexity and time estimates.
+
+        Args:
+            session_id: Session ID
+
+        Returns:
+            Dictionary with enhanced summary information:
+            {
+                'session_id': int,
+                'reference_id': str,
+                'packages': {...},
+                'statistics': {...},
+                'breakdown_by_type': {...},
+                'estimated_complexity': str,      # Based on new rules
+                'estimated_time_hours': float,    # Based on new rules
+                'estimated_time_minutes': int,    # Total minutes
+                'estimated_time_display': str,    # Formatted display
+                'complexity_breakdown': {         # Per-complexity counts
+                    'low': int,
+                    'medium': int,
+                    'high': int
+                },
+                'status': str,
+                'created_at': str,
+                'reviewed_count': int,
+                'skipped_count': int
+            }
+
+        Example:
+            >>> service = ThreeWayMergeService()
+            >>> summary = service.get_summary_with_complexity(session_id=1)
+            >>> print(summary['estimated_complexity'])  # "MEDIUM"
+            >>> print(summary['estimated_time_display'])  # "3.5 hours"
+        """
+        from sqlalchemy.orm import joinedload
+        from models import Change, AppianObject, ProcessModelMetadata
+        from services.merge_assistant.complexity_calculator_service import ComplexityCalculatorService
+
+        # Get base summary
+        summary = self.get_summary(session_id)
+
+        session = self.get_session(session_id)
+        if not session:
+            raise ValueError(f"Session {session_id} not found")
+
+        # Initialize logger and complexity calculator
+        logger = create_merge_session_logger(session.reference_id)
+        complexity_calculator = ComplexityCalculatorService()
+
+        logger.info("Calculating complexity for all changes in workflow")
+
+        # Get all changes in the workflow (excluding CUSTOMER_ONLY)
+        # These are the changes that will be part of the merge workflow
+        query = db.session.query(Change)\
+            .options(
+                joinedload(Change.base_object).joinedload(AppianObject.process_model_metadata).joinedload(ProcessModelMetadata.nodes),
+                joinedload(Change.base_object).joinedload(AppianObject.process_model_metadata).joinedload(ProcessModelMetadata.flows),
+                joinedload(Change.customer_object).joinedload(AppianObject.process_model_metadata).joinedload(ProcessModelMetadata.nodes),
+                joinedload(Change.customer_object).joinedload(AppianObject.process_model_metadata).joinedload(ProcessModelMetadata.flows),
+                joinedload(Change.vendor_object).joinedload(AppianObject.process_model_metadata).joinedload(ProcessModelMetadata.nodes),
+                joinedload(Change.vendor_object).joinedload(AppianObject.process_model_metadata).joinedload(ProcessModelMetadata.flows)
+            )\
+            .filter(Change.session_id == session_id)\
+            .filter(Change.classification != 'CUSTOMER_ONLY')\
+            .all()
+
+        # Calculate complexity for each change
+        complexity_counts = {
+            'low': 0,
+            'medium': 0,
+            'high': 0
+        }
+        total_time_minutes = 0
+
+        for change in query:
+            change_dict = self._build_change_dict(change)
+            
+            # Calculate complexity
+            complexity = complexity_calculator.calculate_complexity(
+                change_dict,
+                change.base_object,
+                change.customer_object,
+                change.vendor_object
+            )
+            
+            # Count complexity levels
+            complexity_lower = complexity.lower()
+            if complexity_lower in complexity_counts:
+                complexity_counts[complexity_lower] += 1
+            
+            # Calculate time for this change
+            time_minutes = complexity_calculator.calculate_estimated_time(complexity)
+            total_time_minutes += time_minutes
+
+        # Determine overall complexity based on distribution
+        total_changes = len(query)
+        if total_changes == 0:
+            overall_complexity = 'LOW'
+        else:
+            # Calculate percentages
+            high_pct = complexity_counts['high'] / total_changes
+            medium_pct = complexity_counts['medium'] / total_changes
+            
+            # Classify based on distribution
+            if high_pct > 0.3:
+                overall_complexity = 'HIGH'
+            elif high_pct > 0.1 or medium_pct > 0.4:
+                overall_complexity = 'MEDIUM'
+            else:
+                overall_complexity = 'LOW'
+
+        # Format time display
+        estimated_time_display = complexity_calculator.format_time_display(
+            total_time_minutes
+        )
+        estimated_time_hours = total_time_minutes / 60
+
+        # Add enhanced data to summary
+        summary['estimated_complexity'] = overall_complexity
+        summary['estimated_time_minutes'] = total_time_minutes
+        summary['estimated_time_hours'] = round(estimated_time_hours, 1)
+        summary['estimated_time_display'] = estimated_time_display
+        summary['complexity_breakdown'] = complexity_counts
+
+        logger.info(
+            f"Complexity calculation complete: {overall_complexity} "
+            f"({complexity_counts['low']} low, {complexity_counts['medium']} medium, "
+            f"{complexity_counts['high']} high) - {estimated_time_display}"
+        )
+
+        return summary
+
+    def get_objects_by_type(
+        self,
+        session_id: int,
+        object_type: str,
+        classification: Optional[str] = None,
+        page: int = 1,
+        page_size: int = 5
+    ) -> Dict[str, Any]:
+        """
+        Get objects filtered by type with pagination.
+
+        This method retrieves changes filtered by object type and optionally
+        by classification, with pagination support. It's designed for the
+        interactive breakdown section where users can click on object type
+        cards to see detailed lists.
+
+        Args:
+            session_id: Merge session ID
+            object_type: Object type to filter by (e.g., 'Interface', 'Process Model')
+            classification: Optional classification filter (e.g., 'NO_CONFLICT', 'CONFLICT')
+            page: Page number (1-indexed)
+            page_size: Number of results per page (default: 5)
+
+        Returns:
+            Dictionary containing:
+            - objects: List of change dictionaries with name, UUID, classification, complexity
+            - total: Total number of objects matching the filter
+            - page: Current page number
+            - page_size: Page size used
+            - total_pages: Total number of pages
+
+        Raises:
+            ValueError: If session not found
+
+        Example:
+            >>> result = service.get_objects_by_type(
+            ...     session_id=1,
+            ...     object_type='Interface',
+            ...     page=1,
+            ...     page_size=5
+            ... )
+            >>> print(f"Found {result['total']} interfaces")
+            >>> for obj in result['objects']:
+            ...     print(f"  - {obj['name']} ({obj['complexity']})")
+        """
+        from models import Change
+        from services.merge_assistant.complexity_calculator_service import (
+            ComplexityCalculatorService
+        )
+
+        # Verify session exists
+        session = self.get_session(session_id)
+        if not session:
+            raise ValueError(f"Session {session_id} not found")
+
+        logger = create_merge_session_logger(session.reference_id)
+        logger.info(
+            f"Fetching objects by type: {object_type}, "
+            f"classification: {classification}, page: {page}"
+        )
+
+        # Build query with filters
+        query = db.session.query(Change)\
+            .filter(Change.session_id == session_id)\
+            .filter(Change.object_type == object_type)
+
+        # Apply classification filter if provided
+        if classification:
+            query = query.filter(Change.classification == classification)
+
+        # Get total count before pagination
+        total = query.count()
+
+        # Calculate pagination
+        total_pages = (total + page_size - 1) // page_size  # Ceiling division
+        offset = (page - 1) * page_size
+
+        # Apply pagination and ordering
+        query = query.order_by(Change.display_order)\
+            .limit(page_size)\
+            .offset(offset)
+
+        # Execute query
+        changes = query.all()
+
+        # Initialize complexity calculator
+        complexity_calculator = ComplexityCalculatorService()
+
+        # Build result objects with complexity
+        objects = []
+        for change in changes:
+            # Get objects for complexity calculation
+            base_obj = change.base_object
+            customer_obj = change.customer_object
+            vendor_obj = change.vendor_object
+
+            # Build object dictionaries
+            base_dict = self._build_object_dict(base_obj) if base_obj else None
+            customer_dict = self._build_object_dict(customer_obj) if customer_obj else None
+            vendor_dict = self._build_object_dict(vendor_obj) if vendor_obj else None
+
+            # Build change dict for complexity calculation
+            change_dict = {
+                'uuid': change.object_uuid,
+                'name': change.object_name,
+                'type': change.object_type,
+                'classification': change.classification,
+                'change_type': change.change_type,
+                'vendor_change_type': change.vendor_change_type,
+                'customer_change_type': change.customer_change_type
+            }
+
+            # Calculate complexity
+            complexity = complexity_calculator.calculate_complexity(
+                change_dict,
+                base_dict,
+                customer_dict,
+                vendor_dict
+            )
+
+            # Build object data
+            obj_data = {
+                'name': change.object_name,
+                'uuid': change.object_uuid,
+                'classification': change.classification,
+                'complexity': complexity,
+                'change_type': change.change_type
+            }
+
+            objects.append(obj_data)
+
+        logger.info(
+            f"Retrieved {len(objects)} objects (page {page} of {total_pages}, "
+            f"total: {total})"
+        )
+
+        return {
+            'objects': objects,
+            'total': total,
+            'page': page,
+            'page_size': page_size,
+            'total_pages': total_pages
         }

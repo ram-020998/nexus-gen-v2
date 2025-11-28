@@ -19,7 +19,8 @@
         "upload_file",
         "wait_for",
         "fill_form",
-        "handle_dialog"
+        "handle_dialog",
+        "fill"
       ]
     }
   }

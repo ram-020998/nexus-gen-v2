@@ -1,6 +1,6 @@
 # Implementation Plan
 
-- [ ] 1. Create configuration module for complexity and time rules
+- [x] 1. Create configuration module for complexity and time rules
   - Create `config/report_config.py` with all thresholds, labels, and column definitions
   - Add validation method to check configuration values on startup
   - Add default values as fallback for invalid configuration
@@ -10,7 +10,7 @@
   - **Property 4: Constant Complexity Invariant** (validates config is used correctly)
   - **Validates: Requirements 2.5**
 
-- [ ] 2. Implement ComplexityCalculatorService
+- [x] 2. Implement ComplexityCalculatorService
   - Create `services/merge_assistant/complexity_calculator_service.py`
   - Implement `calculate_complexity()` method with object type routing
   - Implement `_calculate_line_based_complexity()` for Interface/Expression Rule/Record Type
@@ -39,7 +39,7 @@
   - **Property 7: Time Format Display Rules**
   - **Validates: Requirements 3.4, 3.5**
 
-- [ ] 3. Implement MergeReportExcelService
+- [x] 3. Implement MergeReportExcelService
   - Create `services/merge_assistant/merge_report_excel_service.py`
   - Implement `generate_report()` method to orchestrate report generation
   - Implement `_build_report_data()` to enrich changes with complexity and descriptions
@@ -81,7 +81,7 @@
 - [ ] 4. Checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 5. Enhance ThreeWayMergeService with object filtering
+- [x] 5. Enhance ThreeWayMergeService with object filtering
   - Add `get_objects_by_type()` method to filter changes by object type
   - Implement pagination logic with page size of 5
   - Add optional classification filter parameter
@@ -105,7 +105,7 @@
   - **Property 13: Summary Time Summation**
   - **Validates: Requirements 7.2, 7.5**
 
-- [ ] 6. Add controller endpoints for report generation and object filtering
+- [x] 6. Add controller endpoints for report generation and object filtering
   - Add `export_report_excel_handler()` method to `MergeAssistantController`
   - Add route `/merge-assistant/session/<int:session_id>/export/excel-report`
   - Add `get_objects_by_type_handler()` method for AJAX requests
@@ -124,7 +124,7 @@
   - Verify pagination works correctly
   - Test error handling for invalid parameters
 
-- [ ] 7. Update Session Summary page UI with Generate Report button
+- [x] 7. Update Session Summary page UI with Generate Report button
   - Add "Generate Report" button at top of summary page
   - Position button prominently near session information
   - Add loading indicator during report generation
@@ -132,7 +132,7 @@
   - Follow existing UI styling patterns
   - _Requirements: 1.1, 1.5_
 
-- [ ] 8. Restore customer-only modifications metric to summary page
+- [x] 8. Restore customer-only modifications metric to summary page
   - Update `get_summary()` method to include customer-only count in statistics
   - Add customer-only metric card to summary page template
   - Add explanatory text that customer-only changes are not in workflow
@@ -148,7 +148,7 @@
   - **Property 9: Workflow Exclusion of Customer-Only**
   - **Validates: Requirements 5.5**
 
-- [ ] 9. Implement interactive breakdown section with object grid
+- [x] 9. Implement interactive breakdown section with object grid
   - Add click handlers to object type cards in breakdown section
   - Create AJAX request to fetch objects by type
   - Render grid below cards with object name, UUID, classification, complexity
@@ -158,14 +158,14 @@
   - Reuse existing grid/table styling components
   - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5, 6.6_
 
-- [ ] 10. Update summary metrics positioning and calculations
+- [x] 10. Update summary metrics positioning and calculations
   - Move Estimated Complexity and Estimated Time metrics to top of summary section
   - Update metric calculation to use new complexity rules
   - Update metric calculation to use new time estimation rules
   - Ensure metrics aggregate correctly across all workflow changes
   - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5_
 
-- [ ] 11. Add JavaScript for breakdown interaction
+- [x] 11. Add JavaScript for breakdown interaction
   - Create JavaScript module for breakdown card interactions
   - Implement click handlers for object type cards
   - Implement AJAX calls to object filtering endpoint

@@ -82,8 +82,8 @@ class ChangeService(BaseService):
                 if change:
                     changes.append(change)
                     
-                    # Create merge guidance if present
-                    if 'merge_guidance' in change_data:
+                    # Create merge guidance if present and not None
+                    if 'merge_guidance' in change_data and change_data['merge_guidance'] is not None:
                         self._create_merge_guidance(
                             change,
                             change_data['merge_guidance']

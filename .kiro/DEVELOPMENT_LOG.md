@@ -4,6 +4,85 @@ This is a running log of all development activities, issues investigated, and fi
 
 ---
 
+## 2025-11-25 - Merge Assistant Report Generation: Controller Endpoints Implementation
+
+### Feature
+Implemented controller endpoints for Excel report generation and object filtering as part of the merge-assistant-report-generation spec (Task 6).
+
+### Implementation Details
+
+**1. Added `get_objects_by_type` method to ThreeWayMergeService:**
+- Location: `services/merge_assistant/three_way_merge_service.py`
+- Filters changes by object type with optional classification filter
+- Implements pagination (default page size: 5)
+- Calculates complexity for each object using ComplexityCalculatorService
+- Returns structured data with objects, pagination info, and totals
+- Includes helper method `_build_object_dict` for converting AppianObject models to dictionaries
+
+**2. Added `export_report_excel_handler` to MergeAssistantController:**
+- Location: `controllers/merge_assistant_controller.py`
+- Generates comprehensive Excel reports using ReportExportService
+- Handles error cases: session not found, no changes, generation failures
+- Supports both AJAX and standard requests
+- Returns Excel file as downloadable attachment
+- Implements proper logging using merge session logger
+
+**3. Added `get_objects_by_type_handler` to MergeAssistantController:**
+- Location: `controllers/merge_assistant_controller.py`
+- API endpoint for interactive breakdown section
+- Accepts query parameters: classification, page, page_size
+- Validates pagination parameters (page >= 1, page_size 1-100)
+- Returns JSON response with objects and pagination metadata
+- Implements comprehensive error handling
+
+**4. Added Flask routes:**
+- `/merge-assistant/session/<int:session_id>/export/excel-report` - Excel report download
+- `/merge-assistant/api/session/<int:session_id>/objects/<object_type>` - Object filtering API
+
+### Error Handling
+Implemented comprehensive error handling for:
+- Session not found (404)
+- No changes in session (400)
+- Invalid pagination parameters (400)
+- Excel generation failures (500)
+- Unexpected errors with full stack traces
+
+### Testing
+Created comprehensive test suite in `tests/test_controller_endpoints.py`:
+- Test successful Excel report generation
+- Test session not found scenarios
+- Test no changes scenarios
+- Test successful object filtering
+- Test invalid pagination parameters
+- All 7 tests passing ✅
+
+### Files Modified
+- `services/merge_assistant/three_way_merge_service.py` - Added get_objects_by_type method
+- `controllers/merge_assistant_controller.py` - Added two new handler methods and routes
+- `tests/test_controller_endpoints.py` - Created new test file
+
+### Verification
+- All tests pass (7/7)
+- Controller imports successfully
+- No syntax errors in modified files
+- Follows existing controller patterns for error responses and logging
+- Reuses existing service patterns and OOP architecture
+
+### Requirements Validated
+- ✅ Requirement 1.1: Generate Report button endpoint
+- ✅ Requirement 1.2: Excel file generation
+- ✅ Requirement 1.4: File download
+- ✅ Requirement 1.5: Error handling
+- ✅ Requirement 6.1: Object filtering by type
+- ✅ Requirement 8.6: No modification to existing workflow
+- ✅ Requirement 8.7: Same error handling patterns
+- ✅ Requirement 8.8: Existing logging infrastructure
+
+### Status
+✅ **COMPLETED** - Task 6 implementation complete with all tests passing
+
+---
+
 ## 2025-11-21 - SAIL Code Diff Fix
 
 ### Issue
@@ -7165,3 +7244,363 @@ INSTRUCTIONS:
 - Test the enhanced SQL converter with sample MariaDB scripts
 - Monitor conversion quality and accuracy improvements
 - Update steering document based on real-world conversion feedback
+
+
+---
+
+## 2025-11-25 - Merge Assistant Report Generation: Configuration Module
+
+### Task
+Implement Task 1 from the merge-assistant-report-generation spec: Create configuration module for complexity and time rules.
+
+### Implementation
+
+**Created New Configuration Package:**
+- Created `config/` directory as a Python package
+- Created `config/__init__.py` to export `ReportConfig`
+- Created `config/report_config.py` with comprehensive configuration class
+
+**Configuration Structure:**
+
+The `ReportConfig` class centralizes all configuration for merge assistant report generation:
+
+1. **Complexity Thresholds:**
+   - Line-based objects (Interface, Expression Rule, Record Type):
+     - Low: 1-20 lines
+     - Medium: 21-60 lines
+     - High: >60 lines
+   - Process Models (node count):
+     - Low: 1-3 nodes
+     - Medium: 4-8 nodes
+     - High: >8 nodes
+   - Constants: Always Low complexity
+
+2. **Time Estimates:**
+   - Low complexity: 20 minutes
+   - Medium complexity: 40 minutes
+   - High complexity: 100 minutes
+
+3. **Excel Configuration:**
+   - Column definitions in exact order: S. No, Category, Object Name, Object UUID, Change Description, Actual SAIL Change, Complexity, Estimated Time, Comments
+   - SAIL code truncation: 500 characters max
+   - Time display threshold: 60 minutes (switch to hours)
+
+4. **Object Type Classifications:**
+   - Line-based types: Interface, Expression Rule, Record Type
+   - Always low types: Constant
+   - Process Model type: Process Model
+
+**Key Features:**
+
+1. **Validation Method:**
+   - `validate()` - Comprehensive validation of all configuration values
+   - Checks threshold ordering (low < medium)
+   - Validates positive integers for all numeric values
+   - Ensures non-empty strings for labels
+   - Validates Excel column count (must be exactly 9)
+   - Returns tuple: (is_valid: bool, errors: List[str])
+
+2. **Default Values:**
+   - `DEFAULT_VALUES` dictionary with fallback values
+   - `apply_defaults()` method to reset to safe defaults
+   - Used when validation fails to ensure application can continue
+
+3. **Helper Methods:**
+   - `get_complexity_label(level)` - Get display label for complexity
+   - `get_time_estimate(level)` - Get time in minutes for complexity
+   - `is_line_based_type(type)` - Check if object uses line-based calculation
+   - `is_always_low_type(type)` - Check if object is always Low
+   - `is_process_model_type(type)` - Check if object is Process Model
+   - `log_configuration()` - Log all config values for debugging
+
+**Files Created:**
+- `config/__init__.py` - Package initialization
+- `config/report_config.py` - Main configuration class (467 lines)
+
+**Design Patterns:**
+- Class-based configuration (similar to existing `config.py`)
+- All values as class attributes for easy access
+- Comprehensive docstrings for all methods and attributes
+- Type hints throughout
+- Follows existing codebase patterns
+
+### Validation & Testing
+
+**Validation Tests:**
+Created temporary test script to verify:
+- ✅ Configuration validation passes with default values
+- ✅ All helper methods work correctly
+- ✅ Configuration can be imported from package
+- ✅ All thresholds are properly ordered
+- ✅ All required attributes are present
+
+**Test Results:**
+```
+Configuration valid: True
+No errors found!
+
+Testing helper methods:
+  Low complexity label: Low
+  Medium time estimate: 40
+  Is 'Interface' line-based? True
+  Is 'Constant' always low? True
+  Is 'Process Model' a PM? True
+
+Configuration values:
+  LINE_BASED_LOW_MAX: 20
+  LINE_BASED_MEDIUM_MAX: 60
+  PROCESS_MODEL_LOW_MAX: 3
+  PROCESS_MODEL_MEDIUM_MAX: 8
+  TIME_LOW_COMPLEXITY: 20
+  TIME_MEDIUM_COMPLEXITY: 40
+  TIME_HIGH_COMPLEXITY: 100
+  EXCEL_COLUMNS count: 9
+  SAIL_CODE_MAX_LENGTH: 500
+```
+
+### Requirements Validated
+
+This implementation satisfies all requirements for Task 1:
+
+**Requirement 4.1:** ✅ All complexity thresholds stored in single configuration file
+**Requirement 4.2:** ✅ All time estimate values stored in same configuration file
+**Requirement 4.3:** ✅ All complexity labels stored in configuration file
+**Requirement 4.4:** ✅ Configuration can be updated without code changes (class attributes)
+**Requirement 4.5:** ✅ Validation method checks configuration on startup and logs errors
+
+### Usage Example
+
+```python
+from config import ReportConfig
+
+# Validate configuration
+is_valid, errors = ReportConfig.validate()
+if not is_valid:
+    for error in errors:
+        logging.error(f"Configuration error: {error}")
+    ReportConfig.apply_defaults()
+
+# Access configuration values
+low_threshold = ReportConfig.LINE_BASED_LOW_MAX  # 20
+time_estimate = ReportConfig.TIME_MEDIUM_COMPLEXITY  # 40
+
+# Use helper methods
+complexity = ReportConfig.get_complexity_label('low')  # "Low"
+time = ReportConfig.get_time_estimate('high')  # 100
+is_line_based = ReportConfig.is_line_based_type('Interface')  # True
+
+# Log configuration for debugging
+ReportConfig.log_configuration()
+```
+
+### Integration Notes
+
+The configuration module is designed to integrate seamlessly with the upcoming services:
+
+1. **ComplexityCalculatorService** (Task 2):
+   - Will use thresholds to calculate complexity
+   - Will use time estimates for time calculation
+   - Will use helper methods for object type checking
+
+2. **MergeReportExcelService** (Task 3):
+   - Will use EXCEL_COLUMNS for column headers
+   - Will use SAIL_CODE_MAX_LENGTH for truncation
+   - Will use TIME_DISPLAY_HOUR_THRESHOLD for formatting
+
+3. **Application Startup:**
+   - Can call `ReportConfig.validate()` during initialization
+   - Can call `ReportConfig.log_configuration()` for debugging
+   - Can call `ReportConfig.apply_defaults()` if validation fails
+
+### Code Quality
+
+**Diagnostics:**
+- No critical errors
+- Some linting warnings (line length, whitespace) - cosmetic only
+- All functionality verified and working
+
+**Documentation:**
+- Comprehensive docstrings for class and all methods
+- Inline comments explaining complex logic
+- Usage examples in docstrings
+- Type hints throughout
+
+**Maintainability:**
+- Clear separation of concerns
+- Easy to modify thresholds without touching logic
+- Validation ensures configuration integrity
+- Default values provide safety net
+
+### Status
+✅ COMPLETED - Configuration module created, validated, and ready for use
+
+### Next Steps
+- Task 2: Implement ComplexityCalculatorService using this configuration
+- Task 3: Implement MergeReportExcelService using this configuration
+- Add configuration validation to application startup in `app.py`
+
+
+---
+
+## 2025-11-25 - Enhanced ThreeWayMergeService with Object Filtering
+
+### Feature
+Implemented two new methods for ThreeWayMergeService to support the merge assistant report generation feature:
+1. `get_objects_by_type()` - Filter changes by object type with pagination
+2. `get_summary_with_complexity()` - Get summary with enhanced complexity calculations
+
+### Implementation Details
+
+**get_objects_by_type() Method:**
+- Filters changes by object type (e.g., "Interface", "Process Model")
+- Optional classification filter (e.g., "NO_CONFLICT", "CONFLICT")
+- Pagination support with configurable page size (default: 5)
+- Uses optimized SQL queries with JOIN and eager loading
+- Calculates complexity for each change using ComplexityCalculatorService
+- Returns paginated results with total count and page information
+
+**get_summary_with_complexity() Method:**
+- Extends standard get_summary() with complexity calculations
+- Uses ComplexityCalculatorService to calculate complexity for all workflow changes
+- Excludes CUSTOMER_ONLY changes from workflow calculations
+- Aggregates complexity counts (low, medium, high)
+- Calculates total estimated time in minutes
+- Determines overall complexity based on distribution
+- Returns enhanced summary with complexity breakdown and time estimates
+
+### Database Queries
+Both methods use optimized SQL queries with:
+- Eager loading of related objects (base, customer, vendor)
+- JOIN optimization for process model metadata
+- Indexed filtering on session_id, object_type, and classification
+- Proper pagination with LIMIT and OFFSET
+
+### Testing
+Created comprehensive test suite (`tests/test_three_way_merge_object_filtering.py`):
+- ✅ Basic object filtering by type
+- ✅ Filtering with classification parameter
+- ✅ Pagination with multiple pages
+- ✅ Complexity calculation in summary
+- ✅ Error handling for invalid sessions
+- ✅ All 6 tests passing
+
+### Files Modified
+- `services/merge_assistant/three_way_merge_service.py` - Added two new methods
+- `tests/test_three_way_merge_object_filtering.py` - New test file
+- `tests/base_test.py` - Fixed import path for TestConfig
+- `test_config.py` - Created test configuration file
+
+### Requirements Validated
+- ✅ Requirement 6.1: Click on object type cards to see detailed list
+- ✅ Requirement 6.2: Grid shows object name, UUID, classification, complexity
+- ✅ Requirement 6.3: Pagination with page size of 5
+- ✅ Requirement 7.1: Calculate Estimated Complexity using new rules
+- ✅ Requirement 7.2: Calculate Estimated Time using new rules
+- ✅ Requirement 7.4: Aggregate complexity across all changes
+- ✅ Requirement 7.5: Sum estimated time across all changes
+
+### Integration
+These methods integrate with:
+- ComplexityCalculatorService for complexity calculations
+- Existing database models (Change, AppianObject, ProcessModelMetadata)
+- Existing query optimization patterns (indexes, eager loading)
+- Existing logging infrastructure
+
+### Status
+✅ **COMPLETED** - Task 5 from merge-assistant-report-generation spec completed successfully
+
+
+---
+
+## 2025-11-25 - Merge Assistant Report Generation: Interactive Breakdown Section Implementation
+
+### Feature
+Implemented interactive breakdown section with object grid for the merge assistant summary page (Task 9).
+
+### Implementation Details
+
+**1. Made breakdown items clickable:**
+- Added `clickable` class to all breakdown items
+- Added `data-object-type` and `data-classification` attributes
+- Added `onclick` handlers to trigger grid display
+- Added hover effects and active state styling
+
+**2. Implemented JavaScript for AJAX requests:**
+- Created `showObjectGrid()` function to handle breakdown item clicks
+- Implemented `fetchObjects()` function to make AJAX calls to the API endpoint
+- Added support for toggling (clicking same item twice hides grid)
+- Implemented logic to replace grid when different item is clicked
+- Added proper error handling for failed requests
+
+**3. Created object grid rendering:**
+- Implemented `renderObjectGrid()` function to display objects in a table
+- Grid shows: Object Name, UUID, Classification, Complexity
+- Added color-coded badges for classification (green for NO_CONFLICT, red for CONFLICT, blue for CUSTOMER_ONLY)
+- Added color-coded badges for complexity (green for Low, yellow for Medium, red for High)
+- Grid displays below the breakdown cards within each tab panel
+
+**4. Implemented pagination controls:**
+- Added pagination UI with Previous/Next buttons
+- Shows current page and total pages
+- Implemented `changePage()` function to navigate between pages
+- Page size fixed at 5 objects per page
+- Pagination only appears when total pages > 1
+
+**5. Added close functionality:**
+- Added close icon (X) in grid header
+- Implemented `hideObjectGrid()` function
+- Removes active state from breakdown items when closed
+- Hides grid container when closed
+
+**6. Reused existing styling patterns:**
+- Used consistent color scheme (purple theme)
+- Followed existing card and table styling
+- Maintained responsive design patterns
+- Used Font Awesome icons consistently
+
+### CSS Additions
+- `.breakdown-item.clickable` - Cursor pointer and hover effects
+- `.breakdown-item.active` - Active state styling
+- `.object-grid-container` - Grid container styling
+- `.object-grid-header` - Grid header with title and close button
+- `.object-grid-table` - Table styling with hover effects
+- `.classification-badge` - Color-coded classification badges
+- `.complexity-badge` - Color-coded complexity badges
+- `.pagination-controls` - Pagination button styling
+
+### JavaScript Functions
+- `showObjectGrid(objectType, classification, clickedElement)` - Main handler for breakdown item clicks
+- `hideObjectGrid(category)` - Hides the grid and resets state
+- `fetchObjects(sessionId, objectType, classification, page, gridContainer)` - Makes AJAX request
+- `renderObjectGrid(data, gridContainer)` - Renders the table with objects
+- `changePage(newPage)` - Handles pagination
+- `escapeHtml(text)` - Prevents XSS attacks
+
+### Bug Fix
+Fixed API response handling - the endpoint returns data wrapped in a `data` object, so updated `fetchObjects()` to extract `response.data` before passing to `renderObjectGrid()`.
+
+### Testing
+Validated using Chrome DevTools:
+- ✅ Breakdown items are clickable and show correct data attributes
+- ✅ Clicking an item displays the object grid with loading state
+- ✅ Grid loads with correct data from API (object name, UUID, classification, complexity)
+- ✅ Close button hides the grid and removes active state
+- ✅ Clicking different items replaces the current grid
+- ✅ Clicking same item twice toggles the grid off
+- ✅ Tab switching works correctly (No Conflicts, Conflicts, Customer Only)
+- ✅ All badges display with correct colors
+- ✅ Pagination controls appear when needed (tested with single object, no pagination shown)
+
+### Files Modified
+- `templates/merge_assistant/summary.html` - Added interactive grid functionality, CSS, and JavaScript
+
+### Requirements Validated
+- ✅ 6.1: Click handlers on object type cards
+- ✅ 6.2: Grid shows object name, UUID, classification, complexity
+- ✅ 6.3: Pagination with page size of 5
+- ✅ 6.4: Close icon to hide grid
+- ✅ 6.5: Grid hides when close icon clicked
+- ✅ 6.6: Grid replaces when different card clicked
+
+### Status
+✅ COMPLETED - All functionality working as specified

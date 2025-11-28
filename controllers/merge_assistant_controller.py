@@ -270,8 +270,13 @@ class MergeAssistantController(BaseController):
                 logger.log_workflow_start()
             elif session.status == 'in_progress':
                 # If already in progress, check if we need to restart from beginning
-                ordered_changes = self.merge_service.get_ordered_changes(session_id)
-                if session.current_change_index >= len(ordered_changes):
+                # Use simple count query instead of loading all changes
+                from models import Change
+                workflow_count = Change.query.filter(
+                    Change.session_id == session_id,
+                    Change.classification != 'CUSTOMER_ONLY'
+                ).count()
+                if session.current_change_index >= workflow_count:
                     # Reset to beginning if we're past the end
                     session.current_change_index = 0
                     db.session.commit()
@@ -296,14 +301,18 @@ class MergeAssistantController(BaseController):
                 self.flash_error('Session not found')
                 return self.redirect_to('merge_assistant.list_sessions')
             
-            # Get ordered changes
-            ordered_changes = self.merge_service.get_ordered_changes(session_id)
+            # Get total count first (fast query)
+            from models import Change
+            total_changes = Change.query.filter(
+                Change.session_id == session_id,
+                Change.classification != 'CUSTOMER_ONLY'
+            ).count()
             
             # Debug logging
-            print(f"🔍 DEBUG: Viewing change {change_index} of {len(ordered_changes)}")
+            print(f"🔍 DEBUG: Viewing change {change_index} of {total_changes}")
             
-            if change_index < 0 or change_index >= len(ordered_changes):
-                print(f"❌ DEBUG: Invalid change index {change_index}, total: {len(ordered_changes)}")
+            if change_index < 0 or change_index >= total_changes:
+                print(f"❌ DEBUG: Invalid change index {change_index}, total: {total_changes}")
                 self.flash_error('Invalid change index')
                 return self.redirect_to(
                     'merge_assistant.view_summary',
@@ -314,15 +323,28 @@ class MergeAssistantController(BaseController):
             session.current_change_index = change_index
             db.session.commit()
             
-            # Get the specific change
-            change = ordered_changes[change_index]
+            # Get the specific change (paginated - just one change)
+            ordered_changes = self.merge_service.get_ordered_changes(
+                session_id, 
+                page=change_index + 1,  # 1-indexed
+                page_size=1
+            )
+            
+            if not ordered_changes:
+                self.flash_error('Change not found')
+                return self.redirect_to(
+                    'merge_assistant.view_summary',
+                    session_id=session_id
+                )
+            
+            change = ordered_changes[0]
             print(f"📋 DEBUG: Change name: {change.get('name')}, type: {change.get('type')}")
             print(f"📋 DEBUG: Review status: {change.get('review_status')}")
             
             # Calculate navigation info
             has_previous = change_index > 0
-            has_next = change_index < len(ordered_changes) - 1
-            is_last = change_index == len(ordered_changes) - 1
+            has_next = change_index < total_changes - 1
+            is_last = change_index == total_changes - 1
             
             print(f"✅ DEBUG: Rendering template for change {change_index}")
             return self.render(
@@ -330,7 +352,7 @@ class MergeAssistantController(BaseController):
                 session=session,
                 change=change,
                 change_index=change_index,
-                total_changes=len(ordered_changes),
+                total_changes=total_changes,
                 has_previous=has_previous,
                 has_next=has_next,
                 is_last=is_last
@@ -597,6 +619,208 @@ class MergeAssistantController(BaseController):
                 'merge_assistant.generate_report',
                 session_id=session_id
             )
+    
+    def export_report_excel_handler(self, session_id: int):
+        """
+        Generate and download Excel report.
+        
+        This endpoint generates a comprehensive Excel report containing:
+        - All changes with complexity analysis
+        - Time estimates
+        - Change descriptions
+        - SAIL code changes
+        
+        The report is generated using ReportExportService and returned
+        as a downloadable Excel file.
+        
+        Args:
+            session_id: Merge session ID
+            
+        Returns:
+            Excel file download response or error response
+        """
+        try:
+            # Verify session exists
+            session = self.merge_service.get_session(session_id)
+            
+            if not session:
+                if self.is_ajax_request(request):
+                    return self.json_error('Session not found', status_code=404)
+                self.flash_error('Session not found')
+                return self.redirect_to('merge_assistant.list_sessions')
+            
+            # Log report generation start
+            logger = create_merge_session_logger(session.reference_id)
+            logger.info(f"Starting Excel report generation for session {session_id}")
+            
+            # Generate report
+            try:
+                report_path = self.export_service.generate_report(
+                    session_id,
+                    self.merge_service
+                )
+            except ValueError as e:
+                # Handle no changes or session not found
+                error_msg = str(e)
+                logger.error(f"Report generation failed: {error_msg}")
+                
+                if self.is_ajax_request(request):
+                    return self.json_error(error_msg, status_code=400)
+                
+                self.flash_error(error_msg)
+                return self.redirect_to(
+                    'merge_assistant.view_summary',
+                    session_id=session_id
+                )
+            
+            # Log successful generation
+            logger.info(f"Excel report generated successfully: {report_path}")
+            logger.log_report_export('excel')
+            
+            # Read file and create response
+            import os
+            from flask import send_file
+            
+            if not os.path.exists(report_path):
+                error_msg = 'Report file not found after generation'
+                logger.error(error_msg)
+                
+                if self.is_ajax_request(request):
+                    return self.json_error(error_msg, status_code=500)
+                
+                self.flash_error(error_msg)
+                return self.redirect_to(
+                    'merge_assistant.view_summary',
+                    session_id=session_id
+                )
+            
+            # Generate download filename
+            filename = os.path.basename(report_path)
+            
+            # Return file for download
+            return send_file(
+                report_path,
+                mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                as_attachment=True,
+                download_name=filename
+            )
+        
+        except Exception as e:
+            # Log unexpected error
+            error_msg = f'Error generating Excel report: {str(e)}'
+            
+            if session:
+                logger = create_merge_session_logger(session.reference_id)
+                logger.error(error_msg)
+            
+            print(f"❌ ERROR in export_report_excel_handler: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            
+            if self.is_ajax_request(request):
+                return self.json_error(error_msg, status_code=500)
+            
+            self.flash_error(error_msg)
+            return self.redirect_to(
+                'merge_assistant.view_summary',
+                session_id=session_id
+            )
+    
+    def get_objects_by_type_handler(self, session_id: int, object_type: str):
+        """
+        API endpoint for filtered object list.
+        
+        This endpoint supports the interactive breakdown section where users
+        can click on object type cards to see detailed lists of objects.
+        
+        Query parameters:
+        - classification: Optional classification filter
+        - page: Page number (default: 1)
+        - page_size: Items per page (default: 5)
+        
+        Args:
+            session_id: Merge session ID
+            object_type: Object type to filter by
+            
+        Returns:
+            JSON response with objects and pagination info
+        """
+        from flask import jsonify
+        
+        try:
+            # Get query parameters
+            classification = request.args.get('classification')
+            page = int(request.args.get('page', 1))
+            page_size = int(request.args.get('page_size', 5))
+            
+            # Validate page and page_size
+            if page < 1:
+                return self.json_error(
+                    'Page number must be positive',
+                    status_code=400
+                )
+            
+            if page_size < 1 or page_size > 100:
+                return self.json_error(
+                    'Page size must be between 1 and 100',
+                    status_code=400
+                )
+            
+            # Verify session exists
+            session = self.merge_service.get_session(session_id)
+            if not session:
+                return self.json_error('Session not found', status_code=404)
+            
+            # Log request
+            logger = create_merge_session_logger(session.reference_id)
+            logger.info(
+                f"Fetching objects by type: {object_type}, "
+                f"classification: {classification}, page: {page}"
+            )
+            
+            # Get objects by type
+            try:
+                result = self.merge_service.get_objects_by_type(
+                    session_id=session_id,
+                    object_type=object_type,
+                    classification=classification,
+                    page=page,
+                    page_size=page_size
+                )
+            except ValueError as e:
+                return self.json_error(str(e), status_code=404)
+            
+            # Log success
+            logger.info(
+                f"Retrieved {len(result['objects'])} objects "
+                f"(page {result['page']} of {result['total_pages']})"
+            )
+            
+            # Return JSON response
+            return jsonify({
+                'success': True,
+                'data': result
+            })
+        
+        except ValueError as e:
+            # Handle invalid parameter types
+            return self.json_error(
+                f'Invalid parameter: {str(e)}',
+                status_code=400
+            )
+        except Exception as e:
+            # Log unexpected error
+            error_msg = f'Error fetching objects: {str(e)}'
+            
+            if session:
+                logger = create_merge_session_logger(session.reference_id)
+                logger.error(error_msg)
+            
+            print(f"❌ ERROR in get_objects_by_type_handler: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            
+            return self.json_error(error_msg, status_code=500)
 
 
 @merge_assistant_bp.route('/merge-assistant')
@@ -698,3 +922,19 @@ def export_report_json(session_id):
 def export_report_pdf(session_id):
     """Export report as PDF (HTML for printing)"""
     return get_controller().export_report_pdf_handler(session_id)
+
+
+@merge_assistant_bp.route(
+    '/merge-assistant/session/<int:session_id>/export/excel-report'
+)
+def export_report_excel(session_id):
+    """Generate and download Excel report"""
+    return get_controller().export_report_excel_handler(session_id)
+
+
+@merge_assistant_bp.route(
+    '/merge-assistant/api/session/<int:session_id>/objects/<object_type>'
+)
+def get_objects_by_type(session_id, object_type):
+    """API endpoint for filtered object list"""
+    return get_controller().get_objects_by_type_handler(session_id, object_type)

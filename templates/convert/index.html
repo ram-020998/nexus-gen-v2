@@ -7,7 +7,7 @@
 
 {% block content %}
 <div class="row">
-    <div class="col-lg-6">
+    <!-- <div class="col-lg-6"> -->
         <div class="input-panel">
             <div class="panel-header">
                 <div class="panel-icon">
@@ -27,18 +27,27 @@ CREATE TABLE IF NOT EXISTS `users` (
                 <i class="fas fa-exchange-alt"></i> Convert to Oracle
             </button>
         </div>
-    </div>
+    <!-- </div> -->
     
-    <div class="col-lg-6">
+</div>
+<br>
+<div class="row">
+    
+    <!-- <div class="col-lg-6"> -->
         <div class="results-panel">
             <div class="panel-header">
                 <div class="panel-icon">
                     <i class="fas fa-code"></i>
                 </div>
                 <h4>Oracle SQL Output</h4>
-                <button class="btn btn-outline-secondary btn-sm ms-auto" id="copyButton" onclick="copyToClipboard()" style="display: none;">
-                    <i class="fas fa-copy"></i> Copy
-                </button>
+                <div class="ms-auto d-flex gap-2">
+                    <button class="btn btn-outline-secondary btn-sm" id="formatButton" onclick="formatSql()" style="display: none;">
+                        <i class="fas fa-magic"></i> Format
+                    </button>
+                    <button class="btn btn-outline-secondary btn-sm" id="copyButton" onclick="copyToClipboard()" style="display: none;">
+                        <i class="fas fa-copy"></i> Copy
+                    </button>
+                </div>
             </div>
             <div class="results-content" id="resultsContent">
                 <div class="empty-state">
@@ -47,7 +56,7 @@ CREATE TABLE IF NOT EXISTS `users` (
                 </div>
             </div>
         </div>
-    </div>
+    <!-- </div> -->
 </div>
 
 <style>
@@ -186,6 +195,7 @@ async function convertSql() {
             const oracleSql = data.data?.oracle_sql || data.oracle_sql;
             showConversionResults(oracleSql);
             copyButton.style.display = 'inline-block';
+            document.getElementById('formatButton').style.display = 'inline-block';
             DocFlow.showNotification('SQL converted successfully!', 'success');
         } else {
             throw new Error(data.error || 'Conversion failed');
@@ -212,6 +222,126 @@ function showConversionResults(oracleSql) {
             <div class="sql-code" id="oracleSqlCode">${oracleSql}</div>
         </div>
     `;
+}
+
+function formatSql() {
+    const sqlCode = document.getElementById('oracleSqlCode');
+    if (!sqlCode) return;
+    
+    try {
+        let sql = sqlCode.textContent.trim();
+        
+        // Split by semicolons to handle multiple statements
+        const statements = sql.split(';').filter(s => s.trim());
+        const formatted = [];
+        
+        statements.forEach(statement => {
+            statement = statement.trim();
+            if (!statement) return;
+            
+            let result = '';
+            const indent = '  ';
+            
+            // Handle INSERT ALL (Oracle multi-row insert)
+            if (statement.toUpperCase().startsWith('INSERT ALL')) {
+                const lines = statement.split('\n');
+                result = 'INSERT ALL\n';
+                
+                lines.forEach((line, idx) => {
+                    if (idx === 0) return; // Skip first line (INSERT ALL)
+                    line = line.trim();
+                    if (line.toUpperCase().startsWith('INTO')) {
+                        result += indent + line + '\n';
+                    } else if (line.toUpperCase().startsWith('SELECT')) {
+                        result += line;
+                    } else if (line) {
+                        result += indent + line + '\n';
+                    }
+                });
+            }
+            // Handle INSERT INTO
+            else if (statement.toUpperCase().startsWith('INSERT INTO')) {
+                const insertMatch = statement.match(/INSERT INTO\s+(\w+)\s*\((.*?)\)\s*VALUES\s*\((.*)\)/is);
+                if (insertMatch) {
+                    const tableName = insertMatch[1];
+                    const columns = insertMatch[2];
+                    const values = insertMatch[3];
+                    
+                    result = `INSERT INTO ${tableName} (\n${indent}${columns}\n)\nVALUES (\n${indent}${values}\n)`;
+                } else {
+                    result = statement;
+                }
+            }
+            // Handle CREATE TABLE
+            else if (statement.toUpperCase().startsWith('CREATE TABLE')) {
+                const tableMatch = statement.match(/CREATE TABLE\s+(\w+)\s*\((.*)\)/is);
+                if (tableMatch) {
+                    const tableName = tableMatch[1];
+                    const columns = tableMatch[2];
+                    
+                    result = `CREATE TABLE ${tableName} (\n`;
+                    
+                    // Split columns by comma, but be careful with nested parentheses
+                    const columnDefs = [];
+                    let current = '';
+                    let parenDepth = 0;
+                    
+                    for (let char of columns) {
+                        if (char === '(') parenDepth++;
+                        if (char === ')') parenDepth--;
+                        if (char === ',' && parenDepth === 0) {
+                            columnDefs.push(current.trim());
+                            current = '';
+                        } else {
+                            current += char;
+                        }
+                    }
+                    if (current.trim()) columnDefs.push(current.trim());
+                    
+                    // Format each column definition
+                    columnDefs.forEach((col, idx) => {
+                        result += indent + col;
+                        if (idx < columnDefs.length - 1) result += ',';
+                        result += '\n';
+                    });
+                    
+                    result += ')';
+                }
+            }
+            // Handle CREATE SEQUENCE
+            else if (statement.toUpperCase().startsWith('CREATE SEQUENCE')) {
+                result = statement;
+            }
+            // Handle CREATE INDEX
+            else if (statement.toUpperCase().startsWith('CREATE INDEX')) {
+                const indexMatch = statement.match(/CREATE INDEX\s+(\w+)\s+ON\s+(\w+)\s*\((.*)\)/is);
+                if (indexMatch) {
+                    const indexName = indexMatch[1];
+                    const tableName = indexMatch[2];
+                    const columns = indexMatch[3].trim();
+                    result = `CREATE INDEX ${indexName} ON ${tableName} (\n${indent}${columns}\n)`;
+                } else {
+                    result = statement;
+                }
+            }
+            // Handle SELECT
+            else if (statement.toUpperCase().startsWith('SELECT')) {
+                result = statement;
+            }
+            // Handle other statements
+            else {
+                result = statement;
+            }
+            
+            formatted.push(result);
+        });
+        
+        sqlCode.textContent = formatted.join(';\n\n') + ';';
+        DocFlow.showNotification('SQL formatted successfully!', 'success');
+    } catch (error) {
+        console.error('Formatting error:', error);
+        DocFlow.showNotification('Failed to format SQL', 'error');
+    }
 }
 
 function copyToClipboard() {
