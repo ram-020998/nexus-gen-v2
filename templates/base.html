@@ -66,6 +66,10 @@
                     <i class="fas fa-home"></i>
                     <span>Dashboard</span>
                 </a>
+                <a href="{{ url_for('merge.sessions') }}" class="menu-item">
+                    <i class="fas fa-code-branch"></i>
+                    <span>Three-Way Merge</span>
+                </a>
                 <!-- <a href="{{ url_for('breakdown.index') }}" class="menu-item">
                     <i class="fas fa-upload"></i>
                     <span>Spec Breakdown</span>
@@ -86,14 +90,7 @@
                     <i class="fas fa-history"></i>
                     <span>Process History</span>
                 </a>
-                <a href="{{ url_for('analyzer.analyzer_home') }}" class="menu-item">
-                    <i class="fas fa-search"></i>
-                    <span>Appian Analyzer</span>
-                </a>
-                <a href="{{ url_for('merge_assistant.list_sessions') }}" class="menu-item">
-                    <i class="fas fa-code-branch"></i>
-                    <span>Merge Assistant</span>
-                </a>
+
                 <a href="{{ url_for('settings.settings_page') }}" class="menu-item">
                     <i class="fas fa-cog"></i>
                     <span>Settings</span>

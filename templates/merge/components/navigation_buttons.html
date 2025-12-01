@@ -1,0 +1,323 @@
+{# Navigation Buttons Component
+   Usage: {% include 'merge/components/navigation_buttons.html' with session=session, change=change %}
+   Parameters:
+   - session: MergeSession object
+   - change: Change object
+   - prev_change_id: ID of previous change (optional)
+   - next_change_id: ID of next change (optional)
+   - show_back: true/false (default: true)
+   - show_mark_reviewed: true/false (default: true)
+#}
+
+{% set show_back = show_back if show_back is defined else true %}
+{% set show_mark_reviewed = show_mark_reviewed if show_mark_reviewed is defined else true %}
+
+<div class="navigation-buttons-component">
+    <div class="nav-container">
+        {% if show_back %}
+        <a href="{{ url_for('merge.summary', reference_id=session.reference_id) }}" 
+           class="btn btn-outline-secondary nav-btn">
+            <i class="fas fa-arrow-left"></i>
+            <span class="btn-text">Back to Summary</span>
+        </a>
+        {% endif %}
+        
+        <div class="nav-actions">
+            {# Previous Button #}
+            {% if change.display_order > 1 and prev_change_id %}
+            <a href="{{ url_for('merge.get_change_detail', reference_id=session.reference_id, change_id=prev_change_id) }}" 
+               class="btn btn-outline-primary nav-btn"
+               title="Previous change (Left Arrow)">
+                <i class="fas fa-chevron-left"></i>
+                <span class="btn-text">Previous</span>
+            </a>
+            {% else %}
+            <button class="btn btn-outline-primary nav-btn" disabled title="No previous change">
+                <i class="fas fa-chevron-left"></i>
+                <span class="btn-text">Previous</span>
+            </button>
+            {% endif %}
+            
+            {# Mark as Reviewed Button #}
+            {% if show_mark_reviewed %}
+            <button type="button" 
+                    class="btn btn-primary nav-btn mark-reviewed-btn" 
+                    onclick="markReviewed()"
+                    title="Mark as reviewed (R key)">
+                <i class="fas fa-check"></i>
+                <span class="btn-text">Mark as Reviewed</span>
+            </button>
+            {% endif %}
+            
+            {# Next/Complete Button #}
+            {% if change.display_order < session.total_changes and next_change_id %}
+            <a href="{{ url_for('merge.get_change_detail', reference_id=session.reference_id, change_id=next_change_id) }}" 
+               class="btn btn-outline-primary nav-btn"
+               title="Next change (Right Arrow)">
+                <span class="btn-text">Next</span>
+                <i class="fas fa-chevron-right"></i>
+            </a>
+            {% else %}
+            <a href="{{ url_for('merge.summary', reference_id=session.reference_id) }}" 
+               class="btn btn-success nav-btn"
+               title="Complete review">
+                <span class="btn-text">Complete Review</span>
+                <i class="fas fa-check-double"></i>
+            </a>
+            {% endif %}
+        </div>
+    </div>
+    
+    {# Keyboard shortcuts hint #}
+    <div class="keyboard-hints">
+        <span class="hint-item">
+            <kbd>←</kbd> Previous
+        </span>
+        <span class="hint-item">
+            <kbd>→</kbd> Next
+        </span>
+        <span class="hint-item">
+            <kbd>R</kbd> Mark Reviewed
+        </span>
+    </div>
+</div>
+
+<style>
+.navigation-buttons-component {
+    background: var(--bg-card);
+    border-radius: 12px;
+    padding: 1.5rem;
+    border: 1px solid var(--border-color);
+}
+
+.nav-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.nav-actions {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.nav-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 1.25rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.nav-btn i {
+    font-size: 1rem;
+}
+
+.nav-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.nav-btn:not(:disabled):hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.btn-outline-secondary.nav-btn {
+    border-color: var(--border-color);
+    color: var(--text-secondary);
+}
+
+.btn-outline-secondary.nav-btn:hover:not(:disabled) {
+    background: rgba(139, 92, 246, 0.1);
+    border-color: var(--purple);
+    color: var(--purple);
+}
+
+.btn-outline-primary.nav-btn {
+    border-color: var(--purple);
+    color: var(--purple);
+}
+
+.btn-outline-primary.nav-btn:hover:not(:disabled) {
+    background: var(--purple);
+    color: white;
+}
+
+.btn-primary.nav-btn {
+    background: var(--purple);
+    border-color: var(--purple);
+    color: white;
+}
+
+.btn-primary.nav-btn:hover:not(:disabled) {
+    background: #7c3aed;
+    border-color: #7c3aed;
+}
+
+.btn-success.nav-btn {
+    background: var(--green);
+    border-color: var(--green);
+    color: white;
+}
+
+.btn-success.nav-btn:hover:not(:disabled) {
+    background: #059669;
+    border-color: #059669;
+}
+
+.keyboard-hints {
+    display: flex;
+    justify-content: center;
+    gap: 1.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.hint-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+kbd {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
+    color: var(--text-primary);
+    background: rgba(139, 92, 246, 0.1);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    box-shadow: 0 2px 0 rgba(0, 0, 0, 0.2);
+}
+
+/* Loading state for mark reviewed button */
+.mark-reviewed-btn.loading {
+    pointer-events: none;
+    opacity: 0.7;
+}
+
+.mark-reviewed-btn.loading i {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .nav-container {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .nav-actions {
+        flex-direction: column;
+        width: 100%;
+    }
+    
+    .nav-btn {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .btn-text {
+        display: inline;
+    }
+    
+    .keyboard-hints {
+        display: none;
+    }
+}
+
+@media (max-width: 480px) {
+    .btn-text {
+        display: none;
+    }
+    
+    .nav-btn {
+        padding: 0.625rem;
+        justify-content: center;
+    }
+}
+</style>
+
+<script>
+function markReviewed() {
+    const btn = document.querySelector('.mark-reviewed-btn');
+    btn.classList.add('loading');
+    btn.disabled = true;
+    
+    fetch(`/merge/{{ session.reference_id }}/changes/{{ change.id }}/review`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ reviewed: true })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Navigate to next change or summary
+            {% if change.display_order < session.total_changes and next_change_id %}
+                window.location.href = "{{ url_for('merge.get_change_detail', reference_id=session.reference_id, change_id=next_change_id) }}";
+            {% else %}
+                window.location.href = "{{ url_for('merge.summary', reference_id=session.reference_id) }}";
+            {% endif %}
+        } else {
+            alert('Error marking as reviewed: ' + data.message);
+            btn.classList.remove('loading');
+            btn.disabled = false;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred while marking as reviewed');
+        btn.classList.remove('loading');
+        btn.disabled = false;
+    });
+}
+
+// Keyboard shortcuts
+document.addEventListener('keydown', function(e) {
+    // Ignore if user is typing in an input/textarea
+    if (e.target.matches('textarea, input')) {
+        return;
+    }
+    
+    // Left arrow - Previous
+    if (e.key === 'ArrowLeft') {
+        {% if change.display_order > 1 and prev_change_id %}
+            window.location.href = "{{ url_for('merge.get_change_detail', reference_id=session.reference_id, change_id=prev_change_id) }}";
+        {% endif %}
+    }
+    
+    // Right arrow - Next
+    if (e.key === 'ArrowRight') {
+        {% if change.display_order < session.total_changes and next_change_id %}
+            window.location.href = "{{ url_for('merge.get_change_detail', reference_id=session.reference_id, change_id=next_change_id) }}";
+        {% endif %}
+    }
+    
+    // R key - Mark as reviewed
+    if (e.key === 'r' || e.key === 'R') {
+        markReviewed();
+    }
+});
+</script>

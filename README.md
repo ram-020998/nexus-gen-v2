@@ -73,11 +73,12 @@ nexus-gen-v2/
 │   │
 │   ├── comparison/              # Comparison orchestration
 │   │   ├── comparison_service.py  # Main comparison workflow
-│   │   ├── blueprint_analyzer.py  # Blueprint generation
+│   │   ├── blueprint_analyzer.py  # Blueprint generation (DEPRECATED)
 │   │   └── comparison_engine.py   # Comparison logic
 │   │
 │   ├── merge/                   # Three-way merge services
-│   │   ├── three_way_merge_service.py  # Merge orchestration
+│   │   ├── three_way_merge_service.py  # Merge orchestration (NEW)
+│   │   ├── direct_package_loader.py    # Package loading (replaces blueprints)
 │   │   ├── package_service.py   # Package analysis
 │   │   └── change_service.py    # Change tracking
 │   │

@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+
+{% block title %}Server Error - NexusGen{% endblock %}
+
+{% block page_title %}
+    <i class="fas fa-exclamation-circle text-danger"></i> Server Error
+{% endblock %}
+
+{% block page_subtitle %}
+    Something went wrong on our end. We're working to fix it.
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow-sm">
+                <div class="card-body text-center py-5">
+                    <div class="mb-4">
+                        <i class="fas fa-server fa-5x text-danger opacity-50"></i>
+                    </div>
+                    
+                    <h2 class="mb-3">500 - Internal Server Error</h2>
+                    
+                    {% if message %}
+                    <div class="alert alert-danger mx-auto" style="max-width: 600px;" role="alert">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        {{ message }}
+                    </div>
+                    {% else %}
+                    <p class="text-muted mb-4">
+                        An unexpected error occurred while processing your request.
+                    </p>
+                    {% endif %}
+                    
+                    <div class="alert alert-info mx-auto" style="max-width: 600px;" role="alert">
+                        <i class="fas fa-info-circle me-2"></i>
+                        The error has been logged and our team has been notified.
+                    </div>
+                    
+                    <div class="d-flex gap-3 justify-content-center mt-4">
+                        <button onclick="window.history.back()" class="btn btn-primary">
+                            <i class="fas fa-arrow-left me-2"></i>
+                            Go Back
+                        </button>
+                        
+                        <button onclick="window.location.reload()" class="btn btn-outline-primary">
+                            <i class="fas fa-redo me-2"></i>
+                            Try Again
+                        </button>
+                        
+                        <a href="{{ url_for('merge.sessions') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-list me-2"></i>
+                            View Sessions
+                        </a>
+                        
+                        <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-home me-2"></i>
+                            Dashboard
+                        </a>
+                    </div>
+                    
+                    <div class="mt-5 pt-4 border-top">
+                        <h5 class="mb-3">What You Can Do</h5>
+                        <div class="row g-3 text-start">
+                            <div class="col-md-6">
+                                <div class="p-3 border rounded">
+                                    <h6><i class="fas fa-check-circle text-success me-2"></i>Try Again</h6>
+                                    <p class="mb-0 small text-muted">
+                                        The issue might be temporary. Click "Try Again" to retry your request.
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="p-3 border rounded">
+                                    <h6><i class="fas fa-clock text-warning me-2"></i>Wait a Moment</h6>
+                                    <p class="mb-0 small text-muted">
+                                        If the system is under heavy load, waiting a few moments before retrying may help.
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="p-3 border rounded">
+                                    <h6><i class="fas fa-file-alt text-info me-2"></i>Check Your Data</h6>
+                                    <p class="mb-0 small text-muted">
+                                        Ensure uploaded files are valid Appian packages and not corrupted.
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="p-3 border rounded">
+                                    <h6><i class="fas fa-life-ring text-primary me-2"></i>Contact Support</h6>
+                                    <p class="mb-0 small text-muted">
+                                        If the problem persists, please contact your system administrator.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

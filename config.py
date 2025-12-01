@@ -45,6 +45,16 @@ class Config:
     
     SQLALCHEMY_TRACK_MODIFICATIONS: bool = False
     """Disable SQLAlchemy modification tracking for performance"""
+    
+    # Connection Pooling Settings (Requirement 11.5)
+    SQLALCHEMY_ENGINE_OPTIONS: dict = {
+        'pool_size': 10,  # Number of connections to maintain in the pool
+        'pool_recycle': 3600,  # Recycle connections after 1 hour
+        'pool_pre_ping': True,  # Verify connections before using them
+        'max_overflow': 20,  # Maximum number of connections that can be created beyond pool_size
+        'pool_timeout': 30,  # Timeout for getting a connection from the pool
+    }
+    """SQLAlchemy engine options for connection pooling and performance"""
 
     # File Upload Settings
     MAX_CONTENT_LENGTH: int = 200 * 1024 * 1024  # 200MB (to accommodate large Appian packages)
@@ -66,9 +76,7 @@ class Config:
     PROMPT_FOLDER: ClassVar[Path] = BASE_DIR / 'prompts'
     """Directory for AI prompt templates"""
     
-    # Merge Assistant Settings
-    MERGE_UPLOAD_FOLDER: ClassVar[Path] = BASE_DIR / 'uploads' / 'merge_assistant'
-    """Directory for merge assistant file uploads"""
+
     
     MERGE_MAX_FILE_SIZE: int = 100 * 1024 * 1024  # 100MB for Appian packages
     """Maximum file size for merge assistant uploads in bytes (100MB)"""
@@ -99,7 +107,7 @@ class Config:
         Raises:
             OSError: If directory creation fails due to permissions or other OS errors
         """
-        for folder in [cls.UPLOAD_FOLDER, cls.OUTPUT_FOLDER, cls.PROMPT_FOLDER, cls.MERGE_UPLOAD_FOLDER]:
+        for folder in [cls.UPLOAD_FOLDER, cls.OUTPUT_FOLDER, cls.PROMPT_FOLDER]:
             folder.mkdir(parents=True, exist_ok=True)
     
     @classmethod
@@ -210,26 +218,22 @@ class Config:
         return cls.SECRET_KEY != 'dev-secret-key-change-in-production'
     
     @classmethod
-    def get_upload_path(cls, filename: str, merge_assistant: bool = False) -> Path:
+    def get_upload_path(cls, filename: str) -> Path:
         """
         Get full path for uploaded file.
         
-        Constructs the full filesystem path for an uploaded file based on
-        whether it's a regular upload or a merge assistant upload.
+        Constructs the full filesystem path for an uploaded file.
         
         Args:
             filename: Name of the uploaded file
-            merge_assistant: If True, use merge assistant upload folder
         
         Returns:
             Path: Full path to the uploaded file
         
         Example:
             >>> path = Config.get_upload_path('document.txt')
-            >>> merge_path = Config.get_upload_path('package.zip', merge_assistant=True)
         """
-        folder = cls.MERGE_UPLOAD_FOLDER if merge_assistant else cls.UPLOAD_FOLDER
-        return folder / filename
+        return cls.UPLOAD_FOLDER / filename
     
     @classmethod
     def get_output_path(cls, filename: str) -> Path:

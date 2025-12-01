@@ -1,0 +1,442 @@
+{% extends "base.html" %}
+
+{% block title %}Three-Way Merge - Upload Packages{% endblock %}
+
+{% block breadcrumbs %}
+<nav class="breadcrumb-nav">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}"><i class="fas fa-home"></i> Home</a></li>
+        <li class="breadcrumb-item active">Three-Way Merge</li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block page_title %}Three-Way Merge Analysis{% endblock %}
+{% block page_subtitle %}Upload three Appian packages to analyze vendor changes and customer modifications{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="upload-panel">
+            <div class="panel-header">
+                <div class="panel-icon">
+                    <i class="fas fa-code-branch"></i>
+                </div>
+                <h4>Package Upload</h4>
+                <p class="text-muted mb-0">Upload three ZIP files to begin merge analysis</p>
+            </div>
+            
+            <form id="mergeUploadForm" enctype="multipart/form-data">
+                <div class="row g-4">
+                    <!-- Package A: Base Version -->
+                    <div class="col-md-4">
+                        <div class="package-upload-zone" id="baseZone" data-package="base">
+                            <div class="upload-content">
+                                <div class="package-label">
+                                    <span class="badge bg-primary">Package A</span>
+                                    <h5>Base Version</h5>
+                                    <p class="text-muted">Original vendor package</p>
+                                </div>
+                                <div class="upload-icon">
+                                    <i class="fas fa-cloud-upload-alt"></i>
+                                </div>
+                                <p class="upload-instruction">Drop ZIP file here or click to browse</p>
+                                <input type="file" id="basePackage" name="base_package" accept=".zip" style="display: none;">
+                                <button type="button" class="btn btn-outline-primary btn-sm" onclick="document.getElementById('basePackage').click()">
+                                    Choose File
+                                </button>
+                                <div class="file-info mt-3" style="display: none;">
+                                    <i class="fas fa-file-archive text-primary"></i>
+                                    <span class="filename"></span>
+                                    <button type="button" class="btn-remove" onclick="removeFile('base')">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Package B: Customized Version -->
+                    <div class="col-md-4">
+                        <div class="package-upload-zone" id="customizedZone" data-package="customized">
+                            <div class="upload-content">
+                                <div class="package-label">
+                                    <span class="badge bg-success">Package B</span>
+                                    <h5>Customized Version</h5>
+                                    <p class="text-muted">Customer modified package</p>
+                                </div>
+                                <div class="upload-icon">
+                                    <i class="fas fa-cloud-upload-alt"></i>
+                                </div>
+                                <p class="upload-instruction">Drop ZIP file here or click to browse</p>
+                                <input type="file" id="customizedPackage" name="customized_package" accept=".zip" style="display: none;">
+                                <button type="button" class="btn btn-outline-success btn-sm" onclick="document.getElementById('customizedPackage').click()">
+                                    Choose File
+                                </button>
+                                <div class="file-info mt-3" style="display: none;">
+                                    <i class="fas fa-file-archive text-success"></i>
+                                    <span class="filename"></span>
+                                    <button type="button" class="btn-remove" onclick="removeFile('customized')">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Package C: New Vendor Version -->
+                    <div class="col-md-4">
+                        <div class="package-upload-zone" id="newVendorZone" data-package="new_vendor">
+                            <div class="upload-content">
+                                <div class="package-label">
+                                    <span class="badge bg-info">Package C</span>
+                                    <h5>New Vendor Version</h5>
+                                    <p class="text-muted">Latest vendor package</p>
+                                </div>
+                                <div class="upload-icon">
+                                    <i class="fas fa-cloud-upload-alt"></i>
+                                </div>
+                                <p class="upload-instruction">Drop ZIP file here or click to browse</p>
+                                <input type="file" id="newVendorPackage" name="new_vendor_package" accept=".zip" style="display: none;">
+                                <button type="button" class="btn btn-outline-info btn-sm" onclick="document.getElementById('newVendorPackage').click()">
+                                    Choose File
+                                </button>
+                                <div class="file-info mt-3" style="display: none;">
+                                    <i class="fas fa-file-archive text-info"></i>
+                                    <span class="filename"></span>
+                                    <button type="button" class="btn-remove" onclick="removeFile('newVendor')">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="text-center mt-4">
+                    <button type="submit" id="startAnalysisBtn" class="btn btn-primary btn-lg" disabled>
+                        <i class="fas fa-play-circle"></i> Start Analysis
+                    </button>
+                </div>
+                
+                <div id="processingStatus" class="processing-status mt-4" style="display: none;">
+                    <div class="text-center">
+                        <div class="spinner-border text-primary mb-3" role="status">
+                            <span class="visually-hidden">Processing...</span>
+                        </div>
+                        <h5>Processing Packages</h5>
+                        <p class="text-muted" id="processingText">Extracting and analyzing packages...</p>
+                        <div class="progress mt-3" style="max-width: 500px; margin: 0 auto;">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 100%"></div>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+.upload-panel {
+    background: var(--bg-card);
+    border-radius: 12px;
+    padding: 2rem;
+    border: 1px solid #374151;
+}
+
+.panel-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 2rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid #374151;
+}
+
+.panel-icon {
+    width: 48px;
+    height: 48px;
+    background: rgba(139, 92, 246, 0.2);
+    color: var(--purple);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+}
+
+.package-upload-zone {
+    border: 2px dashed #374151;
+    border-radius: 12px;
+    padding: 2rem 1rem;
+    text-align: center;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    min-height: 350px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(139, 92, 246, 0.03);
+}
+
+.package-upload-zone:hover {
+    border-color: var(--purple);
+    background: rgba(139, 92, 246, 0.08);
+}
+
+.package-upload-zone.dragover {
+    border-color: var(--purple);
+    background: rgba(139, 92, 246, 0.15);
+    transform: scale(1.02);
+}
+
+.package-upload-zone.has-file {
+    border-color: var(--green);
+    background: rgba(16, 185, 129, 0.08);
+}
+
+.upload-content {
+    width: 100%;
+}
+
+.package-label {
+    margin-bottom: 1.5rem;
+}
+
+.package-label .badge {
+    font-size: 0.75rem;
+    padding: 0.35rem 0.75rem;
+    margin-bottom: 0.5rem;
+}
+
+.package-label h5 {
+    margin: 0.5rem 0 0.25rem 0;
+    color: var(--text-primary);
+}
+
+.package-label p {
+    font-size: 0.875rem;
+    margin: 0;
+}
+
+.upload-icon {
+    font-size: 3rem;
+    color: var(--purple);
+    margin-bottom: 1rem;
+}
+
+.upload-instruction {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    margin-bottom: 1rem;
+}
+
+.file-info {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    background: rgba(139, 92, 246, 0.1);
+    border-radius: 8px;
+}
+
+.file-info .filename {
+    color: var(--text-primary);
+    font-weight: 500;
+    font-size: 0.875rem;
+}
+
+.btn-remove {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 0.25rem 0.5rem;
+    transition: color 0.2s;
+}
+
+.btn-remove:hover {
+    color: #ef4444;
+}
+
+.processing-status {
+    padding: 2rem;
+    background: rgba(139, 92, 246, 0.05);
+    border-radius: 12px;
+    border: 1px solid rgba(139, 92, 246, 0.2);
+}
+
+.progress {
+    height: 8px;
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+}
+
+.progress-bar {
+    background: linear-gradient(90deg, var(--purple), var(--teal));
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// File storage
+const files = {
+    base: null,
+    customized: null,
+    newVendor: null
+};
+
+// Initialize drag and drop for all zones
+document.addEventListener('DOMContentLoaded', function() {
+    const zones = ['base', 'customized', 'newVendor'];
+    
+    zones.forEach(zone => {
+        const zoneElement = document.getElementById(`${zone}Zone`);
+        const input = document.getElementById(`${zone}Package`);
+        
+        if (!zoneElement || !input) {
+            console.error(`Missing elements for zone: ${zone}`);
+            return;
+        }
+        
+        // Drag and drop events
+        zoneElement.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            zoneElement.classList.add('dragover');
+        });
+        
+        zoneElement.addEventListener('dragleave', () => {
+            zoneElement.classList.remove('dragover');
+        });
+        
+        zoneElement.addEventListener('drop', (e) => {
+            e.preventDefault();
+            zoneElement.classList.remove('dragover');
+            
+            const droppedFiles = e.dataTransfer.files;
+            if (droppedFiles.length > 0) {
+                handleFileSelect(zone, droppedFiles[0]);
+            }
+        });
+        
+        // Click to upload
+        zoneElement.addEventListener('click', (e) => {
+            if (!e.target.closest('.btn-remove')) {
+                input.click();
+            }
+        });
+        
+        // File input change
+        input.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFileSelect(zone, e.target.files[0]);
+            }
+        });
+    });
+    
+    // Form submission
+    document.getElementById('mergeUploadForm').addEventListener('submit', handleSubmit);
+});
+
+function handleFileSelect(packageType, file) {
+    // Validate file type
+    if (!file.name.endsWith('.zip')) {
+        alert('Please select a ZIP file');
+        return;
+    }
+    
+    // Store file
+    files[packageType] = file;
+    
+    // Update UI
+    const zone = document.getElementById(`${packageType}Zone`);
+    const fileInfo = zone.querySelector('.file-info');
+    const uploadIcon = zone.querySelector('.upload-icon');
+    const uploadInstruction = zone.querySelector('.upload-instruction');
+    const chooseBtn = zone.querySelector('.btn');
+    
+    zone.classList.add('has-file');
+    fileInfo.style.display = 'flex';
+    fileInfo.querySelector('.filename').textContent = file.name;
+    uploadIcon.style.display = 'none';
+    uploadInstruction.style.display = 'none';
+    chooseBtn.style.display = 'none';
+    
+    // Check if all files are selected
+    checkAllFilesSelected();
+}
+
+function removeFile(packageType) {
+    files[packageType] = null;
+    
+    // Reset file input
+    const input = document.getElementById(`${packageType}Package`);
+    input.value = '';
+    
+    // Update UI
+    const zone = document.getElementById(`${packageType}Zone`);
+    const fileInfo = zone.querySelector('.file-info');
+    const uploadIcon = zone.querySelector('.upload-icon');
+    const uploadInstruction = zone.querySelector('.upload-instruction');
+    const chooseBtn = zone.querySelector('.btn');
+    
+    zone.classList.remove('has-file');
+    fileInfo.style.display = 'none';
+    uploadIcon.style.display = 'block';
+    uploadInstruction.style.display = 'block';
+    chooseBtn.style.display = 'inline-block';
+    
+    // Check if all files are selected
+    checkAllFilesSelected();
+}
+
+function checkAllFilesSelected() {
+    const allSelected = files.base && files.customized && files.newVendor;
+    document.getElementById('startAnalysisBtn').disabled = !allSelected;
+}
+
+async function handleSubmit(e) {
+    e.preventDefault();
+    
+    // Disable button and show processing
+    const btn = document.getElementById('startAnalysisBtn');
+    btn.disabled = true;
+    document.getElementById('processingStatus').style.display = 'block';
+    
+    // Create form data
+    const formData = new FormData();
+    formData.append('base_package', files.base);
+    formData.append('customized_package', files.customized);
+    formData.append('new_vendor_package', files.newVendor);
+    
+    try {
+        // Update status
+        document.getElementById('processingText').textContent = 'Uploading packages...';
+        
+        // Submit to server
+        const response = await fetch('/merge/create', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            // Redirect to summary page
+            window.location.href = `/merge/${result.data.reference_id}/summary`;
+        } else {
+            alert('Error: ' + result.message);
+            btn.disabled = false;
+            document.getElementById('processingStatus').style.display = 'none';
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('An error occurred while processing the packages');
+        btn.disabled = false;
+        document.getElementById('processingStatus').style.display = 'none';
+    }
+}
+</script>
+{% endblock %}

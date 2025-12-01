@@ -1,0 +1,315 @@
+{# SAIL Code Diff Component
+   Usage: {% include 'merge/components/sail_code_diff.html' with base_code='...', vendor_code='...', customer_code='...' %}
+   Parameters:
+   - base_code: SAIL code from base version (Package A)
+   - vendor_code: SAIL code from vendor version (Package C)
+   - customer_code: SAIL code from customer version (Package B) - optional
+   - title: Optional title for the diff section
+   - show_tabs: true/false (default: true) - show tabbed view
+#}
+
+{% set show_tabs = show_tabs if show_tabs is defined else true %}
+{% set title = title|default('SAIL Code Comparison') %}
+
+<div class="sail-code-diff-component">
+    {% if title %}
+    <h6 class="diff-title">
+        <i class="fas fa-code"></i> {{ title }}
+    </h6>
+    {% endif %}
+    
+    {% if show_tabs %}
+    <ul class="nav nav-tabs diff-tabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="base-tab" data-bs-toggle="tab" 
+                    data-bs-target="#base-code" type="button" role="tab">
+                <i class="fas fa-file-code"></i> Base (A)
+            </button>
+        </li>
+        {% if customer_code %}
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="customer-tab" data-bs-toggle="tab" 
+                    data-bs-target="#customer-code" type="button" role="tab">
+                <i class="fas fa-user-edit"></i> Customer (B)
+            </button>
+        </li>
+        {% endif %}
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="vendor-tab" data-bs-toggle="tab" 
+                    data-bs-target="#vendor-code" type="button" role="tab">
+                <i class="fas fa-building"></i> Vendor (C)
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="diff-tab" data-bs-toggle="tab" 
+                    data-bs-target="#diff-view" type="button" role="tab">
+                <i class="fas fa-exchange-alt"></i> Side-by-Side
+            </button>
+        </li>
+    </ul>
+    
+    <div class="tab-content diff-content">
+        <div class="tab-pane fade show active" id="base-code" role="tabpanel">
+            <div class="code-viewer">
+                <div class="code-header">
+                    <span class="code-label">Base Version (Package A)</span>
+                    <button class="btn btn-sm btn-outline-secondary copy-btn" 
+                            onclick="copyCode('base-code-content')">
+                        <i class="fas fa-copy"></i> Copy
+                    </button>
+                </div>
+                <pre class="code-block"><code id="base-code-content" class="language-sail">{{ base_code or 'No code available' }}</code></pre>
+            </div>
+        </div>
+        
+        {% if customer_code %}
+        <div class="tab-pane fade" id="customer-code" role="tabpanel">
+            <div class="code-viewer">
+                <div class="code-header">
+                    <span class="code-label">Customer Version (Package B)</span>
+                    <button class="btn btn-sm btn-outline-secondary copy-btn" 
+                            onclick="copyCode('customer-code-content')">
+                        <i class="fas fa-copy"></i> Copy
+                    </button>
+                </div>
+                <pre class="code-block"><code id="customer-code-content" class="language-sail">{{ customer_code }}</code></pre>
+            </div>
+        </div>
+        {% endif %}
+        
+        <div class="tab-pane fade" id="vendor-code" role="tabpanel">
+            <div class="code-viewer">
+                <div class="code-header">
+                    <span class="code-label">Vendor Version (Package C)</span>
+                    <button class="btn btn-sm btn-outline-secondary copy-btn" 
+                            onclick="copyCode('vendor-code-content')">
+                        <i class="fas fa-copy"></i> Copy
+                    </button>
+                </div>
+                <pre class="code-block"><code id="vendor-code-content" class="language-sail">{{ vendor_code or 'No code available' }}</code></pre>
+            </div>
+        </div>
+        
+        <div class="tab-pane fade" id="diff-view" role="tabpanel">
+            <div class="side-by-side-diff">
+                <div class="diff-column">
+                    <div class="code-header">
+                        <span class="code-label">Base (A)</span>
+                    </div>
+                    <pre class="code-block"><code class="language-sail">{{ base_code or 'No code available' }}</code></pre>
+                </div>
+                <div class="diff-column">
+                    <div class="code-header">
+                        <span class="code-label">Vendor (C)</span>
+                    </div>
+                    <pre class="code-block"><code class="language-sail">{{ vendor_code or 'No code available' }}</code></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    {# Simple non-tabbed view #}
+    <div class="simple-diff">
+        <div class="code-viewer">
+            <div class="code-header">
+                <span class="code-label">SAIL Code</span>
+                <button class="btn btn-sm btn-outline-secondary copy-btn" 
+                        onclick="copyCode('simple-code-content')">
+                    <i class="fas fa-copy"></i> Copy
+                </button>
+            </div>
+            <pre class="code-block"><code id="simple-code-content" class="language-sail">{{ vendor_code or base_code or 'No code available' }}</code></pre>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.sail-code-diff-component {
+    background: var(--bg-card);
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+}
+
+.diff-title {
+    margin: 0;
+    padding: 1rem 1.5rem;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    border-bottom: 1px solid var(--border-color);
+    background: rgba(139, 92, 246, 0.05);
+}
+
+.diff-tabs {
+    border-bottom: 1px solid var(--border-color);
+    background: rgba(139, 92, 246, 0.03);
+    padding: 0 1rem;
+}
+
+.diff-tabs .nav-link {
+    color: var(--text-secondary);
+    border: none;
+    padding: 0.75rem 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    border-bottom: 2px solid transparent;
+}
+
+.diff-tabs .nav-link:hover {
+    color: var(--text-primary);
+    background: rgba(139, 92, 246, 0.05);
+}
+
+.diff-tabs .nav-link.active {
+    color: var(--purple);
+    background: transparent;
+    border-bottom-color: var(--purple);
+}
+
+.diff-content {
+    padding: 0;
+}
+
+.code-viewer {
+    background: var(--bg-primary);
+}
+
+.code-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    background: rgba(139, 92, 246, 0.08);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.code-label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.copy-btn {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+    border-color: var(--border-color);
+    color: var(--text-secondary);
+}
+
+.copy-btn:hover {
+    background: rgba(139, 92, 246, 0.1);
+    border-color: var(--purple);
+    color: var(--purple);
+}
+
+.code-block {
+    margin: 0;
+    padding: 1.5rem;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
+    font-size: 0.875rem;
+    line-height: 1.6;
+    overflow-x: auto;
+    max-height: 600px;
+    overflow-y: auto;
+}
+
+.code-block code {
+    color: var(--text-primary);
+    background: transparent;
+}
+
+.side-by-side-diff {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: var(--border-color);
+}
+
+.diff-column {
+    background: var(--bg-primary);
+}
+
+.diff-column .code-block {
+    max-height: 600px;
+}
+
+/* Syntax highlighting for SAIL */
+.language-sail .keyword {
+    color: #c678dd;
+}
+
+.language-sail .function {
+    color: #61afef;
+}
+
+.language-sail .string {
+    color: #98c379;
+}
+
+.language-sail .number {
+    color: #d19a66;
+}
+
+.language-sail .comment {
+    color: #5c6370;
+    font-style: italic;
+}
+
+/* Light theme adjustments */
+[data-theme="light"] .code-block {
+    background: #f8f9fa;
+    color: #1e293b;
+}
+
+[data-theme="light"] .code-block code {
+    color: #1e293b;
+}
+
+[data-theme="light"] .code-header {
+    background: rgba(139, 92, 246, 0.05);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .side-by-side-diff {
+        grid-template-columns: 1fr;
+    }
+    
+    .diff-tabs {
+        overflow-x: auto;
+        flex-wrap: nowrap;
+    }
+}
+</style>
+
+<script>
+function copyCode(elementId) {
+    const codeElement = document.getElementById(elementId);
+    const text = codeElement.textContent;
+    
+    navigator.clipboard.writeText(text).then(() => {
+        // Show success feedback
+        const btn = event.target.closest('.copy-btn');
+        const originalHTML = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+        btn.classList.add('btn-success');
+        
+        setTimeout(() => {
+            btn.innerHTML = originalHTML;
+            btn.classList.remove('btn-success');
+        }, 2000);
+    }).catch(err => {
+        console.error('Failed to copy code:', err);
+        alert('Failed to copy code to clipboard');
+    });
+}
+</script>

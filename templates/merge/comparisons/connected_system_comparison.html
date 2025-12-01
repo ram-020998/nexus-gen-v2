@@ -1,0 +1,261 @@
+{% extends "merge/_base_comparison.html" %}
+
+{% block comparison_content %}
+<!-- System Type Comparison -->
+<div class="comparison-section mb-4">
+    <h5 class="section-title">
+        <i class="fas fa-server"></i> System Type
+    </h5>
+    
+    <div class="system-type-comparison">
+        <div class="system-type-item">
+            <span class="system-type-label">Before:</span>
+            <div class="system-type-value">
+                {% set before_type = (customer_object.system_type if customer_object else base_object.system_type) %}
+                {% if before_type %}
+                    <span class="system-type-badge">
+                        <i class="fas fa-plug"></i>
+                        {{ before_type }}
+                    </span>
+                {% else %}
+                    <span class="text-muted">Not specified</span>
+                {% endif %}
+            </div>
+        </div>
+        <div class="system-type-item">
+            <span class="system-type-label">After:</span>
+            <div class="system-type-value">
+                {% if vendor_object.system_type %}
+                    <span class="system-type-badge">
+                        <i class="fas fa-plug"></i>
+                        {{ vendor_object.system_type }}
+                    </span>
+                {% else %}
+                    <span class="text-muted">Not specified</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Properties Comparison -->
+<div class="comparison-section mb-4">
+    <h5 class="section-title">
+        <i class="fas fa-cog"></i> System Properties
+    </h5>
+    
+    <div class="properties-comparison">
+        <div class="properties-side">
+            <div class="properties-header before">
+                <i class="fas fa-minus-circle"></i> Before ({{ 'Customer' if customer_object else 'Base' }})
+            </div>
+            <div class="properties-content">
+                {% set before_properties = (customer_object.properties if customer_object else base_object.properties) %}
+                {% if before_properties %}
+                    {% set props_data = before_properties | from_json if before_properties is string else before_properties %}
+                    {% if props_data is mapping %}
+                        <div class="properties-list">
+                            {% for key, value in props_data.items() %}
+                            <div class="property-item">
+                                <div class="property-key">{{ key }}</div>
+                                <div class="property-value">
+                                    {% if value is mapping or value is iterable and value is not string %}
+                                        <pre><code>{{ value | tojson(indent=2) }}</code></pre>
+                                    {% else %}
+                                        <code>{{ value }}</code>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <pre><code>{{ props_data | tojson(indent=2) }}</code></pre>
+                    {% endif %}
+                {% else %}
+                    <div class="no-properties">No properties specified</div>
+                {% endif %}
+            </div>
+        </div>
+        <div class="properties-side">
+            <div class="properties-header after">
+                <i class="fas fa-plus-circle"></i> After (Vendor)
+            </div>
+            <div class="properties-content">
+                {% if vendor_object.properties %}
+                    {% set props_data = vendor_object.properties | from_json if vendor_object.properties is string else vendor_object.properties %}
+                    {% if props_data is mapping %}
+                        <div class="properties-list">
+                            {% for key, value in props_data.items() %}
+                            <div class="property-item">
+                                <div class="property-key">{{ key }}</div>
+                                <div class="property-value">
+                                    {% if value is mapping or value is iterable and value is not string %}
+                                        <pre><code>{{ value | tojson(indent=2) }}</code></pre>
+                                    {% else %}
+                                        <code>{{ value }}</code>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <pre><code>{{ props_data | tojson(indent=2) }}</code></pre>
+                    {% endif %}
+                {% else %}
+                    <div class="no-properties">No properties specified</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.comparison-section {
+    background: rgba(139, 92, 246, 0.05);
+    border-radius: 8px;
+    padding: 1.5rem;
+    border: 1px solid #374151;
+}
+
+.section-title {
+    margin: 0 0 1rem 0;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1.125rem;
+}
+
+.system-type-comparison {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.system-type-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    background: var(--bg-card);
+    border-radius: 6px;
+    border: 1px solid #374151;
+}
+
+.system-type-label {
+    font-weight: 600;
+    color: var(--text-secondary);
+    min-width: 80px;
+}
+
+.system-type-value {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.system-type-badge {
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    background: rgba(139, 92, 246, 0.2);
+    color: var(--purple);
+    border: 1px solid var(--purple);
+    font-weight: 600;
+    font-size: 0.875rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.properties-comparison {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.properties-side {
+    background: var(--bg-card);
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #374151;
+}
+
+.properties-header {
+    padding: 0.75rem 1rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.properties-header.before {
+    background: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+}
+
+.properties-header.after {
+    background: rgba(16, 185, 129, 0.2);
+    color: var(--green);
+}
+
+.properties-content {
+    padding: 1rem;
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.properties-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.property-item {
+    background: rgba(139, 92, 246, 0.05);
+    border-radius: 6px;
+    padding: 1rem;
+    border: 1px solid rgba(139, 92, 246, 0.2);
+}
+
+.property-key {
+    font-weight: 600;
+    color: var(--purple);
+    margin-bottom: 0.5rem;
+    font-size: 0.875rem;
+}
+
+.property-value {
+    color: var(--text-primary);
+}
+
+.property-value code {
+    background: rgba(255, 255, 255, 0.05);
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 0.875rem;
+    color: var(--text-primary);
+}
+
+.property-value pre {
+    margin: 0;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 0.75rem;
+    border-radius: 4px;
+}
+
+.property-value pre code {
+    background: transparent;
+    padding: 0;
+}
+
+.no-properties {
+    color: var(--text-secondary);
+    font-style: italic;
+    text-align: center;
+    padding: 2rem;
+}
+</style>
+{% endblock %}

@@ -1,0 +1,434 @@
+{% extends "base.html" %}
+
+{% block title %}Merge Workflow - {{ session.reference_id }}{% endblock %}
+
+{% block breadcrumbs %}
+<nav class="breadcrumb-nav">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}"><i class="fas fa-home"></i> Home</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('merge.sessions') }}">Merge Sessions</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('merge.summary', reference_id=session.reference_id) }}">{{ session.reference_id }}</a></li>
+        <li class="breadcrumb-item active">Workflow</li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block page_title %}Merge Workflow{% endblock %}
+{% block page_subtitle %}{{ session.reference_id }} - {{ session.total_changes }} changes to review{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="changes-panel">
+            <div class="panel-header">
+                <div class="header-content">
+                    <div>
+                        <h4><i class="fas fa-tasks"></i> Changes to Review</h4>
+                        <p class="text-muted mb-0">Review each change and decide how to handle conflicts</p>
+                    </div>
+                    <div class="header-actions">
+                        <!-- Jump to Change Dropdown -->
+                        <div class="jump-navigation">
+                            <label for="jumpToChange" class="form-label mb-1">Jump to Change:</label>
+                            <select id="jumpToChange" class="form-select">
+                                <option value="">Select a change...</option>
+                                {% for change in changes %}
+                                <option value="{{ change.change_id }}" 
+                                        data-classification="{{ change.classification }}">
+                                    {{ change.display_order }}. {{ change.object.name }} 
+                                    ({{ change.classification }})
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Classification Filter Buttons -->
+                <div class="classification-filters mt-3">
+                    <button class="filter-btn active" data-classification="all">
+                        <i class="fas fa-list"></i> All ({{ changes|length }})
+                    </button>
+                    <button class="filter-btn filter-conflict" data-classification="CONFLICT">
+                        <i class="fas fa-exclamation-triangle"></i> Conflicts 
+                        ({{ changes|selectattr('classification', 'equalto', 'CONFLICT')|list|length }})
+                    </button>
+                    <button class="filter-btn filter-no-conflict" data-classification="NO_CONFLICT">
+                        <i class="fas fa-check"></i> No Conflicts 
+                        ({{ changes|selectattr('classification', 'equalto', 'NO_CONFLICT')|list|length }})
+                    </button>
+                    <button class="filter-btn filter-new" data-classification="NEW">
+                        <i class="fas fa-plus"></i> New 
+                        ({{ changes|selectattr('classification', 'equalto', 'NEW')|list|length }})
+                    </button>
+                    <button class="filter-btn filter-deleted" data-classification="DELETED">
+                        <i class="fas fa-trash"></i> Deleted 
+                        ({{ changes|selectattr('classification', 'equalto', 'DELETED')|list|length }})
+                    </button>
+                </div>
+            </div>
+            
+            <div class="changes-list">
+                {% set classifications = ['CONFLICT', 'NO_CONFLICT', 'NEW', 'DELETED'] %}
+                {% for classification in classifications %}
+                    {% set classification_changes = changes|selectattr('classification', 'equalto', classification)|list %}
+                    {% if classification_changes|length > 0 %}
+                    <div class="classification-group" data-classification="{{ classification }}">
+                        <div class="classification-group-header">
+                            {% if classification == 'CONFLICT' %}
+                                <i class="fas fa-exclamation-triangle text-danger"></i>
+                                <h5>Conflicts ({{ classification_changes|length }})</h5>
+                            {% elif classification == 'NO_CONFLICT' %}
+                                <i class="fas fa-check text-success"></i>
+                                <h5>No Conflicts ({{ classification_changes|length }})</h5>
+                            {% elif classification == 'NEW' %}
+                                <i class="fas fa-plus text-info"></i>
+                                <h5>New Objects ({{ classification_changes|length }})</h5>
+                            {% elif classification == 'DELETED' %}
+                                <i class="fas fa-trash text-warning"></i>
+                                <h5>Deleted Objects ({{ classification_changes|length }})</h5>
+                            {% endif %}
+                        </div>
+                        
+                        {% for change in classification_changes %}
+                        <div class="change-item change-{{ change.classification|lower }}" 
+                             data-classification="{{ change.classification }}"
+                             data-change-id="{{ change.change_id }}">
+                            <div class="change-header">
+                                <div class="change-icon">
+                                    <i class="fas fa-{{ get_object_icon(change.object.object_type) }}"></i>
+                                </div>
+                                <div class="change-info">
+                                    <h5>{{ change.object.name }}</h5>
+                                    <p class="text-muted mb-0">{{ change.object.object_type }}</p>
+                                </div>
+                                <div class="change-badges">
+                                    {% if change.classification == 'CONFLICT' %}
+                                        <span class="badge bg-danger">
+                                            <i class="fas fa-exclamation-triangle"></i> Conflict
+                                        </span>
+                                    {% elif change.classification == 'NO_CONFLICT' %}
+                                        <span class="badge bg-success">
+                                            <i class="fas fa-check"></i> No Conflict
+                                        </span>
+                                    {% elif change.classification == 'NEW' %}
+                                        <span class="badge bg-info">
+                                            <i class="fas fa-plus"></i> New
+                                        </span>
+                                    {% elif change.classification == 'DELETED' %}
+                                        <span class="badge bg-warning">
+                                            <i class="fas fa-trash"></i> Deleted
+                                        </span>
+                                    {% endif %}
+                                    
+                                    {% if change.vendor_change_type %}
+                                        <span class="badge bg-secondary">
+                                            Vendor: {{ change.vendor_change_type }}
+                                        </span>
+                                    {% endif %}
+                                    
+                                    {% if change.customer_change_type %}
+                                        <span class="badge bg-secondary">
+                                            Customer: {{ change.customer_change_type }}
+                                        </span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="change-description">
+                                <p>{{ change.object.description or 'No description available' }}</p>
+                                <p class="text-muted mb-0"><small>UUID: {{ change.object.uuid }}</small></p>
+                            </div>
+                            
+                            <div class="change-actions">
+                                <a href="{{ url_for('merge.get_change_detail', reference_id=session.reference_id, change_id=change.change_id) }}" 
+                                   class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-eye"></i> View Details
+                                </a>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.changes-panel {
+    background: var(--bg-card);
+    border-radius: 12px;
+    padding: 2rem;
+    border: 1px solid #374151;
+}
+
+.panel-header {
+    margin-bottom: 2rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid #374151;
+}
+
+.header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 2rem;
+    margin-bottom: 1rem;
+}
+
+.header-actions {
+    min-width: 300px;
+}
+
+.jump-navigation {
+    display: flex;
+    flex-direction: column;
+}
+
+.jump-navigation label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.jump-navigation select {
+    background: rgba(139, 92, 246, 0.1);
+    border: 1px solid #374151;
+    color: var(--text-primary);
+    padding: 0.5rem;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.jump-navigation select:focus {
+    outline: none;
+    border-color: var(--purple);
+    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+}
+
+.classification-filters {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.filter-btn {
+    background: rgba(139, 92, 246, 0.1);
+    border: 1px solid #374151;
+    color: var(--text-secondary);
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.875rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.filter-btn:hover {
+    background: rgba(139, 92, 246, 0.2);
+    border-color: var(--purple);
+}
+
+.filter-btn.active {
+    background: var(--purple);
+    color: white;
+    border-color: var(--purple);
+}
+
+.filter-btn.filter-conflict.active {
+    background: #ef4444;
+    border-color: #ef4444;
+}
+
+.filter-btn.filter-no-conflict.active {
+    background: #10b981;
+    border-color: #10b981;
+}
+
+.filter-btn.filter-new.active {
+    background: #3b82f6;
+    border-color: #3b82f6;
+}
+
+.filter-btn.filter-deleted.active {
+    background: #f59e0b;
+    border-color: #f59e0b;
+}
+
+.panel-header h4 {
+    margin: 0 0 0.5rem 0;
+    color: var(--text-primary);
+}
+
+.classification-group {
+    margin-bottom: 2rem;
+}
+
+.classification-group-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+    padding: 0.75rem 1rem;
+    background: rgba(139, 92, 246, 0.05);
+    border-radius: 8px;
+    border-left: 4px solid var(--purple);
+}
+
+.classification-group-header i {
+    font-size: 1.25rem;
+}
+
+.classification-group-header h5 {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.classification-group.hidden {
+    display: none;
+}
+
+.changes-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.change-item {
+    background: rgba(139, 92, 246, 0.05);
+    border: 1px solid #374151;
+    border-radius: 8px;
+    padding: 1.5rem;
+    transition: all 0.3s ease;
+}
+
+.change-item:hover {
+    border-color: var(--purple);
+    transform: translateX(4px);
+}
+
+.change-item.change-conflict {
+    border-left: 4px solid #ef4444;
+}
+
+.change-item.change-no_conflict {
+    border-left: 4px solid #10b981;
+}
+
+.change-item.change-new {
+    border-left: 4px solid #3b82f6;
+}
+
+.change-item.change-deleted {
+    border-left: 4px solid #f59e0b;
+}
+
+.change-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.change-icon {
+    width: 48px;
+    height: 48px;
+    background: rgba(139, 92, 246, 0.2);
+    color: var(--purple);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+}
+
+.change-info {
+    flex: 1;
+}
+
+.change-info h5 {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: 1.1rem;
+}
+
+.change-info p {
+    margin: 0.25rem 0 0 0;
+    font-size: 0.875rem;
+}
+
+.change-badges {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.change-description {
+    margin-bottom: 1rem;
+    padding-left: 64px;
+}
+
+.change-description p {
+    margin: 0.5rem 0;
+    color: var(--text-secondary);
+}
+
+.change-actions {
+    padding-left: 64px;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Jump to Change functionality
+    const jumpSelect = document.getElementById('jumpToChange');
+    if (jumpSelect) {
+        jumpSelect.addEventListener('change', function() {
+            const changeId = this.value;
+            if (changeId) {
+                // Navigate to the change detail page
+                const referenceId = '{{ session.reference_id }}';
+                window.location.href = `/merge/${referenceId}/changes/${changeId}`;
+            }
+        });
+    }
+    
+    // Classification filter functionality
+    const filterButtons = document.querySelectorAll('.filter-btn');
+    const classificationGroups = document.querySelectorAll('.classification-group');
+    
+    filterButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const classification = this.dataset.classification;
+            
+            // Update active state
+            filterButtons.forEach(btn => btn.classList.remove('active'));
+            this.classList.add('active');
+            
+            // Filter groups
+            if (classification === 'all') {
+                // Show all groups
+                classificationGroups.forEach(group => {
+                    group.classList.remove('hidden');
+                });
+            } else {
+                // Show only selected classification
+                classificationGroups.forEach(group => {
+                    if (group.dataset.classification === classification) {
+                        group.classList.remove('hidden');
+                    } else {
+                        group.classList.add('hidden');
+                    }
+                });
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

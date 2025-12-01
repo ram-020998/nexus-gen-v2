@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug - Session Data Inspector | NexusGen</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <style>
+        .json-container {
+            background: #1e1e1e;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        
+        .json-container pre {
+            color: #d4d4d4;
+            margin: 0;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+        
+        .table-section {
+            margin-bottom: 30px;
+        }
+        
+        .table-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px 8px 0 0;
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .record-count {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 14px;
+        }
+        
+        .filter-section {
+            background: #2d2d2d;
+            padding: 25px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+        
+        .filter-section label {
+            color: #e0e0e0;
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+        
+        .filter-section select {
+            background: #1e1e1e;
+            color: #e0e0e0;
+            border: 1px solid #444;
+        }
+        
+        .filter-section select:focus {
+            background: #1e1e1e;
+            color: #e0e0e0;
+            border-color: #667eea;
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        }
+        
+        #generateBtn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            padding: 12px 40px;
+            font-weight: 600;
+            transition: transform 0.2s;
+        }
+        
+        #generateBtn:hover {
+            transform: translateY(-2px);
+        }
+        
+        #generateBtn:disabled {
+            opacity: 0.6;
+            transform: none;
+        }
+        
+        .loading-spinner {
+            display: none;
+            text-align: center;
+            padding: 40px;
+        }
+        
+        .loading-spinner.active {
+            display: block;
+        }
+        
+        .session-info-card {
+            background: #2d2d2d;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .session-info-card h5 {
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+        
+        .session-info-card .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #444;
+        }
+        
+        .session-info-card .info-row:last-child {
+            border-bottom: none;
+        }
+        
+        .session-info-card .info-label {
+            color: #999;
+            font-weight: 500;
+        }
+        
+        .session-info-card .info-value {
+            color: #e0e0e0;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+        
+        .empty-state i {
+            font-size: 48px;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">
+                <i class="fas fa-cube"></i> NexusGen
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/merge">
+                            <i class="fas fa-code-branch"></i> Merge Assistant
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/debug">
+                            <i class="fas fa-bug"></i> Debug
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid py-4">
+        <div class="row">
+            <div class="col-12">
+                <h2 class="mb-4">
+                    <i class="fas fa-bug"></i> Session Data Inspector
+                </h2>
+                
+                <!-- Filter Section -->
+                <div class="filter-section">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <label for="sessionSelect">Session ID</label>
+                            <select class="form-select" id="sessionSelect" required>
+                                <option value="">Select a session...</option>
+                                {% for session in sessions %}
+                                <option value="{{ session.id }}">
+                                    {{ session.reference_id }} - {{ session.status }} ({{ session.total_changes }} changes)
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-3">
+                            <label for="packageSelect">Package</label>
+                            <select class="form-select" id="packageSelect">
+                                <option value="">All Packages</option>
+                                <option value="A">Package A (Base)</option>
+                                <option value="B">Package B (Customized)</option>
+                                <option value="C">Package C (New Vendor)</option>
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-3">
+                            <label for="objectTypeSelect">Object Type</label>
+                            <select class="form-select" id="objectTypeSelect">
+                                <option value="">All Object Types</option>
+                                {% for obj_type in object_types %}
+                                <option value="{{ obj_type }}">{{ obj_type }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-2 d-flex align-items-end">
+                            <button class="btn btn-primary w-100" id="generateBtn">
+                                <i class="fas fa-play"></i> Generate
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Loading Spinner -->
+                <div class="loading-spinner" id="loadingSpinner">
+                    <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-3">Loading session data...</p>
+                </div>
+                
+                <!-- Results Container -->
+                <div id="resultsContainer"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.getElementById('generateBtn').addEventListener('click', async function() {
+            const sessionId = document.getElementById('sessionSelect').value;
+            const packageFilter = document.getElementById('packageSelect').value;
+            const objectType = document.getElementById('objectTypeSelect').value;
+            
+            if (!sessionId) {
+                alert('Please select a session');
+                return;
+            }
+            
+            // Show loading
+            document.getElementById('loadingSpinner').classList.add('active');
+            document.getElementById('resultsContainer').innerHTML = '';
+            this.disabled = true;
+            
+            try {
+                const response = await fetch('/debug/api/session-data', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        session_id: sessionId,
+                        package: packageFilter,
+                        object_type: objectType
+                    })
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Failed to fetch data');
+                }
+                
+                const data = await response.json();
+                displayResults(data);
+            } catch (error) {
+                document.getElementById('resultsContainer').innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle"></i> Error: ${error.message}
+                    </div>
+                `;
+            } finally {
+                document.getElementById('loadingSpinner').classList.remove('active');
+                this.disabled = false;
+            }
+        });
+        
+        function displayResults(data) {
+            const container = document.getElementById('resultsContainer');
+            let html = '';
+            
+            // Session Info
+            if (data.session_info) {
+                html += `
+                    <div class="session-info-card">
+                        <h5><i class="fas fa-info-circle"></i> Session Information</h5>
+                        <div class="info-row">
+                            <span class="info-label">Reference ID:</span>
+                            <span class="info-value">${data.session_info.reference_id}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Status:</span>
+                            <span class="info-value">${data.session_info.status}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Total Changes:</span>
+                            <span class="info-value">${data.session_info.total_changes}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Created:</span>
+                            <span class="info-value">${new Date(data.session_info.created_at).toLocaleString()}</span>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // Packages
+            if (data.packages && Object.keys(data.packages).length > 0) {
+                html += '<div class="table-section">';
+                html += '<div class="table-header">';
+                html += '<span>Packages</span>';
+                html += `<span class="record-count">${Object.keys(data.packages).length} package(s)</span>`;
+                html += '</div>';
+                html += '<div class="json-container">';
+                html += `<pre>${JSON.stringify(data.packages, null, 2)}</pre>`;
+                html += '</div>';
+                html += '</div>';
+            }
+            
+            // Tables
+            if (data.tables) {
+                const tableOrder = [
+                    'object_lookup',
+                    'package_object_mappings',
+                    'delta_comparison_results',
+                    'changes',
+                    'object_versions',
+                    'interfaces', 'interface_parameters', 'interface_security',
+                    'expression_rules', 'expression_rule_inputs',
+                    'process_models', 'process_model_nodes', 'process_model_flows', 'process_model_variables',
+                    'record_types', 'record_type_fields', 'record_type_relationships', 'record_type_views', 'record_type_actions',
+                    'cdts', 'cdt_fields',
+                    'integrations', 'web_apis', 'sites', 'groups', 'constants', 'connected_systems', 'unknown_objects'
+                ];
+                
+                for (const tableName of tableOrder) {
+                    if (data.tables[tableName] && data.tables[tableName].length > 0) {
+                        html += '<div class="table-section">';
+                        html += '<div class="table-header">';
+                        html += `<span>${tableName}</span>`;
+                        html += `<span class="record-count">${data.tables[tableName].length} record(s)</span>`;
+                        html += '</div>';
+                        html += '<div class="json-container">';
+                        html += `<pre>${JSON.stringify(data.tables[tableName], null, 2)}</pre>`;
+                        html += '</div>';
+                        html += '</div>';
+                    }
+                }
+            }
+            
+            if (!html) {
+                html = `
+                    <div class="empty-state">
+                        <i class="fas fa-inbox"></i>
+                        <h4>No Data Found</h4>
+                        <p>No records match the selected filters.</p>
+                    </div>
+                `;
+            }
+            
+            container.innerHTML = html;
+        }
+    </script>
+</body>
+</html>

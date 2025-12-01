@@ -1,0 +1,245 @@
+{% extends "merge/_base_comparison.html" %}
+
+{% block comparison_content %}
+<!-- SAIL Code Comparison -->
+<div class="comparison-section mb-4">
+    <h5 class="section-title">
+        <i class="fas fa-code"></i> SAIL Code Comparison
+    </h5>
+    
+    <div class="sail-diff-container">
+        <div class="diff-side">
+            <div class="diff-side-header before">
+                <i class="fas fa-minus-circle"></i> Before ({{ 'Customer' if customer_object else 'Base' }})
+            </div>
+            <div class="diff-code-content">
+                <pre><code class="language-sail">{{ (customer_object.sail_code if customer_object else base_object.sail_code) or 'No SAIL code available' }}</code></pre>
+            </div>
+        </div>
+        <div class="diff-side">
+            <div class="diff-side-header after">
+                <i class="fas fa-plus-circle"></i> After (Vendor)
+            </div>
+            <div class="diff-code-content">
+                <pre><code class="language-sail">{{ vendor_object.sail_code or 'No SAIL code available' }}</code></pre>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Endpoint -->
+<div class="comparison-section mb-4">
+    <h5 class="section-title">
+        <i class="fas fa-link"></i> Endpoint
+    </h5>
+    
+    <div class="endpoint-comparison">
+        <div class="endpoint-item">
+            <span class="endpoint-label">Before:</span>
+            <code class="endpoint-value">{{ (customer_object.endpoint if customer_object else base_object.endpoint) or 'Not specified' }}</code>
+        </div>
+        <div class="endpoint-item">
+            <span class="endpoint-label">After:</span>
+            <code class="endpoint-value">{{ vendor_object.endpoint or 'Not specified' }}</code>
+        </div>
+    </div>
+</div>
+
+<!-- HTTP Methods -->
+<div class="comparison-section mb-4">
+    <h5 class="section-title">
+        <i class="fas fa-exchange-alt"></i> HTTP Methods
+    </h5>
+    
+    <div class="http-methods-comparison">
+        <div class="methods-side">
+            <div class="methods-header before">
+                <i class="fas fa-minus-circle"></i> Before
+            </div>
+            <div class="methods-content">
+                {% set before_methods = (customer_object.http_methods if customer_object else base_object.http_methods) %}
+                {% if before_methods %}
+                    {% set methods_list = before_methods | from_json if before_methods is string else before_methods %}
+                    <div class="method-badges">
+                        {% for method in methods_list %}
+                        <span class="method-badge method-{{ method.lower() }}">{{ method }}</span>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="no-methods">No HTTP methods specified</div>
+                {% endif %}
+            </div>
+        </div>
+        <div class="methods-side">
+            <div class="methods-header after">
+                <i class="fas fa-plus-circle"></i> After
+            </div>
+            <div class="methods-content">
+                {% if vendor_object.http_methods %}
+                    {% set methods_list = vendor_object.http_methods | from_json if vendor_object.http_methods is string else vendor_object.http_methods %}
+                    <div class="method-badges">
+                        {% for method in methods_list %}
+                        <span class="method-badge method-{{ method.lower() }}">{{ method }}</span>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="no-methods">No HTTP methods specified</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.comparison-section {
+    background: rgba(139, 92, 246, 0.05);
+    border-radius: 8px;
+    padding: 1.5rem;
+    border: 1px solid #374151;
+}
+
+.section-title {
+    margin: 0 0 1rem 0;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1.125rem;
+}
+
+.sail-diff-container, .http-methods-comparison {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.diff-side, .methods-side {
+    background: var(--bg-card);
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #374151;
+}
+
+.diff-side-header, .methods-header {
+    padding: 0.75rem 1rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.diff-side-header.before, .methods-header.before {
+    background: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+}
+
+.diff-side-header.after, .methods-header.after {
+    background: rgba(16, 185, 129, 0.2);
+    color: var(--green);
+}
+
+.diff-code-content, .methods-content {
+    padding: 1rem;
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.diff-code-content pre {
+    margin: 0;
+    background: transparent;
+}
+
+.diff-code-content code {
+    color: var(--text-primary);
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.endpoint-comparison {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.endpoint-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    background: var(--bg-card);
+    border-radius: 6px;
+    border: 1px solid #374151;
+}
+
+.endpoint-label {
+    font-weight: 600;
+    color: var(--text-secondary);
+    min-width: 80px;
+}
+
+.endpoint-value {
+    color: var(--text-primary);
+    background: rgba(139, 92, 246, 0.1);
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 0.875rem;
+}
+
+.method-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.method-badge {
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 0.875rem;
+    text-transform: uppercase;
+}
+
+.method-badge.method-get {
+    background: rgba(16, 185, 129, 0.2);
+    color: var(--green);
+    border: 1px solid var(--green);
+}
+
+.method-badge.method-post {
+    background: rgba(59, 130, 246, 0.2);
+    color: #3b82f6;
+    border: 1px solid #3b82f6;
+}
+
+.method-badge.method-put {
+    background: rgba(251, 191, 36, 0.2);
+    color: #fbbf24;
+    border: 1px solid #fbbf24;
+}
+
+.method-badge.method-delete {
+    background: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+    border: 1px solid #ef4444;
+}
+
+.method-badge.method-patch {
+    background: rgba(139, 92, 246, 0.2);
+    color: var(--purple);
+    border: 1px solid var(--purple);
+}
+
+.no-methods {
+    color: var(--text-secondary);
+    font-style: italic;
+    text-align: center;
+    padding: 1rem;
+}
+</style>
+{% endblock %}

@@ -55,40 +55,6 @@ class Request(db.Model):
         }
 
 
-class ComparisonRequest(db.Model):
-    """Comparison requests table for Appian application analysis"""
-    __tablename__ = 'comparison_requests'
-
-    id = db.Column(db.Integer, primary_key=True)
-    reference_id = db.Column(db.String(20), unique=True)  # CMP_001 format
-    old_app_name = db.Column(db.String(255), nullable=False)
-    new_app_name = db.Column(db.String(255), nullable=False)
-    status = db.Column(db.String(20), default='processing')  # 'processing', 'completed', 'error'
-    
-    # Analysis results
-    old_app_blueprint = db.Column(db.Text)  # JSON string
-    new_app_blueprint = db.Column(db.Text)  # JSON string
-    comparison_results = db.Column(db.Text)  # JSON string
-    
-    # Metadata
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    total_time = db.Column(db.Integer)  # Processing time in seconds
-    error_log = db.Column(db.Text)
-    
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'reference_id': self.reference_id,
-            'old_app_name': self.old_app_name,
-            'new_app_name': self.new_app_name,
-            'status': self.status,
-            'created_at': self.created_at.isoformat(),
-            'updated_at': self.updated_at.isoformat(),
-            'total_time': self.total_time
-        }
-
-
 class ChatSession(db.Model):
     """Chat sessions for AI assistant"""
     __tablename__ = 'chat_sessions'
@@ -110,518 +76,789 @@ class ChatSession(db.Model):
         }
 
 
+# ============================================================================
+# Three-Way Merge Models
+# ============================================================================
+
 class MergeSession(db.Model):
-    """Stores three-way merge session data"""
+    """Merge sessions for three-way merge analysis"""
     __tablename__ = 'merge_sessions'
-    
-    # Primary identification
+
     id = db.Column(db.Integer, primary_key=True)
-    reference_id = db.Column(db.String(20), unique=True, nullable=False, index=True)  # MRG_001
-    
-    # Package information
-    base_package_name = db.Column(db.String(255), nullable=False)  # A
-    customized_package_name = db.Column(db.String(255), nullable=False)  # B
-    new_vendor_package_name = db.Column(db.String(255), nullable=False)  # C
-    
-    # Status tracking
-    status = db.Column(db.String(20), default='processing')  # 'processing', 'ready', 'in_progress', 'completed', 'error'
-    current_change_index = db.Column(db.Integer, default=0)
-    
-    # Progress tracking
+    reference_id = db.Column(db.String(50), nullable=False, unique=True)
+    status = db.Column(db.String(20), nullable=False, default='processing')
     total_changes = db.Column(db.Integer, default=0)
-    reviewed_count = db.Column(db.Integer, default=0)
-    skipped_count = db.Column(db.Integer, default=0)
-    
-    # Metadata
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    completed_at = db.Column(db.DateTime)
-    total_time = db.Column(db.Integer)  # seconds
-    error_log = db.Column(db.Text)
     
+    # UI Enhancement fields
+    reviewed_count = db.Column(db.Integer, default=0)
+    skipped_count = db.Column(db.Integer, default=0)
+    estimated_complexity = db.Column(db.String(20))
+    estimated_time_hours = db.Column(db.Float)
+
     # Relationships
-    packages = db.relationship('Package', backref='session', lazy=True, cascade='all, delete-orphan')
-    changes = db.relationship('Change', backref='session', lazy=True, cascade='all, delete-orphan')
-    change_reviews = db.relationship('ChangeReview', backref='session', lazy=True, cascade='all, delete-orphan')
-    
+    packages = db.relationship('Package', backref='session', lazy='dynamic', cascade='all, delete-orphan')
+    delta_results = db.relationship('DeltaComparisonResult', backref='session', lazy='dynamic', cascade='all, delete-orphan')
+    changes = db.relationship('Change', backref='session', lazy='dynamic', cascade='all, delete-orphan')
+
     def to_dict(self):
         return {
             'id': self.id,
             'reference_id': self.reference_id,
-            'base_package_name': self.base_package_name,
-            'customized_package_name': self.customized_package_name,
-            'new_vendor_package_name': self.new_vendor_package_name,
             'status': self.status,
-            'current_change_index': self.current_change_index,
             'total_changes': self.total_changes,
             'reviewed_count': self.reviewed_count,
             'skipped_count': self.skipped_count,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
-            'completed_at': self.completed_at.isoformat() if self.completed_at else None,
-            'total_time': self.total_time
+            'estimated_complexity': self.estimated_complexity,
+            'estimated_time_hours': self.estimated_time_hours,
+            'created_at': self.created_at.isoformat(),
+            'updated_at': self.updated_at.isoformat()
         }
 
 
 class Package(db.Model):
-    """Stores individual package information (A, B, or C)"""
+    """Packages uploaded for merge analysis"""
     __tablename__ = 'packages'
-    
+
     id = db.Column(db.Integer, primary_key=True)
-    session_id = db.Column(db.Integer, db.ForeignKey('merge_sessions.id'), nullable=False, index=True)
-    
-    # Package identification
-    package_type = db.Column(db.String(20), nullable=False)  # 'base', 'customized', 'new_vendor'
-    package_name = db.Column(db.String(255), nullable=False)
-    
-    # Metadata from blueprint
+    session_id = db.Column(db.Integer, db.ForeignKey('merge_sessions.id', ondelete='CASCADE'), nullable=False)
+    package_type = db.Column(db.String(20), nullable=False)  # base, customized, new_vendor
+    filename = db.Column(db.String(500), nullable=False)
     total_objects = db.Column(db.Integer, default=0)
-    generation_time = db.Column(db.Float)
-    
-    # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
+
     # Relationships
-    objects = db.relationship('AppianObject', backref='package', lazy=True, cascade='all, delete-orphan')
-    object_type_counts = db.relationship('PackageObjectTypeCount', backref='package', lazy=True, cascade='all, delete-orphan')
-    dependencies = db.relationship('ObjectDependency', backref='package', lazy=True, cascade='all, delete-orphan')
-    
-    # Composite index for efficient lookups
-    __table_args__ = (
-        db.Index('idx_package_session_type', 'session_id', 'package_type'),
-    )
-    
+    object_mappings = db.relationship('PackageObjectMapping', backref='package', lazy='dynamic', cascade='all, delete-orphan')
+    object_versions = db.relationship('ObjectVersion', backref='package', lazy='dynamic', cascade='all, delete-orphan')
+
     def to_dict(self):
         return {
             'id': self.id,
             'session_id': self.session_id,
             'package_type': self.package_type,
-            'package_name': self.package_name,
+            'filename': self.filename,
             'total_objects': self.total_objects,
-            'generation_time': self.generation_time,
-            'created_at': self.created_at.isoformat() if self.created_at else None
+            'created_at': self.created_at.isoformat()
         }
 
 
-class PackageObjectTypeCount(db.Model):
-    """Stores object type counts for each package"""
-    __tablename__ = 'package_object_type_counts'
-    
-    id = db.Column(db.Integer, primary_key=True)
-    package_id = db.Column(db.Integer, db.ForeignKey('packages.id'), nullable=False, index=True)
-    
-    # Object type and count
-    object_type = db.Column(db.String(50), nullable=False)
-    count = db.Column(db.Integer, nullable=False, default=0)
-    
-    # Timestamps
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
-    # Composite unique constraint and index
-    __table_args__ = (
-        db.UniqueConstraint('package_id', 'object_type', name='uq_package_object_type'),
-        db.Index('idx_package_type', 'package_id', 'object_type'),
-    )
-    
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'package_id': self.package_id,
-            'object_type': self.object_type,
-            'count': self.count,
-            'created_at': self.created_at.isoformat() if self.created_at else None
-        }
+class ObjectLookup(db.Model):
+    """Global object registry - single source of truth for all objects"""
+    __tablename__ = 'object_lookup'
 
-
-class AppianObject(db.Model):
-    """Stores normalized Appian object data"""
-    __tablename__ = 'appian_objects'
-    
     id = db.Column(db.Integer, primary_key=True)
-    package_id = db.Column(db.Integer, db.ForeignKey('packages.id'), nullable=False, index=True)
-    
-    # Object identification
-    uuid = db.Column(db.String(255), nullable=False, index=True)
+    uuid = db.Column(db.String(255), nullable=False, unique=True, index=True)
     name = db.Column(db.String(500), nullable=False, index=True)
     object_type = db.Column(db.String(50), nullable=False, index=True)
-    
-    # Object content
-    sail_code = db.Column(db.Text)  # For interfaces, expression rules
-    fields = db.Column(db.Text)  # JSON: field definitions
-    properties = db.Column(db.Text)  # JSON: object properties
-    object_metadata = db.Column(db.Text)  # JSON: additional metadata
-    
-    # Version information
-    version_uuid = db.Column(db.String(255), index=True)
-    
-    # Timestamps
+    description = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
+
     # Relationships
-    dependencies_as_parent = db.relationship(
-        'ObjectDependency',
-        foreign_keys='ObjectDependency.parent_uuid',
-        primaryjoin='AppianObject.uuid == foreign(ObjectDependency.parent_uuid)',
-        backref='parent_object',
-        lazy=True
-    )
-    dependencies_as_child = db.relationship(
-        'ObjectDependency',
-        foreign_keys='ObjectDependency.child_uuid',
-        primaryjoin='AppianObject.uuid == foreign(ObjectDependency.child_uuid)',
-        backref='child_object',
-        lazy=True
-    )
-    process_model_metadata = db.relationship('ProcessModelMetadata', backref='appian_object', uselist=False, lazy=True, cascade='all, delete-orphan')
-    
-    # Composite unique constraint and indexes
-    __table_args__ = (
-        db.UniqueConstraint('package_id', 'uuid', name='uq_package_object'),
-        db.Index('idx_object_type_name', 'object_type', 'name'),
-        db.Index('idx_object_uuid', 'uuid'),
-    )
-    
+    package_mappings = db.relationship('PackageObjectMapping', backref='object', lazy='dynamic', cascade='all, delete-orphan')
+    versions = db.relationship('ObjectVersion', backref='object', lazy='dynamic', cascade='all, delete-orphan')
+    delta_results = db.relationship('DeltaComparisonResult', backref='object', lazy='dynamic', cascade='all, delete-orphan')
+    changes = db.relationship('Change', foreign_keys='Change.object_id', backref='object', lazy='dynamic', cascade='all, delete-orphan')
+    vendor_changes = db.relationship('Change', foreign_keys='Change.vendor_object_id', backref='vendor_object', lazy='dynamic', cascade='all, delete-orphan')
+    customer_changes = db.relationship('Change', foreign_keys='Change.customer_object_id', backref='customer_object', lazy='dynamic', cascade='all, delete-orphan')
+
     def to_dict(self):
         return {
             'id': self.id,
-            'package_id': self.package_id,
             'uuid': self.uuid,
             'name': self.name,
             'object_type': self.object_type,
-            'version_uuid': self.version_uuid,
-            'created_at': self.created_at.isoformat() if self.created_at else None
+            'description': self.description,
+            'created_at': self.created_at.isoformat()
         }
 
 
-class ProcessModelMetadata(db.Model):
-    """Stores process model metadata"""
-    __tablename__ = 'process_model_metadata'
-    
+class PackageObjectMapping(db.Model):
+    """Junction table tracking which objects belong to which packages"""
+    __tablename__ = 'package_object_mappings'
+
     id = db.Column(db.Integer, primary_key=True)
-    appian_object_id = db.Column(db.Integer, db.ForeignKey('appian_objects.id'), nullable=False, unique=True, index=True)
-    
-    # Process model specific metadata
-    total_nodes = db.Column(db.Integer, default=0)
-    total_flows = db.Column(db.Integer, default=0)
-    complexity_score = db.Column(db.Float)
-    
-    # Timestamps
+    package_id = db.Column(db.Integer, db.ForeignKey('packages.id', ondelete='CASCADE'), nullable=False, index=True)
+    object_id = db.Column(db.Integer, db.ForeignKey('object_lookup.id', ondelete='CASCADE'), nullable=False, index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
-    # Relationships
-    nodes = db.relationship('ProcessModelNode', backref='process_model', lazy=True, cascade='all, delete-orphan')
-    flows = db.relationship('ProcessModelFlow', backref='process_model', lazy=True, cascade='all, delete-orphan')
-    
+
+    __table_args__ = (
+        db.UniqueConstraint('package_id', 'object_id', name='uq_package_object'),
+        db.Index('idx_pom_package_object', 'package_id', 'object_id'),
+    )
+
     def to_dict(self):
         return {
             'id': self.id,
-            'appian_object_id': self.appian_object_id,
-            'total_nodes': self.total_nodes,
-            'total_flows': self.total_flows,
-            'complexity_score': self.complexity_score,
-            'created_at': self.created_at.isoformat() if self.created_at else None
+            'package_id': self.package_id,
+            'object_id': self.object_id,
+            'created_at': self.created_at.isoformat()
         }
 
 
-class ProcessModelNode(db.Model):
-    """Stores individual process model nodes"""
-    __tablename__ = 'process_model_nodes'
-    
+class DeltaComparisonResult(db.Model):
+    """Results of A→C comparison (vendor delta)"""
+    __tablename__ = 'delta_comparison_results'
+
     id = db.Column(db.Integer, primary_key=True)
-    process_model_id = db.Column(db.Integer, db.ForeignKey('process_model_metadata.id'), nullable=False, index=True)
-    
-    # Node identification
-    node_id = db.Column(db.String(255), nullable=False)
-    node_type = db.Column(db.String(100), nullable=False)
-    node_name = db.Column(db.String(500))
-    
-    # Node properties
-    properties = db.Column(db.Text)  # JSON: node-specific properties
-    
-    # Timestamps
+    session_id = db.Column(db.Integer, db.ForeignKey('merge_sessions.id', ondelete='CASCADE'), nullable=False, index=True)
+    object_id = db.Column(db.Integer, db.ForeignKey('object_lookup.id', ondelete='CASCADE'), nullable=False, index=True)
+    change_category = db.Column(db.String(20), nullable=False)  # NEW, MODIFIED, DEPRECATED
+    change_type = db.Column(db.String(20), nullable=False)  # ADDED, MODIFIED, REMOVED
+    version_changed = db.Column(db.Boolean, default=False)
+    content_changed = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
-    # Relationships
-    outgoing_flows = db.relationship(
-        'ProcessModelFlow',
-        foreign_keys='ProcessModelFlow.from_node_id',
-        backref='from_node',
-        lazy=True
-    )
-    incoming_flows = db.relationship(
-        'ProcessModelFlow',
-        foreign_keys='ProcessModelFlow.to_node_id',
-        backref='to_node',
-        lazy=True
-    )
-    
-    # Composite unique constraint and indexes
+
     __table_args__ = (
-        db.UniqueConstraint('process_model_id', 'node_id', name='uq_process_model_node'),
-        db.Index('idx_node_type', 'process_model_id', 'node_type'),
+        db.UniqueConstraint('session_id', 'object_id', name='uq_session_object'),
+        db.Index('idx_delta_category', 'session_id', 'change_category'),
     )
-    
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'process_model_id': self.process_model_id,
-            'node_id': self.node_id,
-            'node_type': self.node_type,
-            'node_name': self.node_name,
-            'created_at': self.created_at.isoformat() if self.created_at else None
-        }
 
-
-class ProcessModelFlow(db.Model):
-    """Stores process model flows (connections between nodes)"""
-    __tablename__ = 'process_model_flows'
-    
-    id = db.Column(db.Integer, primary_key=True)
-    process_model_id = db.Column(db.Integer, db.ForeignKey('process_model_metadata.id'), nullable=False, index=True)
-    
-    # Flow identification
-    from_node_id = db.Column(db.Integer, db.ForeignKey('process_model_nodes.id'), nullable=False, index=True)
-    to_node_id = db.Column(db.Integer, db.ForeignKey('process_model_nodes.id'), nullable=False, index=True)
-    
-    # Flow properties
-    flow_label = db.Column(db.String(500))
-    flow_condition = db.Column(db.Text)
-    
-    # Timestamps
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
-    # Composite indexes
-    __table_args__ = (
-        db.Index('idx_flow_from', 'process_model_id', 'from_node_id'),
-        db.Index('idx_flow_to', 'process_model_id', 'to_node_id'),
-    )
-    
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'process_model_id': self.process_model_id,
-            'from_node_id': self.from_node_id,
-            'to_node_id': self.to_node_id,
-            'flow_label': self.flow_label,
-            'created_at': self.created_at.isoformat() if self.created_at else None
-        }
-
-
-class Change(db.Model):
-    """Stores individual change records from comparison"""
-    __tablename__ = 'changes'
-    
-    id = db.Column(db.Integer, primary_key=True)
-    session_id = db.Column(db.Integer, db.ForeignKey('merge_sessions.id'), nullable=False, index=True)
-    
-    # Object identification
-    object_uuid = db.Column(db.String(255), nullable=False, index=True)
-    object_name = db.Column(db.String(500), nullable=False, index=True)
-    object_type = db.Column(db.String(50), nullable=False, index=True)
-    
-    # Change classification
-    classification = db.Column(db.String(50), nullable=False, index=True)
-    # Values: NO_CONFLICT, CONFLICT, CUSTOMER_ONLY, REMOVED_BUT_CUSTOMIZED
-    
-    # Change details
-    change_type = db.Column(db.String(20))  # ADDED, MODIFIED, REMOVED
-    vendor_change_type = db.Column(db.String(20))  # A→C change type
-    customer_change_type = db.Column(db.String(20))  # A→B change type
-    
-    # Object references (foreign keys to AppianObject)
-    base_object_id = db.Column(db.Integer, db.ForeignKey('appian_objects.id'), index=True)
-    customer_object_id = db.Column(db.Integer, db.ForeignKey('appian_objects.id'), index=True)
-    vendor_object_id = db.Column(db.Integer, db.ForeignKey('appian_objects.id'), index=True)
-    
-    # Ordering
-    display_order = db.Column(db.Integer, nullable=False, index=True)
-    
-    # Timestamps
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
-    # Relationships
-    base_object = db.relationship('AppianObject', foreign_keys=[base_object_id], lazy=True)
-    customer_object = db.relationship('AppianObject', foreign_keys=[customer_object_id], lazy=True)
-    vendor_object = db.relationship('AppianObject', foreign_keys=[vendor_object_id], lazy=True)
-    merge_guidance = db.relationship('MergeGuidance', backref='change', uselist=False, lazy=True, cascade='all, delete-orphan')
-    review = db.relationship('ChangeReview', backref='change', uselist=False, cascade='all, delete-orphan')
-    
-    # Composite indexes for efficient queries
-    __table_args__ = (
-        db.Index('idx_change_session_classification', 'session_id', 'classification'),
-        db.Index('idx_change_session_type', 'session_id', 'object_type'),
-        db.Index('idx_change_session_order', 'session_id', 'display_order'),
-    )
-    
     def to_dict(self):
         return {
             'id': self.id,
             'session_id': self.session_id,
-            'object_uuid': self.object_uuid,
-            'object_name': self.object_name,
-            'object_type': self.object_type,
+            'object_id': self.object_id,
+            'change_category': self.change_category,
+            'change_type': self.change_type,
+            'version_changed': self.version_changed,
+            'content_changed': self.content_changed,
+            'created_at': self.created_at.isoformat()
+        }
+
+
+class Change(db.Model):
+    """Working set of classified changes for user review"""
+    __tablename__ = 'changes'
+
+    id = db.Column(db.Integer, primary_key=True)
+    session_id = db.Column(db.Integer, db.ForeignKey('merge_sessions.id', ondelete='CASCADE'), nullable=False, index=True)
+    object_id = db.Column(db.Integer, db.ForeignKey('object_lookup.id', ondelete='CASCADE'), nullable=False, index=True)
+    classification = db.Column(db.String(50), nullable=False)  # NO_CONFLICT, CONFLICT, NEW, DELETED
+    change_type = db.Column(db.String(20))
+    vendor_change_type = db.Column(db.String(20))
+    customer_change_type = db.Column(db.String(20))
+    display_order = db.Column(db.Integer, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Dual Object Tracking (Migration 003)
+    vendor_object_id = db.Column(db.Integer, db.ForeignKey('object_lookup.id', ondelete='CASCADE'), index=True)
+    customer_object_id = db.Column(db.Integer, db.ForeignKey('object_lookup.id', ondelete='CASCADE'), index=True)
+    
+    # UI Enhancement fields
+    status = db.Column(db.String(20), default='pending')  # pending, reviewed, skipped
+    notes = db.Column(db.Text)
+    reviewed_at = db.Column(db.DateTime)
+    reviewed_by = db.Column(db.String(255))
+
+    __table_args__ = (
+        db.Index('idx_change_session_classification', 'session_id', 'classification'),
+        db.Index('idx_change_session_object', 'session_id', 'object_id'),
+        db.Index('idx_change_session_order', 'session_id', 'display_order'),
+        db.Index('idx_change_session_status', 'session_id', 'status'),
+        db.Index('idx_change_reviewed_at', 'reviewed_at'),
+        db.Index('idx_change_vendor_object', 'vendor_object_id'),
+        db.Index('idx_change_customer_object', 'customer_object_id'),
+        db.Index('idx_change_vendor_customer', 'vendor_object_id', 'customer_object_id'),
+    )
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'session_id': self.session_id,
+            'object_id': self.object_id,
+            'vendor_object_id': self.vendor_object_id,
+            'customer_object_id': self.customer_object_id,
             'classification': self.classification,
             'change_type': self.change_type,
             'vendor_change_type': self.vendor_change_type,
             'customer_change_type': self.customer_change_type,
             'display_order': self.display_order,
-            'created_at': self.created_at.isoformat() if self.created_at else None
-        }
-
-
-class MergeGuidance(db.Model):
-    """Stores merge guidance for a change"""
-    __tablename__ = 'merge_guidance'
-    
-    id = db.Column(db.Integer, primary_key=True)
-    change_id = db.Column(db.Integer, db.ForeignKey('changes.id'), nullable=False, unique=True, index=True)
-    
-    # Guidance information
-    recommendation = db.Column(db.String(100))  # e.g., "ACCEPT_VENDOR", "MANUAL_MERGE"
-    reason = db.Column(db.Text)
-    
-    # Timestamps
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
-    # Relationships
-    conflicts = db.relationship('MergeConflict', backref='guidance', lazy=True, cascade='all, delete-orphan')
-    changes = db.relationship('MergeChange', backref='guidance', lazy=True, cascade='all, delete-orphan')
-    
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'change_id': self.change_id,
-            'recommendation': self.recommendation,
-            'reason': self.reason,
-            'created_at': self.created_at.isoformat() if self.created_at else None
-        }
-
-
-class MergeConflict(db.Model):
-    """Stores individual conflicts within merge guidance"""
-    __tablename__ = 'merge_conflicts'
-    
-    id = db.Column(db.Integer, primary_key=True)
-    guidance_id = db.Column(db.Integer, db.ForeignKey('merge_guidance.id'), nullable=False, index=True)
-    
-    # Conflict details
-    field_name = db.Column(db.String(255))
-    conflict_type = db.Column(db.String(100))
-    description = db.Column(db.Text)
-    
-    # Timestamps
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'guidance_id': self.guidance_id,
-            'field_name': self.field_name,
-            'conflict_type': self.conflict_type,
-            'description': self.description,
-            'created_at': self.created_at.isoformat() if self.created_at else None
-        }
-
-
-class MergeChange(db.Model):
-    """Stores individual changes within merge guidance"""
-    __tablename__ = 'merge_changes'
-    
-    id = db.Column(db.Integer, primary_key=True)
-    guidance_id = db.Column(db.Integer, db.ForeignKey('merge_guidance.id'), nullable=False, index=True)
-    
-    # Change details
-    field_name = db.Column(db.String(255))
-    change_description = db.Column(db.Text)
-    old_value = db.Column(db.Text)
-    new_value = db.Column(db.Text)
-    
-    # Timestamps
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'guidance_id': self.guidance_id,
-            'field_name': self.field_name,
-            'change_description': self.change_description,
-            'created_at': self.created_at.isoformat() if self.created_at else None
-        }
-
-
-class ObjectDependency(db.Model):
-    """Stores relationships between Appian objects"""
-    __tablename__ = 'object_dependencies'
-    
-    id = db.Column(db.Integer, primary_key=True)
-    package_id = db.Column(db.Integer, db.ForeignKey('packages.id'), nullable=False, index=True)
-    
-    # Dependency relationship
-    parent_uuid = db.Column(db.String(255), nullable=False, index=True)
-    child_uuid = db.Column(db.String(255), nullable=False, index=True)
-    
-    # Dependency type
-    dependency_type = db.Column(db.String(50))  # 'reference', 'contains', etc.
-    
-    # Timestamps
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
-    # Composite indexes
-    __table_args__ = (
-        db.Index('idx_dependency_parent', 'package_id', 'parent_uuid'),
-        db.Index('idx_dependency_child', 'package_id', 'child_uuid'),
-        db.UniqueConstraint('package_id', 'parent_uuid', 'child_uuid', name='uq_dependency'),
-    )
-    
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'package_id': self.package_id,
-            'parent_uuid': self.parent_uuid,
-            'child_uuid': self.child_uuid,
-            'dependency_type': self.dependency_type,
-            'created_at': self.created_at.isoformat() if self.created_at else None
-        }
-
-
-class ChangeReview(db.Model):
-    """Stores user review actions for each change"""
-    __tablename__ = 'change_reviews'
-    
-    id = db.Column(db.Integer, primary_key=True)
-    session_id = db.Column(db.Integer, db.ForeignKey('merge_sessions.id'), nullable=False, index=True)
-    change_id = db.Column(db.Integer, db.ForeignKey('changes.id'), unique=True, index=True)
-    
-    # Legacy fields (kept for backward compatibility during migration)
-    object_uuid = db.Column(db.String(255))
-    object_name = db.Column(db.String(255))
-    object_type = db.Column(db.String(50))
-    classification = db.Column(db.String(50))  # NO_CONFLICT, CONFLICT, etc.
-    
-    # Review status
-    review_status = db.Column(db.String(20), default='pending', index=True)  # 'pending', 'reviewed', 'skipped'
-    user_notes = db.Column(db.Text)
-    
-    # Timestamps
-    reviewed_at = db.Column(db.DateTime)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
-    # Composite index
-    __table_args__ = (
-        db.Index('idx_review_session_status', 'session_id', 'review_status'),
-    )
-    
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'session_id': self.session_id,
-            'change_id': self.change_id,
-            'object_uuid': self.object_uuid,
-            'object_name': self.object_name,
-            'object_type': self.object_type,
-            'classification': self.classification,
-            'review_status': self.review_status,
-            'user_notes': self.user_notes,
+            'status': self.status,
+            'notes': self.notes,
             'reviewed_at': self.reviewed_at.isoformat() if self.reviewed_at else None,
-            'created_at': self.created_at.isoformat() if self.created_at else None
+            'reviewed_by': self.reviewed_by,
+            'created_at': self.created_at.isoformat()
         }
+
+
+class ObjectVersion(db.Model):
+    """Package-specific versions of objects"""
+    __tablename__ = 'object_versions'
+
+    id = db.Column(db.Integer, primary_key=True)
+    object_id = db.Column(db.Integer, db.ForeignKey('object_lookup.id', ondelete='CASCADE'), nullable=False, index=True)
+    package_id = db.Column(db.Integer, db.ForeignKey('packages.id', ondelete='CASCADE'), nullable=False, index=True)
+    version_uuid = db.Column(db.String(255))
+    sail_code = db.Column(db.Text)
+    fields = db.Column(db.Text)  # JSON string
+    properties = db.Column(db.Text)  # JSON string
+    raw_xml = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        db.UniqueConstraint('object_id', 'package_id', name='uq_object_package'),
+        db.Index('idx_objver_object_package', 'object_id', 'package_id'),
+    )
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'object_id': self.object_id,
+            'package_id': self.package_id,
+            'version_uuid': self.version_uuid,
+            'created_at': self.created_at.isoformat()
+        }
+
+
+# ============================================================================
+# Object-Specific Models
+# ============================================================================
+
+class Interface(db.Model):
+    """Interface objects"""
+    __tablename__ = 'interfaces'
+
+    id = db.Column(db.Integer, primary_key=True)
+    object_id = db.Column(db.Integer, db.ForeignKey('object_lookup.id', ondelete='CASCADE'), nullable=False, index=True)
+    package_id = db.Column(db.Integer, db.ForeignKey('packages.id', ondelete='CASCADE'), nullable=False, index=True)
+    uuid = db.Column(db.String(255), nullable=False, index=True)
+    name = db.Column(db.String(500), nullable=False)
+    version_uuid = db.Column(db.String(255))
+    sail_code = db.Column(db.Text)
+    description = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # Relationships
+    parameters = db.relationship('InterfaceParameter', backref='interface', lazy='dynamic', cascade='all, delete-orphan')
+    security = db.relationship('InterfaceSecurity', backref='interface', lazy='dynamic', cascade='all, delete-orphan')
+
+    __table_args__ = (
+        db.UniqueConstraint('object_id', 'package_id', name='uq_interface_object_package'),
+        db.Index('idx_interface_object_package', 'object_id', 'package_id'),
+    )
+
+
+class InterfaceParameter(db.Model):
+    """Interface parameters"""
+    __tablename__ = 'interface_parameters'
+
+    id = db.Column(db.Integer, primary_key=True)
+    interface_id = db.Column(db.Integer, db.ForeignKey('interfaces.id', ondelete='CASCADE'), nullable=False)
+    parameter_name = db.Column(db.String(255), nullable=False)
+    parameter_type = db.Column(db.String(100))
+    is_required = db.Column(db.Boolean, default=False)
+    default_value = db.Column(db.Text)
+    display_order = db.Column(db.Integer)
+
+
+class InterfaceSecurity(db.Model):
+    """Interface security settings"""
+    __tablename__ = 'interface_security'
+
+    id = db.Column(db.Integer, primary_key=True)
+    interface_id = db.Column(db.Integer, db.ForeignKey('interfaces.id', ondelete='CASCADE'), nullable=False)
+    role_name = db.Column(db.String(255))
+    permission_type = db.Column(db.String(50))
+
+    __table_args__ = (
+        db.UniqueConstraint('interface_id', 'role_name', 'permission_type', name='uq_interface_security'),
+    )
+
+
+class ExpressionRule(db.Model):
+    """Expression Rule objects"""
+    __tablename__ = 'expression_rules'
+
+    id = db.Column(db.Integer, primary_key=True)
+    object_id = db.Column(db.Integer, db.ForeignKey('object_lookup.id', ondelete='CASCADE'), nullable=False, index=True)
+    package_id = db.Column(db.Integer, db.ForeignKey('packages.id', ondelete='CASCADE'), nullable=False, index=True)
+    uuid = db.Column(db.String(255), nullable=False, index=True)
+    name = db.Column(db.String(500), nullable=False)
+    version_uuid = db.Column(db.String(255))
+    sail_code = db.Column(db.Text)
+    output_type = db.Column(db.String(100))
+    description = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # Relationships
+    inputs = db.relationship('ExpressionRuleInput', backref='rule', lazy='dynamic', cascade='all, delete-orphan')
+
+    __table_args__ = (
+        db.UniqueConstraint('object_id', 'package_id', name='uq_expression_rule_object_package'),
+        db.Index('idx_expression_rule_object_package', 'object_id', 'package_id'),
+    )
+
+
+class ExpressionRuleInput(db.Model):
+    """Expression Rule inputs"""
+    __tablename__ = 'expression_rule_inputs'
+
+    id = db.Column(db.Integer, primary_key=True)
+    rule_id = db.Column(db.Integer, db.ForeignKey('expression_rules.id', ondelete='CASCADE'), nullable=False)
+    input_name = db.Column(db.String(255), nullable=False)
+    input_type = db.Column(db.String(100))
+    is_required = db.Column(db.Boolean, default=False)
+    default_value = db.Column(db.Text)
+    display_order = db.Column(db.Integer)
+
+
+class ProcessModel(db.Model):
+    """Process Model objects"""
+    __tablename__ = 'process_models'
+
+    id = db.Column(db.Integer, primary_key=True)
+    object_id = db.Column(db.Integer, db.ForeignKey('object_lookup.id', ondelete='CASCADE'), nullable=False, index=True)
+    package_id = db.Column(db.Integer, db.ForeignKey('packages.id', ondelete='CASCADE'), nullable=False, index=True)
+    uuid = db.Column(db.String(255), nullable=False, index=True)
+    name = db.Column(db.String(500), nullable=False)
+    version_uuid = db.Column(db.String(255))
+    description = db.Column(db.Text)
+    total_nodes = db.Column(db.Integer, default=0)
+    total_flows = db.Column(db.Integer, default=0)
+    complexity_score = db.Column(db.Float)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # Relationships
+    nodes = db.relationship('ProcessModelNode', backref='process_model', lazy='dynamic', cascade='all, delete-orphan')
+    flows = db.relationship('ProcessModelFlow', backref='process_model', lazy='dynamic', cascade='all, delete-orphan')
+    variables = db.relationship('ProcessModelVariable', backref='process_model', lazy='dynamic', cascade='all, delete-orphan')
+
+    __table_args__ = (
+        db.UniqueConstraint('object_id', 'package_id', name='uq_process_model_object_package'),
+        db.Index('idx_process_model_object_package', 'object_id', 'package_id'),
+    )
+
+
+class ProcessModelNode(db.Model):
+    """Process Model nodes"""
+    __tablename__ = 'process_model_nodes'
+
+    id = db.Column(db.Integer, primary_key=True)
+    process_model_id = db.Column(db.Integer, db.ForeignKey('process_models.id', ondelete='CASCADE'), nullable=False)
+    node_id = db.Column(db.String(255), nullable=False)
+    node_type = db.Column(db.String(100), nullable=False)
+    node_name = db.Column(db.String(500))
+    properties = db.Column(db.Text)  # JSON
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        db.UniqueConstraint('process_model_id', 'node_id', name='uq_pm_node'),
+        db.Index('idx_node_type', 'process_model_id', 'node_type'),
+    )
+
+
+class ProcessModelFlow(db.Model):
+    """Process Model flows"""
+    __tablename__ = 'process_model_flows'
+
+    id = db.Column(db.Integer, primary_key=True)
+    process_model_id = db.Column(db.Integer, db.ForeignKey('process_models.id', ondelete='CASCADE'), nullable=False)
+    from_node_id = db.Column(db.Integer, db.ForeignKey('process_model_nodes.id'), nullable=False)
+    to_node_id = db.Column(db.Integer, db.ForeignKey('process_model_nodes.id'), nullable=False)
+    flow_label = db.Column(db.String(500))
+    flow_condition = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        db.Index('idx_flow_from', 'process_model_id', 'from_node_id'),
+        db.Index('idx_flow_to', 'process_model_id', 'to_node_id'),
+    )
+
+
+class ProcessModelVariable(db.Model):
+    """Process Model variables"""
+    __tablename__ = 'process_model_variables'
+
+    id = db.Column(db.Integer, primary_key=True)
+    process_model_id = db.Column(db.Integer, db.ForeignKey('process_models.id', ondelete='CASCADE'), nullable=False)
+    variable_name = db.Column(db.String(255), nullable=False)
+    variable_type = db.Column(db.String(100))
+    is_parameter = db.Column(db.Boolean, default=False)
+    default_value = db.Column(db.Text)
+
+
+class RecordType(db.Model):
+    """Record Type objects"""
+    __tablename__ = 'record_types'
+
+    id = db.Column(db.Integer, primary_key=True)
+    object_id = db.Column(db.Integer, db.ForeignKey('object_lookup.id', ondelete='CASCADE'), nullable=False, index=True)
+    package_id = db.Column(db.Integer, db.ForeignKey('packages.id', ondelete='CASCADE'), nullable=False, index=True)
+    uuid = db.Column(db.String(255), nullable=False, index=True)
+    name = db.Column(db.String(500), nullable=False)
+    version_uuid = db.Column(db.String(255))
+    description = db.Column(db.Text)
+    source_type = db.Column(db.String(50))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # Relationships
+    fields = db.relationship('RecordTypeField', backref='record_type', lazy='dynamic', cascade='all, delete-orphan')
+    relationships = db.relationship('RecordTypeRelationship', backref='record_type', lazy='dynamic', cascade='all, delete-orphan')
+    views = db.relationship('RecordTypeView', backref='record_type', lazy='dynamic', cascade='all, delete-orphan')
+    actions = db.relationship('RecordTypeAction', backref='record_type', lazy='dynamic', cascade='all, delete-orphan')
+
+    __table_args__ = (
+        db.UniqueConstraint('object_id', 'package_id', name='uq_record_type_object_package'),
+        db.Index('idx_record_type_object_package', 'object_id', 'package_id'),
+    )
+
+
+class RecordTypeField(db.Model):
+    """Record Type fields"""
+    __tablename__ = 'record_type_fields'
+
+    id = db.Column(db.Integer, primary_key=True)
+    record_type_id = db.Column(db.Integer, db.ForeignKey('record_types.id', ondelete='CASCADE'), nullable=False)
+    field_name = db.Column(db.String(255), nullable=False)
+    field_type = db.Column(db.String(100))
+    is_primary_key = db.Column(db.Boolean, default=False)
+    is_required = db.Column(db.Boolean, default=False)
+    display_order = db.Column(db.Integer)
+
+
+class RecordTypeRelationship(db.Model):
+    """Record Type relationships"""
+    __tablename__ = 'record_type_relationships'
+
+    id = db.Column(db.Integer, primary_key=True)
+    record_type_id = db.Column(db.Integer, db.ForeignKey('record_types.id', ondelete='CASCADE'), nullable=False)
+    relationship_name = db.Column(db.String(255))
+    related_record_uuid = db.Column(db.String(255))
+    relationship_type = db.Column(db.String(50))
+
+
+class RecordTypeView(db.Model):
+    """Record Type views"""
+    __tablename__ = 'record_type_views'
+
+    id = db.Column(db.Integer, primary_key=True)
+    record_type_id = db.Column(db.Integer, db.ForeignKey('record_types.id', ondelete='CASCADE'), nullable=False)
+    view_name = db.Column(db.String(255))
+    view_type = db.Column(db.String(50))
+    configuration = db.Column(db.Text)
+
+
+class RecordTypeAction(db.Model):
+    """Record Type actions"""
+    __tablename__ = 'record_type_actions'
+
+    id = db.Column(db.Integer, primary_key=True)
+    record_type_id = db.Column(db.Integer, db.ForeignKey('record_types.id', ondelete='CASCADE'), nullable=False)
+    action_name = db.Column(db.String(255))
+    action_type = db.Column(db.String(50))
+    configuration = db.Column(db.Text)
+
+
+class CDT(db.Model):
+    """Custom Data Type objects"""
+    __tablename__ = 'cdts'
+
+    id = db.Column(db.Integer, primary_key=True)
+    object_id = db.Column(db.Integer, db.ForeignKey('object_lookup.id', ondelete='CASCADE'), nullable=False, index=True)
+    package_id = db.Column(db.Integer, db.ForeignKey('packages.id', ondelete='CASCADE'), nullable=False, index=True)
+    uuid = db.Column(db.String(255), nullable=False, index=True)
+    name = db.Column(db.String(500), nullable=False)
+    version_uuid = db.Column(db.String(255))
+    namespace = db.Column(db.String(255))
+    description = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # Relationships
+    fields = db.relationship('CDTField', backref='cdt', lazy='dynamic', cascade='all, delete-orphan')
+
+    __table_args__ = (
+        db.UniqueConstraint('object_id', 'package_id', name='uq_cdt_object_package'),
+        db.Index('idx_cdt_object_package', 'object_id', 'package_id'),
+    )
+
+
+class CDTField(db.Model):
+    """CDT fields"""
+    __tablename__ = 'cdt_fields'
+
+    id = db.Column(db.Integer, primary_key=True)
+    cdt_id = db.Column(db.Integer, db.ForeignKey('cdts.id', ondelete='CASCADE'), nullable=False)
+    field_name = db.Column(db.String(255), nullable=False)
+    field_type = db.Column(db.String(100))
+    is_list = db.Column(db.Boolean, default=False)
+    is_required = db.Column(db.Boolean, default=False)
+    display_order = db.Column(db.Integer)
+
+
+class Integration(db.Model):
+    """Integration objects"""
+    __tablename__ = 'integrations'
+
+    id = db.Column(db.Integer, primary_key=True)
+    object_id = db.Column(db.Integer, db.ForeignKey('object_lookup.id', ondelete='CASCADE'), nullable=False, index=True)
+    package_id = db.Column(db.Integer, db.ForeignKey('packages.id', ondelete='CASCADE'), nullable=False, index=True)
+    uuid = db.Column(db.String(255), nullable=False, index=True)
+    name = db.Column(db.String(500), nullable=False)
+    version_uuid = db.Column(db.String(255))
+    sail_code = db.Column(db.Text)
+    connection_info = db.Column(db.Text)
+    authentication_info = db.Column(db.Text)
+    endpoint = db.Column(db.String(500))
+    description = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        db.UniqueConstraint('object_id', 'package_id', name='uq_integration_object_package'),
+        db.Index('idx_integration_object_package', 'object_id', 'package_id'),
+    )
+
+
+class WebAPI(db.Model):
+    """Web API objects"""
+    __tablename__ = 'web_apis'
+
+    id = db.Column(db.Integer, primary_key=True)
+    object_id = db.Column(db.Integer, db.ForeignKey('object_lookup.id', ondelete='CASCADE'), nullable=False, index=True)
+    package_id = db.Column(db.Integer, db.ForeignKey('packages.id', ondelete='CASCADE'), nullable=False, index=True)
+    uuid = db.Column(db.String(255), nullable=False, index=True)
+    name = db.Column(db.String(500), nullable=False)
+    version_uuid = db.Column(db.String(255))
+    sail_code = db.Column(db.Text)
+    endpoint = db.Column(db.String(500))
+    http_methods = db.Column(db.Text)  # JSON
+    description = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        db.UniqueConstraint('object_id', 'package_id', name='uq_web_api_object_package'),
+        db.Index('idx_web_api_object_package', 'object_id', 'package_id'),
+    )
+
+
+class Site(db.Model):
+    """Site objects"""
+    __tablename__ = 'sites'
+
+    id = db.Column(db.Integer, primary_key=True)
+    object_id = db.Column(db.Integer, db.ForeignKey('object_lookup.id', ondelete='CASCADE'), nullable=False, index=True)
+    package_id = db.Column(db.Integer, db.ForeignKey('packages.id', ondelete='CASCADE'), nullable=False, index=True)
+    uuid = db.Column(db.String(255), nullable=False, index=True)
+    name = db.Column(db.String(500), nullable=False)
+    version_uuid = db.Column(db.String(255))
+    page_hierarchy = db.Column(db.Text)  # JSON
+    description = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        db.UniqueConstraint('object_id', 'package_id', name='uq_site_object_package'),
+        db.Index('idx_site_object_package', 'object_id', 'package_id'),
+    )
+
+
+class Group(db.Model):
+    """Group objects"""
+    __tablename__ = 'groups'
+
+    id = db.Column(db.Integer, primary_key=True)
+    object_id = db.Column(db.Integer, db.ForeignKey('object_lookup.id', ondelete='CASCADE'), nullable=False, index=True)
+    package_id = db.Column(db.Integer, db.ForeignKey('packages.id', ondelete='CASCADE'), nullable=False, index=True)
+    uuid = db.Column(db.String(255), nullable=False, index=True)
+    name = db.Column(db.String(500), nullable=False)
+    version_uuid = db.Column(db.String(255))
+    members = db.Column(db.Text)  # JSON
+    parent_group_uuid = db.Column(db.String(255))
+    description = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        db.UniqueConstraint('object_id', 'package_id', name='uq_group_object_package'),
+        db.Index('idx_group_object_package', 'object_id', 'package_id'),
+    )
+
+
+class Constant(db.Model):
+    """Constant objects"""
+    __tablename__ = 'constants'
+
+    id = db.Column(db.Integer, primary_key=True)
+    object_id = db.Column(db.Integer, db.ForeignKey('object_lookup.id', ondelete='CASCADE'), nullable=False, index=True)
+    package_id = db.Column(db.Integer, db.ForeignKey('packages.id', ondelete='CASCADE'), nullable=False, index=True)
+    uuid = db.Column(db.String(255), nullable=False, index=True)
+    name = db.Column(db.String(500), nullable=False)
+    version_uuid = db.Column(db.String(255))
+    constant_value = db.Column(db.Text)
+    constant_type = db.Column(db.String(100))
+    scope = db.Column(db.String(50))
+    description = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        db.UniqueConstraint('object_id', 'package_id', name='uq_constant_object_package'),
+        db.Index('idx_constant_object_package', 'object_id', 'package_id'),
+    )
+
+
+class ConnectedSystem(db.Model):
+    """Connected System objects"""
+    __tablename__ = 'connected_systems'
+
+    id = db.Column(db.Integer, primary_key=True)
+    object_id = db.Column(db.Integer, db.ForeignKey('object_lookup.id', ondelete='CASCADE'), nullable=False, index=True)
+    package_id = db.Column(db.Integer, db.ForeignKey('packages.id', ondelete='CASCADE'), nullable=False, index=True)
+    uuid = db.Column(db.String(255), nullable=False, index=True)
+    name = db.Column(db.String(500), nullable=False)
+    version_uuid = db.Column(db.String(255))
+    system_type = db.Column(db.String(100))
+    properties = db.Column(db.Text)  # JSON
+    description = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        db.UniqueConstraint('object_id', 'package_id', name='uq_connected_system_object_package'),
+        db.Index('idx_connected_system_object_package', 'object_id', 'package_id'),
+    )
+
+
+class UnknownObject(db.Model):
+    """Unknown object types"""
+    __tablename__ = 'unknown_objects'
+
+    id = db.Column(db.Integer, primary_key=True)
+    object_id = db.Column(db.Integer, db.ForeignKey('object_lookup.id', ondelete='CASCADE'), nullable=False, index=True)
+    package_id = db.Column(db.Integer, db.ForeignKey('packages.id', ondelete='CASCADE'), nullable=False, index=True)
+    uuid = db.Column(db.String(255), nullable=False, index=True)
+    name = db.Column(db.String(500), nullable=False)
+    version_uuid = db.Column(db.String(255))
+    raw_xml = db.Column(db.Text)
+    description = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        db.UniqueConstraint('object_id', 'package_id', name='uq_unknown_object_object_package'),
+        db.Index('idx_unknown_object_object_package', 'object_id', 'package_id'),
+    )
+
+
+class DataStore(db.Model):
+    """Data Store objects"""
+    __tablename__ = 'data_stores'
+
+    id = db.Column(db.Integer, primary_key=True)
+    object_id = db.Column(db.Integer, db.ForeignKey('object_lookup.id', ondelete='CASCADE'), nullable=False, index=True)
+    package_id = db.Column(db.Integer, db.ForeignKey('packages.id', ondelete='CASCADE'), nullable=False, index=True)
+    uuid = db.Column(db.String(255), nullable=False, index=True)
+    name = db.Column(db.String(500), nullable=False)
+    version_uuid = db.Column(db.String(255))
+    description = db.Column(db.Text)
+    connection_reference = db.Column(db.Text)
+    configuration = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        db.UniqueConstraint('object_id', 'package_id', name='uq_data_store_object_package'),
+        db.Index('idx_data_store_object_package', 'object_id', 'package_id'),
+    )
+
+
+class DataStoreEntity(db.Model):
+    """Data Store entity mappings"""
+    __tablename__ = 'data_store_entities'
+
+    id = db.Column(db.Integer, primary_key=True)
+    data_store_id = db.Column(db.Integer, db.ForeignKey('data_stores.id', ondelete='CASCADE'), nullable=False, index=True)
+    cdt_uuid = db.Column(db.String(255), nullable=False, index=True)
+    table_name = db.Column(db.String(255), nullable=False)
+    column_mappings = db.Column(db.Text)  # JSON
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+# ============================================================================
+# Comparison Result Models
+# ============================================================================
+
+class InterfaceComparison(db.Model):
+    """Interface comparison results"""
+    __tablename__ = 'interface_comparisons'
+
+    id = db.Column(db.Integer, primary_key=True)
+    change_id = db.Column(db.Integer, db.ForeignKey('changes.id', ondelete='CASCADE'), nullable=False, unique=True)
+    sail_code_diff = db.Column(db.Text)
+    parameters_added = db.Column(db.Text)  # JSON
+    parameters_removed = db.Column(db.Text)  # JSON
+    parameters_modified = db.Column(db.Text)  # JSON
+    security_changes = db.Column(db.Text)  # JSON
+
+
+class ProcessModelComparison(db.Model):
+    """Process Model comparison results"""
+    __tablename__ = 'process_model_comparisons'
+
+    id = db.Column(db.Integer, primary_key=True)
+    change_id = db.Column(db.Integer, db.ForeignKey('changes.id', ondelete='CASCADE'), nullable=False, unique=True)
+    nodes_added = db.Column(db.Text)  # JSON
+    nodes_removed = db.Column(db.Text)  # JSON
+    nodes_modified = db.Column(db.Text)  # JSON
+    flows_added = db.Column(db.Text)  # JSON
+    flows_removed = db.Column(db.Text)  # JSON
+    flows_modified = db.Column(db.Text)  # JSON
+    variables_changed = db.Column(db.Text)  # JSON
+    mermaid_diagram = db.Column(db.Text)
+
+
+class RecordTypeComparison(db.Model):
+    """Record Type comparison results"""
+    __tablename__ = 'record_type_comparisons'
+
+    id = db.Column(db.Integer, primary_key=True)
+    change_id = db.Column(db.Integer, db.ForeignKey('changes.id', ondelete='CASCADE'), nullable=False, unique=True)
+    fields_changed = db.Column(db.Text)  # JSON
+    relationships_changed = db.Column(db.Text)  # JSON
+    views_changed = db.Column(db.Text)  # JSON
+    actions_changed = db.Column(db.Text)  # JSON
+
+
+class ExpressionRuleComparison(db.Model):
+    """Expression Rule comparison results"""
+    __tablename__ = 'expression_rule_comparisons'
+
+    id = db.Column(db.Integer, primary_key=True)
+    session_id = db.Column(db.Integer, db.ForeignKey('merge_sessions.id', ondelete='CASCADE'), nullable=False, index=True)
+    object_id = db.Column(db.Integer, db.ForeignKey('object_lookup.id', ondelete='CASCADE'), nullable=False, index=True)
+    input_changes = db.Column(db.Text)  # JSON
+    return_type_change = db.Column(db.Text)
+    logic_diff = db.Column(db.Text)  # JSON
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        db.UniqueConstraint('session_id', 'object_id', name='uq_ercomp_session_object'),
+    )
+
+
+class CDTComparison(db.Model):
+    """CDT comparison results"""
+    __tablename__ = 'cdt_comparisons'
+
+    id = db.Column(db.Integer, primary_key=True)
+    session_id = db.Column(db.Integer, db.ForeignKey('merge_sessions.id', ondelete='CASCADE'), nullable=False, index=True)
+    object_id = db.Column(db.Integer, db.ForeignKey('object_lookup.id', ondelete='CASCADE'), nullable=False, index=True)
+    field_changes = db.Column(db.Text)  # JSON
+    namespace_change = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        db.UniqueConstraint('session_id', 'object_id', name='uq_cdtcomp_session_object'),
+    )
+
+
+class ConstantComparison(db.Model):
+    """Constant comparison results"""
+    __tablename__ = 'constant_comparisons'
+
+    id = db.Column(db.Integer, primary_key=True)
+    session_id = db.Column(db.Integer, db.ForeignKey('merge_sessions.id', ondelete='CASCADE'), nullable=False, index=True)
+    object_id = db.Column(db.Integer, db.ForeignKey('object_lookup.id', ondelete='CASCADE'), nullable=False, index=True)
+    base_value = db.Column(db.Text)
+    customer_value = db.Column(db.Text)
+    new_vendor_value = db.Column(db.Text)
+    type_change = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        db.UniqueConstraint('session_id', 'object_id', name='uq_constcomp_session_object'),
+    )

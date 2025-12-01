@@ -1,0 +1,567 @@
+{% extends "base.html" %}
+
+{% block title %}Merge Sessions - NexusGen{% endblock %}
+
+{% block breadcrumbs %}
+<nav class="breadcrumb-nav">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}"><i class="fas fa-home"></i> Home</a></li>
+        <li class="breadcrumb-item active">Merge Sessions</li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block page_title %}Merge Sessions{% endblock %}
+{% block page_subtitle %}View and manage three-way merge analysis sessions{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="filter-search-controls">
+            <!-- Status Filter Buttons -->
+            <div class="filter-controls">
+                <label class="control-label">Filter by Status:</label>
+                <div class="btn-group" role="group">
+                    <button type="button" class="btn btn-outline-primary active" data-filter="all">
+                        <i class="fas fa-list"></i> All
+                    </button>
+                    <button type="button" class="btn btn-outline-primary" data-filter="processing">
+                        <i class="fas fa-spinner"></i> Processing
+                    </button>
+                    <button type="button" class="btn btn-outline-primary" data-filter="ready">
+                        <i class="fas fa-check-circle"></i> Ready
+                    </button>
+                    <button type="button" class="btn btn-outline-primary" data-filter="in_progress">
+                        <i class="fas fa-tasks"></i> In Progress
+                    </button>
+                    <button type="button" class="btn btn-outline-primary" data-filter="completed">
+                        <i class="fas fa-check-double"></i> Completed
+                    </button>
+                    <button type="button" class="btn btn-outline-primary" data-filter="error">
+                        <i class="fas fa-exclamation-triangle"></i> Error
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Search Input -->
+            <div class="search-controls">
+                <label class="control-label">Search:</label>
+                <div class="input-group">
+                    <span class="input-group-text">
+                        <i class="fas fa-search"></i>
+                    </span>
+                    <input type="text" 
+                           id="sessionSearch" 
+                           class="form-control" 
+                           placeholder="Search by reference ID or package name...">
+                </div>
+            </div>
+            
+            <!-- Sort Dropdown -->
+            <div class="sort-controls">
+                <label class="control-label">Sort by:</label>
+                <select id="sessionSort" class="form-select">
+                    <option value="newest">Newest First</option>
+                    <option value="oldest">Oldest First</option>
+                    <option value="ref-asc">Reference ID A-Z</option>
+                    <option value="ref-desc">Reference ID Z-A</option>
+                    <option value="status-asc">Status A-Z</option>
+                </select>
+            </div>
+            
+            <!-- Clear Filters Button -->
+            <div class="clear-controls">
+                <button type="button" id="clearFilters" class="btn btn-outline-secondary">
+                    <i class="fas fa-times-circle"></i> Clear Filters
+                </button>
+            </div>
+            
+            <!-- New Session Button -->
+            <div class="action-controls">
+                <a href="{{ url_for('merge.upload') }}" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> New Merge Session
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="sessions-panel">
+            {% if sessions %}
+                <div class="sessions-list">
+                    {% for session in sessions %}
+                    <div class="session-card" 
+                         data-status="{{ session.status }}"
+                         data-reference="{{ session.reference_id }}"
+                         data-created="{{ session.created_at.isoformat() }}">
+                        <div class="session-header">
+                            <div class="session-info">
+                                <h5 class="session-id">
+                                    <i class="fas fa-code-branch text-purple"></i>
+                                    {{ session.reference_id }}
+                                </h5>
+                                <p class="session-date text-muted">
+                                    <i class="fas fa-calendar"></i>
+                                    {{ session.created_at.strftime('%Y-%m-%d %H:%M') }}
+                                </p>
+                            </div>
+                            <div class="session-status">
+                                {% if session.status == 'ready' %}
+                                    <span class="badge bg-success">
+                                        <i class="fas fa-check-circle"></i> Ready
+                                    </span>
+                                {% elif session.status == 'processing' %}
+                                    <span class="badge bg-warning">
+                                        <i class="fas fa-spinner fa-spin"></i> Processing
+                                    </span>
+                                {% elif session.status == 'in_progress' %}
+                                    <span class="badge bg-info">
+                                        <i class="fas fa-tasks"></i> In Progress
+                                    </span>
+                                {% elif session.status == 'completed' %}
+                                    <span class="badge bg-primary">
+                                        <i class="fas fa-check-double"></i> Completed
+                                    </span>
+                                {% elif session.status == 'error' %}
+                                    <span class="badge bg-danger">
+                                        <i class="fas fa-exclamation-triangle"></i> Error
+                                    </span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="session-stats">
+                            <div class="stat-item">
+                                <div class="stat-label">Total Changes</div>
+                                <div class="stat-value">{{ session.total_changes or 0 }}</div>
+                            </div>
+                            {% if session.status in ['in_progress', 'completed'] %}
+                            <div class="stat-item">
+                                <div class="stat-label">Progress</div>
+                                <div class="stat-value progress-display">
+                                    {% set reviewed = session.reviewed_count or 0 %}
+                                    {% set total = session.total_changes or 0 %}
+                                    {% set percent = ((reviewed / total * 100) | round(1)) if total > 0 else 0 %}
+                                    {{ reviewed }} / {{ total }} ({{ percent }}%)
+                                </div>
+                            </div>
+                            {% else %}
+                            <div class="stat-item">
+                                <div class="stat-label">Packages</div>
+                                <div class="stat-value">3</div>
+                            </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="session-actions">
+                            {% if session.status == 'ready' %}
+                                <a href="{{ url_for('merge.summary', reference_id=session.reference_id) }}" 
+                                   class="btn btn-sm btn-primary">
+                                    <i class="fas fa-eye"></i> View Summary
+                                </a>
+                                <a href="{{ url_for('merge.workflow', reference_id=session.reference_id) }}" 
+                                   class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-play"></i> Resume Workflow
+                                </a>
+                            {% elif session.status == 'in_progress' %}
+                                <a href="{{ url_for('merge.summary', reference_id=session.reference_id) }}" 
+                                   class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-eye"></i> View Summary
+                                </a>
+                                <a href="{{ url_for('merge.workflow', reference_id=session.reference_id) }}" 
+                                   class="btn btn-sm btn-primary">
+                                    <i class="fas fa-play"></i> Resume Workflow
+                                </a>
+                            {% elif session.status == 'completed' %}
+                                <a href="{{ url_for('merge.summary', reference_id=session.reference_id) }}" 
+                                   class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-history"></i> View Results
+                                </a>
+                            {% elif session.status == 'error' %}
+                                <button class="btn btn-sm btn-outline-danger" disabled>
+                                    <i class="fas fa-exclamation-circle"></i> Failed
+                                </button>
+                            {% elif session.status == 'processing' %}
+                                <button class="btn btn-sm btn-outline-warning" disabled>
+                                    <i class="fas fa-spinner fa-spin"></i> Processing...
+                                </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="empty-state">
+                    <i class="fas fa-code-branch"></i>
+                    <h4>No Merge Sessions</h4>
+                    <p>Create your first three-way merge session to get started</p>
+                    <a href="{{ url_for('merge.upload') }}" class="btn btn-primary mt-3">
+                        <i class="fas fa-plus"></i> Create Session
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+.filter-search-controls {
+    display: grid;
+    grid-template-columns: auto 1fr auto auto auto;
+    gap: 1.5rem;
+    align-items: end;
+    background: var(--bg-card);
+    padding: 1.5rem;
+    border-radius: 12px;
+    border: 1px solid #374151;
+    margin-bottom: 1.5rem;
+}
+
+.filter-controls,
+.search-controls,
+.sort-controls,
+.clear-controls,
+.action-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.control-label {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin: 0;
+    font-weight: 600;
+}
+
+.filter-controls .btn-group {
+    display: flex;
+    gap: 0.25rem;
+}
+
+.filter-controls .btn {
+    font-size: 0.875rem;
+    padding: 0.5rem 1rem;
+    white-space: nowrap;
+}
+
+.search-controls {
+    min-width: 300px;
+}
+
+.search-controls .input-group-text {
+    background: rgba(139, 92, 246, 0.1);
+    border: 1px solid #374151;
+    color: var(--text-secondary);
+}
+
+.search-controls .form-control {
+    background: var(--bg-primary);
+    border: 1px solid #374151;
+    color: var(--text-primary);
+}
+
+.search-controls .form-control:focus {
+    background: var(--bg-primary);
+    border-color: var(--purple);
+    color: var(--text-primary);
+    box-shadow: 0 0 0 0.2rem rgba(139, 92, 246, 0.25);
+}
+
+.sort-controls .form-select {
+    background: var(--bg-primary);
+    border: 1px solid #374151;
+    color: var(--text-primary);
+    min-width: 180px;
+}
+
+.sort-controls .form-select:focus {
+    background: var(--bg-primary);
+    border-color: var(--purple);
+    color: var(--text-primary);
+    box-shadow: 0 0 0 0.2rem rgba(139, 92, 246, 0.25);
+}
+
+.clear-controls .btn {
+    white-space: nowrap;
+}
+
+.action-controls .btn {
+    white-space: nowrap;
+}
+
+@media (max-width: 1400px) {
+    .filter-search-controls {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    
+    .filter-controls .btn-group {
+        flex-wrap: wrap;
+    }
+}
+
+.sessions-panel {
+    background: var(--bg-card);
+    border-radius: 12px;
+    padding: 1.5rem;
+    border: 1px solid #374151;
+    min-height: 400px;
+}
+
+.sessions-list {
+    display: grid;
+    gap: 1rem;
+}
+
+.session-card {
+    background: rgba(139, 92, 246, 0.05);
+    border: 1px solid #374151;
+    border-radius: 12px;
+    padding: 1.5rem;
+    transition: all 0.3s ease;
+}
+
+.session-card:hover {
+    border-color: var(--purple);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.2);
+}
+
+.session-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #374151;
+}
+
+.session-info h5 {
+    margin: 0 0 0.5rem 0;
+    color: var(--text-primary);
+    font-size: 1.125rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.session-date {
+    margin: 0;
+    font-size: 0.875rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.session-status .badge {
+    font-size: 0.875rem;
+    padding: 0.5rem 1rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.session-stats {
+    display: flex;
+    gap: 2rem;
+    margin-bottom: 1rem;
+}
+
+.stat-item {
+    flex: 1;
+}
+
+.stat-label {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.25rem;
+}
+
+.stat-value {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.stat-value.progress-display {
+    font-size: 1.125rem;
+    color: var(--purple);
+}
+
+.session-actions {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+}
+
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 4rem 2rem;
+    color: var(--text-secondary);
+}
+
+.empty-state i {
+    font-size: 4rem;
+    margin-bottom: 1.5rem;
+    color: var(--text-secondary);
+}
+
+.empty-state h4 {
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+}
+
+.empty-state p {
+    margin-bottom: 0;
+}
+
+.text-purple {
+    color: var(--purple);
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const filterButtons = document.querySelectorAll('[data-filter]');
+    const searchInput = document.getElementById('sessionSearch');
+    const sortSelect = document.getElementById('sessionSort');
+    const clearButton = document.getElementById('clearFilters');
+    const sessionsList = document.querySelector('.sessions-list');
+    
+    let currentFilter = 'all';
+    let currentSearch = '';
+    let currentSort = 'newest';
+    
+    // Get all session cards
+    function getSessionCards() {
+        return Array.from(document.querySelectorAll('.session-card'));
+    }
+    
+    // Apply all filters and sorting
+    function applyFiltersAndSort() {
+        const cards = getSessionCards();
+        
+        // Filter by status
+        cards.forEach(card => {
+            const status = card.dataset.status;
+            const referenceId = card.dataset.reference.toLowerCase();
+            const cardText = card.textContent.toLowerCase();
+            
+            // Status filter
+            const statusMatch = currentFilter === 'all' || status === currentFilter;
+            
+            // Search filter
+            const searchMatch = currentSearch === '' || 
+                               referenceId.includes(currentSearch.toLowerCase()) ||
+                               cardText.includes(currentSearch.toLowerCase());
+            
+            // Show/hide card
+            if (statusMatch && searchMatch) {
+                card.style.display = 'block';
+            } else {
+                card.style.display = 'none';
+            }
+        });
+        
+        // Sort visible cards
+        sortCards(cards);
+    }
+    
+    // Sort cards
+    function sortCards(cards) {
+        const visibleCards = cards.filter(card => card.style.display !== 'none');
+        
+        visibleCards.sort((a, b) => {
+            switch (currentSort) {
+                case 'newest':
+                    return new Date(b.dataset.created) - new Date(a.dataset.created);
+                case 'oldest':
+                    return new Date(a.dataset.created) - new Date(b.dataset.created);
+                case 'ref-asc':
+                    return a.dataset.reference.localeCompare(b.dataset.reference);
+                case 'ref-desc':
+                    return b.dataset.reference.localeCompare(a.dataset.reference);
+                case 'status-asc':
+                    return a.dataset.status.localeCompare(b.dataset.status);
+                default:
+                    return 0;
+            }
+        });
+        
+        // Reorder in DOM
+        visibleCards.forEach(card => {
+            sessionsList.appendChild(card);
+        });
+        
+        // Append hidden cards at the end
+        const hiddenCards = cards.filter(card => card.style.display === 'none');
+        hiddenCards.forEach(card => {
+            sessionsList.appendChild(card);
+        });
+    }
+    
+    // Status filter buttons
+    filterButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            // Update active button
+            filterButtons.forEach(btn => btn.classList.remove('active'));
+            this.classList.add('active');
+            
+            // Update current filter
+            currentFilter = this.dataset.filter;
+            
+            // Apply filters
+            applyFiltersAndSort();
+        });
+    });
+    
+    // Search input
+    searchInput.addEventListener('input', function() {
+        currentSearch = this.value;
+        applyFiltersAndSort();
+    });
+    
+    // Sort dropdown
+    sortSelect.addEventListener('change', function() {
+        currentSort = this.value;
+        applyFiltersAndSort();
+    });
+    
+    // Clear filters button
+    clearButton.addEventListener('click', function() {
+        // Reset filter
+        currentFilter = 'all';
+        filterButtons.forEach(btn => btn.classList.remove('active'));
+        filterButtons[0].classList.add('active'); // Activate "All" button
+        
+        // Reset search
+        currentSearch = '';
+        searchInput.value = '';
+        
+        // Reset sort
+        currentSort = 'newest';
+        sortSelect.value = 'newest';
+        
+        // Apply filters
+        applyFiltersAndSort();
+    });
+    
+    // Initial sort
+    applyFiltersAndSort();
+});
+</script>
+{% endblock %}

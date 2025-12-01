@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block title %}Page Not Found - NexusGen{% endblock %}
+
+{% block page_title %}
+    <i class="fas fa-exclamation-triangle text-warning"></i> Page Not Found
+{% endblock %}
+
+{% block page_subtitle %}
+    The page you're looking for doesn't exist or has been moved.
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow-sm">
+                <div class="card-body text-center py-5">
+                    <div class="mb-4">
+                        <i class="fas fa-search fa-5x text-muted opacity-50"></i>
+                    </div>
+                    
+                    <h2 class="mb-3">404 - Not Found</h2>
+                    
+                    {% if message %}
+                    <div class="alert alert-warning mx-auto" style="max-width: 600px;" role="alert">
+                        <i class="fas fa-info-circle me-2"></i>
+                        {{ message }}
+                    </div>
+                    {% else %}
+                    <p class="text-muted mb-4">
+                        The resource you're looking for could not be found.
+                    </p>
+                    {% endif %}
+                    
+                    <div class="d-flex gap-3 justify-content-center mt-4">
+                        {% if back_url %}
+                        <a href="{{ back_url }}" class="btn btn-primary">
+                            <i class="fas fa-arrow-left me-2"></i>
+                            Go Back
+                        </a>
+                        {% endif %}
+                        
+                        <a href="{{ url_for('merge.sessions') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-list me-2"></i>
+                            View All Sessions
+                        </a>
+                        
+                        <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-home me-2"></i>
+                            Dashboard
+                        </a>
+                    </div>
+                    
+                    <div class="mt-5 pt-4 border-top">
+                        <h5 class="mb-3">Common Actions</h5>
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <a href="{{ url_for('merge.upload') }}" class="text-decoration-none">
+                                    <div class="p-3 border rounded hover-shadow">
+                                        <i class="fas fa-upload fa-2x text-primary mb-2"></i>
+                                        <p class="mb-0 small">Create New Session</p>
+                                    </div>
+                                </a>
+                            </div>
+                            <div class="col-md-4">
+                                <a href="{{ url_for('merge.sessions') }}" class="text-decoration-none">
+                                    <div class="p-3 border rounded hover-shadow">
+                                        <i class="fas fa-list fa-2x text-success mb-2"></i>
+                                        <p class="mb-0 small">Browse Sessions</p>
+                                    </div>
+                                </a>
+                            </div>
+                            <div class="col-md-4">
+                                <a href="{{ url_for('process.history') }}" class="text-decoration-none">
+                                    <div class="p-3 border rounded hover-shadow">
+                                        <i class="fas fa-history fa-2x text-info mb-2"></i>
+                                        <p class="mb-0 small">View History</p>
+                                    </div>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .hover-shadow {
+        transition: all 0.2s ease;
+    }
+    
+    .hover-shadow:hover {
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        transform: translateY(-2px);
+    }
+</style>
+{% endblock %}

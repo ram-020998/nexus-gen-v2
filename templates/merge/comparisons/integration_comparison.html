@@ -1,0 +1,210 @@
+{% extends "merge/_base_comparison.html" %}
+
+{% block comparison_content %}
+<!-- SAIL Code Comparison -->
+<div class="comparison-section mb-4">
+    <h5 class="section-title">
+        <i class="fas fa-code"></i> SAIL Code Comparison
+    </h5>
+    
+    <div class="sail-diff-container">
+        <div class="diff-side">
+            <div class="diff-side-header before">
+                <i class="fas fa-minus-circle"></i> Before ({{ 'Customer' if customer_object else 'Base' }})
+            </div>
+            <div class="diff-code-content">
+                <pre><code class="language-sail">{{ (customer_object.sail_code if customer_object else base_object.sail_code) or 'No SAIL code available' }}</code></pre>
+            </div>
+        </div>
+        <div class="diff-side">
+            <div class="diff-side-header after">
+                <i class="fas fa-plus-circle"></i> After (Vendor)
+            </div>
+            <div class="diff-code-content">
+                <pre><code class="language-sail">{{ vendor_object.sail_code or 'No SAIL code available' }}</code></pre>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Connection Information -->
+<div class="comparison-section mb-4">
+    <h5 class="section-title">
+        <i class="fas fa-plug"></i> Connection Information
+    </h5>
+    
+    <div class="info-comparison">
+        <div class="info-side">
+            <div class="info-header before">
+                <i class="fas fa-minus-circle"></i> Before
+            </div>
+            <div class="info-content">
+                <pre>{{ (customer_object.connection_info if customer_object else base_object.connection_info) or 'No connection information' }}</pre>
+            </div>
+        </div>
+        <div class="info-side">
+            <div class="info-header after">
+                <i class="fas fa-plus-circle"></i> After
+            </div>
+            <div class="info-content">
+                <pre>{{ vendor_object.connection_info or 'No connection information' }}</pre>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Authentication Information -->
+<div class="comparison-section mb-4">
+    <h5 class="section-title">
+        <i class="fas fa-key"></i> Authentication
+    </h5>
+    
+    <div class="info-comparison">
+        <div class="info-side">
+            <div class="info-header before">
+                <i class="fas fa-minus-circle"></i> Before
+            </div>
+            <div class="info-content">
+                <pre>{{ (customer_object.authentication_info if customer_object else base_object.authentication_info) or 'No authentication information' }}</pre>
+            </div>
+        </div>
+        <div class="info-side">
+            <div class="info-header after">
+                <i class="fas fa-plus-circle"></i> After
+            </div>
+            <div class="info-content">
+                <pre>{{ vendor_object.authentication_info or 'No authentication information' }}</pre>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Endpoint -->
+<div class="comparison-section mb-4">
+    <h5 class="section-title">
+        <i class="fas fa-link"></i> Endpoint
+    </h5>
+    
+    <div class="endpoint-comparison">
+        <div class="endpoint-item">
+            <span class="endpoint-label">Before:</span>
+            <code class="endpoint-value">{{ (customer_object.endpoint if customer_object else base_object.endpoint) or 'Not specified' }}</code>
+        </div>
+        <div class="endpoint-item">
+            <span class="endpoint-label">After:</span>
+            <code class="endpoint-value">{{ vendor_object.endpoint or 'Not specified' }}</code>
+        </div>
+    </div>
+</div>
+
+<style>
+.comparison-section {
+    background: rgba(139, 92, 246, 0.05);
+    border-radius: 8px;
+    padding: 1.5rem;
+    border: 1px solid #374151;
+}
+
+.section-title {
+    margin: 0 0 1rem 0;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1.125rem;
+}
+
+.sail-diff-container, .info-comparison {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.diff-side, .info-side {
+    background: var(--bg-card);
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #374151;
+}
+
+.diff-side-header, .info-header {
+    padding: 0.75rem 1rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.diff-side-header.before, .info-header.before {
+    background: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+}
+
+.diff-side-header.after, .info-header.after {
+    background: rgba(16, 185, 129, 0.2);
+    color: var(--green);
+}
+
+.diff-code-content, .info-content {
+    padding: 1rem;
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.diff-code-content pre, .info-content pre {
+    margin: 0;
+    background: transparent;
+}
+
+.diff-code-content code {
+    color: var(--text-primary);
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.info-content pre {
+    color: var(--text-primary);
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.endpoint-comparison {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.endpoint-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    background: var(--bg-card);
+    border-radius: 6px;
+    border: 1px solid #374151;
+}
+
+.endpoint-label {
+    font-weight: 600;
+    color: var(--text-secondary);
+    min-width: 80px;
+}
+
+.endpoint-value {
+    color: var(--text-primary);
+    background: rgba(139, 92, 246, 0.1);
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 0.875rem;
+}
+</style>
+{% endblock %}

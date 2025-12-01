@@ -62,26 +62,16 @@
         </div>
     </a>
     
-    <a href="{{ url_for('analyzer.analyzer_home') }}" class="action-card analyzer">
+    <a href="{{ url_for('merge.sessions') }}" class="action-card merge">
         <div class="card-icon">
-            <i class="fas fa-search"></i>
+            <i class="fas fa-code-branch"></i>
         </div>
-        <div class="card-title">Appian Analyzer</div>
-        <div class="card-description">Analyze Appian application ZIP files and generate technical blueprints</div>
+        <div class="card-title">Three-Way Merge</div>
+        <div class="card-description">Analyze vendor changes and customer modifications across three Appian packages</div>
         <div class="card-action">
             Get started <i class="fas fa-arrow-right"></i>
         </div>
     </a>
-    
-    <a href="{{ url_for('merge_assistant.list_sessions') }}" class="action-card merge">
-        <div class="card-icon">
-            <i class="fas fa-code-branch"></i>
-        </div>
-        <div class="card-title">Three-Way Merge Assistant</div>
-        <div class="card-description">Upgrade customized Appian applications to new vendor releases while preserving customizations</div>
-        <div class="card-action">
-            View sessions <i class="fas fa-arrow-right"></i>
-        </div>
-    </a>
+
 </div>
 {% endblock %}

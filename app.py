@@ -6,15 +6,23 @@ import json
 from flask import Flask, render_template
 from config import Config
 from models import db, Request
+from core.logger import LoggerConfig
 
 
 def create_app():
     """Application factory"""
+    # Initialize logging first
+    LoggerConfig.setup()
+    
     app = Flask(__name__)
     app.config.from_object(Config)
 
     # Enable sessions for chat
     app.config['SECRET_KEY'] = Config.SECRET_KEY
+    
+    # Apply connection pooling configuration (Requirement 11.5)
+    if hasattr(Config, 'SQLALCHEMY_ENGINE_OPTIONS'):
+        app.config['SQLALCHEMY_ENGINE_OPTIONS'] = Config.SQLALCHEMY_ENGINE_OPTIONS
 
     # Initialize extensions
     db.init_app(app)
@@ -57,6 +65,27 @@ def create_app():
         except (json.JSONDecodeError, TypeError):
             return value
 
+    # Add helper function for object type icons
+    @app.context_processor
+    def utility_processor():
+        def get_object_icon(object_type):
+            """Get Font Awesome icon for object type"""
+            icons = {
+                'Interface': 'window-maximize',
+                'Expression Rule': 'function',
+                'Process Model': 'project-diagram',
+                'Record Type': 'database',
+                'CDT': 'cube',
+                'Integration': 'plug',
+                'Web API': 'globe',
+                'Site': 'sitemap',
+                'Group': 'users',
+                'Constant': 'hashtag',
+                'Connected System': 'server'
+            }
+            return icons.get(object_type, 'file')
+        return dict(get_object_icon=get_object_icon)
+
     # Initialize directories
     Config.init_directories()
 
@@ -81,11 +110,9 @@ def register_blueprints(app):
     from controllers.convert_controller import convert_bp
     from controllers.chat_controller import chat_bp
     from controllers.process_controller import process_bp
-    from controllers.analyzer_controller import analyzer_bp
-    from controllers.merge_assistant_controller import (
-        merge_assistant_bp
-    )
     from controllers.settings_controller import settings_bp
+    from controllers.merge_assistant_controller import merge_bp
+    from controllers.debug_controller import debug_bp
     
     app.register_blueprint(breakdown_bp)
     app.register_blueprint(verify_bp)
@@ -93,9 +120,9 @@ def register_blueprints(app):
     app.register_blueprint(convert_bp)
     app.register_blueprint(chat_bp)
     app.register_blueprint(process_bp)
-    app.register_blueprint(analyzer_bp)
-    app.register_blueprint(merge_assistant_bp)
     app.register_blueprint(settings_bp)
+    app.register_blueprint(merge_bp)
+    app.register_blueprint(debug_bp)
 
 
 def register_routes(app):
@@ -148,29 +175,25 @@ def _register_repositories(container):
         container: DependencyContainer instance
     """
     from repositories.request_repository import RequestRepository
-    from repositories.comparison_repository import (
-        ComparisonRepository
-    )
     from repositories.chat_session_repository import (
         ChatSessionRepository
     )
-    from repositories.merge_session_repository import (
-        MergeSessionRepository
-    )
-    from repositories.package_repository import PackageRepository
     from repositories.change_repository import ChangeRepository
-    from repositories.appian_object_repository import (
-        AppianObjectRepository
+    from repositories.object_lookup_repository import ObjectLookupRepository
+    from repositories.package_object_mapping_repository import (
+        PackageObjectMappingRepository
+    )
+    from repositories.delta_comparison_repository import (
+        DeltaComparisonRepository
     )
     
     # Register each repository
     container.register_repository(RequestRepository)
-    container.register_repository(ComparisonRepository)
     container.register_repository(ChatSessionRepository)
-    container.register_repository(MergeSessionRepository)
-    container.register_repository(PackageRepository)
     container.register_repository(ChangeRepository)
-    container.register_repository(AppianObjectRepository)
+    container.register_repository(ObjectLookupRepository)
+    container.register_repository(PackageObjectMappingRepository)
+    container.register_repository(DeltaComparisonRepository)
 
 
 def _register_services(container):
@@ -184,27 +207,25 @@ def _register_services(container):
     from services.request.request_service import RequestService
     from services.request.file_service import FileService
     from services.request.document_service import DocumentService
-
-    # Comparison services
-    from services.comparison.comparison_service import (
-        ComparisonService
-    )
-    from services.comparison.blueprint_analyzer import (
-        BlueprintAnalyzer
-    )
-    from services.comparison.comparison_request_manager import (
-        ComparisonRequestManager
-    )
     
     # AI services
     from services.ai.bedrock_service import BedrockRAGService
     from services.ai.q_agent_service import QAgentService
-
-    # Merge services
-    from services.merge.package_service import PackageService
-    from services.merge.change_service import ChangeService
-    from services.merge.three_way_merge_service import (
-        ThreeWayMergeService
+    
+    # Three-way merge services
+    from services.three_way_merge_orchestrator import (
+        ThreeWayMergeOrchestrator
+    )
+    from services.package_extraction_service import PackageExtractionService
+    from services.delta_comparison_service import DeltaComparisonService
+    from services.customer_comparison_service import (
+        CustomerComparisonService
+    )
+    from services.classification_service import ClassificationService
+    from services.merge_guidance_service import MergeGuidanceService
+    from services.change_navigation_service import ChangeNavigationService
+    from services.comparison_persistence_service import (
+        ComparisonPersistenceService
     )
     
     # Register request services
@@ -212,21 +233,19 @@ def _register_services(container):
     container.register_service(FileService)
     container.register_service(DocumentService)
 
-    # Register comparison services
-    container.register_service(ComparisonService)
-    container.register_service(BlueprintAnalyzer)
-    container.register_service(ComparisonRequestManager)
-    # Note: ComparisonEngine is not registered as it requires
-    # version parameters and is instantiated per-comparison
-
     # Register AI services
     container.register_service(BedrockRAGService)
     container.register_service(QAgentService)
-
-    # Register merge services
-    container.register_service(PackageService)
-    container.register_service(ChangeService)
-    container.register_service(ThreeWayMergeService)
+    
+    # Register three-way merge services
+    container.register_service(ThreeWayMergeOrchestrator)
+    container.register_service(PackageExtractionService)
+    container.register_service(DeltaComparisonService)
+    container.register_service(CustomerComparisonService)
+    container.register_service(ClassificationService)
+    container.register_service(MergeGuidanceService)
+    container.register_service(ChangeNavigationService)
+    container.register_service(ComparisonPersistenceService)
 
 
 if __name__ == '__main__':

@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xsd:schema targetNamespace="urn:com:appian:types:AS:RM:TMG"
+  xmlns:tns="urn:com:appian:types:AS:RM:TMG" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <xsd:complexType name="AS_RM_TMG_R_TaskBehaviorType">
+    <xsd:annotation>
+      <xsd:appinfo source="appian.jpa">@Table(name="AS_RM_TMG_R_TSK_BHVIOR_TYPE")</xsd:appinfo>
+      <xsd:appinfo source="http://www.appian.com/ae/types/2009">
+        <ns2:Metadata xmlns:ns2="http://www.appian.com/ae/types/2009">
+          <ns2:versionUuid>0000eadb-63fb-8000-86a4-7f0000014e7a</ns2:versionUuid>
+          <ns2:history>
+            <ns2:historyInfo versionUuid="0000e3b5-ce02-8000-f92f-7f0000014e7a"/>
+            <ns2:historyInfo versionUuid="0000e3f8-7d9e-8000-faee-7f0000014e7a"/>
+            <ns2:historyInfo versionUuid="0000e3fa-8af9-8000-fb80-7f0000014e7a-tmg-rm"/>
+            <ns2:historyInfo versionUuid="0000e44a-f33a-8000-0176-7f0000014e7a"/>
+            <ns2:historyInfo versionUuid="0000e3fa-8af9-8000-fb80-7f0000014e7a-tmg-rm-tmg"/>
+            <ns2:historyInfo versionUuid="0000e3fa-8af9-8000-fb80-7f0000014e7a-tmg-rm_sqlRename"/>
+            <ns2:historyInfo versionUuid="0000eadb-63fb-8000-86a4-7f0000014e7a"/>
+          </ns2:history>
+        </ns2:Metadata>
+      </xsd:appinfo>
+      <xsd:documentation><![CDATA[Reference data table for a task behavior type]]></xsd:documentation>
+    </xsd:annotation>
+    <xsd:sequence>
+      <xsd:element name="taskBehaviorTypeId" nillable="true" type="xsd:int">
+        <xsd:annotation>
+          <xsd:appinfo source="appian.jpa">@Id @GeneratedValue @Column(name="TASK_BEHAVIOR_TYPE_ID", nullable=false, unique=true)</xsd:appinfo>
+        </xsd:annotation>
+      </xsd:element>
+      <xsd:element name="behaviorTypeCode" nillable="true" type="xsd:string">
+        <xsd:annotation>
+          <xsd:appinfo source="appian.jpa">@Column(name="BEHAVIOR_TYPE_CODE")</xsd:appinfo>
+        </xsd:annotation>
+      </xsd:element>
+      <xsd:element name="behaviorSubtypeCode" nillable="true" type="xsd:string">
+        <xsd:annotation>
+          <xsd:appinfo source="appian.jpa">@Column(name="BEHAVIOR_SUBTYPE_CODE")</xsd:appinfo>
+        </xsd:annotation>
+      </xsd:element>
+      <xsd:element name="behaviorDisplayName" nillable="true" type="xsd:string">
+        <xsd:annotation>
+          <xsd:appinfo source="appian.jpa">@Column(name="BEHAVIOR_DISPLAY_NAME")</xsd:appinfo>
+        </xsd:annotation>
+      </xsd:element>
+      <xsd:element name="configurationLevelCode" nillable="true" type="xsd:string">
+        <xsd:annotation>
+          <xsd:appinfo source="appian.jpa">@Column(name="CONFIGURATION_LEVEL_CODE")</xsd:appinfo>
+        </xsd:annotation>
+      </xsd:element>
+      <xsd:element name="createdBy" nillable="true" type="xsd:string">
+        <xsd:annotation>
+          <xsd:appinfo source="appian.jpa">@Column(name="CREATED_BY")</xsd:appinfo>
+        </xsd:annotation>
+      </xsd:element>
+      <xsd:element name="createdDatetime" nillable="true" type="xsd:dateTime">
+        <xsd:annotation>
+          <xsd:appinfo source="appian.jpa">@Column(name="CREATED_DATETIME")</xsd:appinfo>
+        </xsd:annotation>
+      </xsd:element>
+      <xsd:element name="modifiedBy" nillable="true" type="xsd:string">
+        <xsd:annotation>
+          <xsd:appinfo source="appian.jpa">@Column(name="MODIFIED_BY")</xsd:appinfo>
+        </xsd:annotation>
+      </xsd:element>
+      <xsd:element name="modifiedDatetime" nillable="true" type="xsd:dateTime">
+        <xsd:annotation>
+          <xsd:appinfo source="appian.jpa">@Column(name="MODIFIED_DATETIME")</xsd:appinfo>
+        </xsd:annotation>
+      </xsd:element>
+      <xsd:element name="icon" nillable="true" type="xsd:string">
+        <xsd:annotation>
+          <xsd:appinfo source="appian.jpa">@Column(name="ICON")</xsd:appinfo>
+        </xsd:annotation>
+      </xsd:element>
+      <xsd:element name="color" nillable="true" type="xsd:string">
+        <xsd:annotation>
+          <xsd:appinfo source="appian.jpa">@Column(name="COLOR")</xsd:appinfo>
+        </xsd:annotation>
+      </xsd:element>
+    </xsd:sequence>
+  </xsd:complexType>
+</xsd:schema>

@@ -1,0 +1,864 @@
+{% extends "base.html" %}
+
+{% block title %}Change Detail - {{ detail.object.name }}{% endblock %}
+
+{% block breadcrumbs %}
+<nav class="breadcrumb-nav">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}"><i class="fas fa-home"></i> Home</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('merge.sessions') }}">Merge Sessions</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('merge.summary', reference_id=detail.session.reference_id) }}">{{ detail.session.reference_id }}</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('merge.workflow', reference_id=detail.session.reference_id) }}">Workflow</a></li>
+        <li class="breadcrumb-item active">Change {{ detail.current_position }}</li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block page_title %}Change Detail{% endblock %}
+{% block page_subtitle %}{{ detail.object.name }} - {{ detail.object.object_type }}{% endblock %}
+
+{% block content %}
+<!-- Progress Bar -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="progress-container">
+            <div class="progress-header">
+                <span class="progress-label">
+                    <i class="fas fa-tasks"></i> Change {{ detail.position }}
+                </span>
+                <span class="progress-percentage">{{ detail.progress_percent }}%</span>
+            </div>
+            <div class="progress" style="height: 8px;">
+                <div class="progress-bar bg-purple" role="progressbar" 
+                     style="width: {{ detail.progress_percent }}%"
+                     aria-valuenow="{{ detail.progress_percent }}" 
+                     aria-valuemin="0" 
+                     aria-valuemax="100">
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Main Content Row -->
+<div class="row">
+    <!-- Left Column: Change Details -->
+    <div class="col-lg-8">
+        <!-- Object Information Card -->
+        <div class="detail-card mb-4">
+            <div class="card-header-custom">
+                <div class="card-icon">
+                    <i class="fas fa-{{ get_object_icon(detail.object.object_type) }}"></i>
+                </div>
+                <div class="card-title-section">
+                    <h4>{{ detail.object.name }}</h4>
+                    <p class="text-muted mb-0">{{ detail.object.object_type }}</p>
+                </div>
+                <div class="card-badges">
+                    {% if detail.change.classification == 'CONFLICT' %}
+                        <span class="badge badge-conflict">
+                            <i class="fas fa-exclamation-triangle"></i> Conflict
+                        </span>
+                    {% elif detail.change.classification == 'NO_CONFLICT' %}
+                        <span class="badge badge-no-conflict">
+                            <i class="fas fa-check"></i> No Conflict
+                        </span>
+                    {% elif detail.change.classification == 'NEW' %}
+                        <span class="badge badge-new">
+                            <i class="fas fa-plus"></i> New
+                        </span>
+                    {% elif detail.change.classification == 'DELETED' %}
+                        <span class="badge badge-deleted">
+                            <i class="fas fa-trash"></i> Deleted
+                        </span>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="card-body-custom">
+                <div class="info-grid">
+                    <div class="info-item">
+                        <label>Description</label>
+                        <p>{{ detail.object.description or 'No description available' }}</p>
+                    </div>
+                    <div class="info-item">
+                        <label>UUID</label>
+                        <p class="text-monospace">{{ detail.object.uuid }}</p>
+                    </div>
+                    <div class="info-item">
+                        <label>Vendor Change Type</label>
+                        <p>
+                            {% if detail.change.vendor_change_type %}
+                                <span class="badge bg-secondary">{{ detail.change.vendor_change_type }}</span>
+                            {% else %}
+                                <span class="text-muted">N/A</span>
+                            {% endif %}
+                        </p>
+                    </div>
+                    <div class="info-item">
+                        <label>Customer Change Type</label>
+                        <p>
+                            {% if detail.change.customer_change_type %}
+                                <span class="badge bg-secondary">{{ detail.change.customer_change_type }}</span>
+                            {% else %}
+                                <span class="text-muted">N/A</span>
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SAIL Code Card (if available) -->
+        {% if detail.versions.new_vendor and detail.versions.new_vendor.sail_code %}
+        <div class="detail-card mb-4">
+            <div class="card-header-custom">
+                <div class="card-icon">
+                    <i class="fas fa-code"></i>
+                </div>
+                <div class="card-title-section">
+                    <h5>SAIL Code (Vendor Version)</h5>
+                </div>
+            </div>
+            <div class="card-body-custom">
+                <pre class="sail-code"><code>{{ detail.versions.new_vendor.sail_code }}</code></pre>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Notes Card -->
+        <div class="detail-card mb-4">
+            <div class="card-header-custom">
+                <div class="card-icon">
+                    <i class="fas fa-sticky-note"></i>
+                </div>
+                <div class="card-title-section">
+                    <h5>Notes</h5>
+                </div>
+            </div>
+            <div class="card-body-custom">
+                <textarea 
+                    id="change-notes" 
+                    class="form-control notes-textarea" 
+                    rows="5" 
+                    placeholder="Add notes about this change..."
+                    maxlength="10000">{{ detail.change.notes or '' }}</textarea>
+                <div class="notes-footer">
+                    <small class="text-muted">
+                        <span id="notes-char-count">{{ (detail.change.notes|length) if detail.change.notes else 0 }}</span> / 10,000 characters
+                    </small>
+                    <button id="save-notes-btn" class="btn btn-sm btn-primary">
+                        <i class="fas fa-save"></i> Save Notes
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column: Session Info & Actions -->
+    <div class="col-lg-4">
+        <!-- Session Info Panel -->
+        <div class="detail-card mb-4" id="session-info-panel">
+            <div class="card-header-custom">
+                <div class="card-icon">
+                    <i class="fas fa-info-circle"></i>
+                </div>
+                <div class="card-title-section">
+                    <h5>Session Info</h5>
+                </div>
+            </div>
+            <div class="card-body-custom">
+                <div class="session-info-grid">
+                    <div class="session-info-item">
+                        <label>Reference ID</label>
+                        <p>{{ detail.session.reference_id }}</p>
+                    </div>
+                    <div class="session-info-item">
+                        <label>Status</label>
+                        <p>
+                            <span class="badge badge-status-{{ detail.session.status }}">
+                                {{ detail.session.status|upper }}
+                            </span>
+                        </p>
+                    </div>
+                    <div class="session-info-item">
+                        <label>Total Changes</label>
+                        <p id="total-changes">{{ detail.session.total_changes }}</p>
+                    </div>
+                    <div class="session-info-item">
+                        <label>Reviewed</label>
+                        <p id="reviewed-count">{{ detail.session.reviewed_count }}</p>
+                    </div>
+                    <div class="session-info-item">
+                        <label>Skipped</label>
+                        <p id="skipped-count">{{ detail.session.skipped_count }}</p>
+                    </div>
+                    <div class="session-info-item">
+                        <label>Pending</label>
+                        <p id="pending-count">{{ detail.session.total_changes - detail.session.reviewed_count - detail.session.skipped_count }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action Buttons Card -->
+        <div class="detail-card mb-4">
+            <div class="card-header-custom">
+                <div class="card-icon">
+                    <i class="fas fa-bolt"></i>
+                </div>
+                <div class="card-title-section">
+                    <h5>Actions</h5>
+                </div>
+            </div>
+            <div class="card-body-custom">
+                <div class="action-buttons">
+                    <button id="mark-reviewed-btn" class="btn btn-success btn-block mb-2" 
+                            {% if detail.change.status == 'reviewed' %}disabled{% endif %}>
+                        <i class="fas fa-check-circle"></i> Mark as Reviewed
+                    </button>
+                    <button id="skip-btn" class="btn btn-warning btn-block mb-2"
+                            {% if detail.change.status == 'skipped' %}disabled{% endif %}>
+                        <i class="fas fa-forward"></i> Skip
+                    </button>
+                    {% if detail.change.status != 'pending' %}
+                    <button id="undo-btn" class="btn btn-secondary btn-block mb-2">
+                        <i class="fas fa-undo"></i> Undo Action
+                    </button>
+                    {% endif %}
+                </div>
+                {% if detail.change.status != 'pending' %}
+                <div class="status-info mt-3">
+                    <p class="text-muted mb-1">
+                        <small>
+                            <i class="fas fa-info-circle"></i> 
+                            Current status: <strong>{{ detail.change.status|upper }}</strong>
+                        </small>
+                    </p>
+                    {% if detail.change.reviewed_at %}
+                    <p class="text-muted mb-0">
+                        <small>
+                            <i class="fas fa-clock"></i> 
+                            {{ detail.change.reviewed_at }}
+                        </small>
+                    </p>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Navigation Card -->
+        <div class="detail-card">
+            <div class="card-header-custom">
+                <div class="card-icon">
+                    <i class="fas fa-arrows-alt-h"></i>
+                </div>
+                <div class="card-title-section">
+                    <h5>Navigation</h5>
+                </div>
+            </div>
+            <div class="card-body-custom">
+                <div class="navigation-buttons">
+                    {% if detail.navigation.has_previous %}
+                    <a href="{{ url_for('merge.get_change_detail', reference_id=detail.session.reference_id, change_id=detail.navigation.previous_change_id) }}" 
+                       class="btn btn-outline-primary btn-nav">
+                        <i class="fas fa-chevron-left"></i> Previous
+                    </a>
+                    {% else %}
+                    <button class="btn btn-outline-primary btn-nav" disabled>
+                        <i class="fas fa-chevron-left"></i> Previous
+                    </button>
+                    {% endif %}
+                    
+                    {% if detail.navigation.has_next %}
+                    <a href="{{ url_for('merge.get_change_detail', reference_id=detail.session.reference_id, change_id=detail.navigation.next_change_id) }}" 
+                       class="btn btn-outline-primary btn-nav">
+                        Next <i class="fas fa-chevron-right"></i>
+                    </a>
+                    {% else %}
+                    <button class="btn btn-outline-primary btn-nav" disabled>
+                        Next <i class="fas fa-chevron-right"></i>
+                    </button>
+                    {% endif %}
+                </div>
+                <div class="mt-3 text-center">
+                    <a href="{{ url_for('merge.workflow', reference_id=detail.session.reference_id) }}" 
+                       class="btn btn-sm btn-outline-secondary">
+                        <i class="fas fa-list"></i> Back to Workflow
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Alert Container for Messages -->
+<div id="alert-container" class="alert-container"></div>
+
+<style>
+.progress-container {
+    background: var(--bg-card);
+    border-radius: 12px;
+    padding: 1.5rem;
+    border: 1px solid var(--border-color);
+}
+
+.progress-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.progress-label {
+    font-weight: 600;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.progress-percentage {
+    font-weight: 700;
+    font-size: 1.25rem;
+    color: var(--purple);
+}
+
+.progress {
+    background: rgba(139, 92, 246, 0.1);
+    border-radius: 4px;
+}
+
+.bg-purple {
+    background: linear-gradient(90deg, var(--purple), var(--pink));
+}
+
+.detail-card {
+    background: var(--bg-card);
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+}
+
+.card-header-custom {
+    background: rgba(139, 92, 246, 0.05);
+    border-bottom: 1px solid var(--border-color);
+    padding: 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.card-icon {
+    width: 40px;
+    height: 40px;
+    background: rgba(139, 92, 246, 0.2);
+    color: var(--purple);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    flex-shrink: 0;
+}
+
+.card-title-section {
+    flex: 1;
+}
+
+.card-title-section h4,
+.card-title-section h5 {
+    margin: 0;
+    color: var(--text-primary);
+}
+
+.card-title-section p {
+    margin: 0.25rem 0 0 0;
+    font-size: 0.875rem;
+}
+
+.card-badges {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.badge-conflict {
+    background: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+
+.badge-no-conflict {
+    background: rgba(16, 185, 129, 0.2);
+    color: var(--green);
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+
+.badge-new {
+    background: rgba(59, 130, 246, 0.2);
+    color: #3b82f6;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+
+.badge-deleted {
+    background: rgba(245, 158, 11, 0.2);
+    color: #f59e0b;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+
+.card-body-custom {
+    padding: 1.5rem;
+}
+
+.info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+}
+
+.info-item label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    margin-bottom: 0.5rem;
+    letter-spacing: 0.5px;
+}
+
+.info-item p {
+    margin: 0;
+    color: var(--text-primary);
+    word-break: break-word;
+}
+
+.text-monospace {
+    font-family: 'Courier New', monospace;
+    font-size: 0.875rem;
+}
+
+.sail-code {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1rem;
+    max-height: 400px;
+    overflow-y: auto;
+    margin: 0;
+}
+
+.sail-code code {
+    color: var(--text-primary);
+    font-family: 'Courier New', monospace;
+    font-size: 0.875rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.notes-textarea {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    border-radius: 8px;
+    padding: 0.75rem;
+    font-size: 0.875rem;
+    resize: vertical;
+    transition: border-color 0.2s;
+}
+
+.notes-textarea:focus {
+    background: var(--bg-primary);
+    border-color: var(--purple);
+    color: var(--text-primary);
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+}
+
+.notes-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 0.75rem;
+}
+
+.session-info-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+}
+
+.session-info-item label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    margin-bottom: 0.25rem;
+    letter-spacing: 0.5px;
+}
+
+.session-info-item p {
+    margin: 0;
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.badge-status-ready {
+    background: rgba(16, 185, 129, 0.2);
+    color: var(--green);
+    padding: 0.25rem 0.75rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+}
+
+.badge-status-in_progress {
+    background: rgba(20, 184, 166, 0.2);
+    color: var(--teal);
+    padding: 0.25rem 0.75rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+}
+
+.badge-status-completed {
+    background: rgba(139, 92, 246, 0.2);
+    color: var(--purple);
+    padding: 0.25rem 0.75rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+}
+
+.action-buttons {
+    display: flex;
+    flex-direction: column;
+}
+
+.btn-block {
+    width: 100%;
+}
+
+.navigation-buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+}
+
+.btn-nav {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.btn-nav:disabled,
+.btn-nav[disabled] {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+.status-info {
+    padding: 1rem;
+    background: rgba(139, 92, 246, 0.05);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+}
+
+.alert-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+    max-width: 400px;
+}
+
+.alert {
+    margin-bottom: 0.5rem;
+    border-radius: 8px;
+    padding: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+.alert-success {
+    background: rgba(16, 185, 129, 0.2);
+    border: 1px solid var(--green);
+    color: var(--green);
+}
+
+.alert-error {
+    background: rgba(239, 68, 68, 0.2);
+    border: 1px solid #ef4444;
+    color: #ef4444;
+}
+
+.alert-info {
+    background: rgba(20, 184, 166, 0.2);
+    border: 1px solid var(--teal);
+    color: var(--teal);
+}
+
+/* Loading state for buttons */
+.btn-loading {
+    position: relative;
+    pointer-events: none;
+}
+
+.btn-loading::after {
+    content: '';
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    top: 50%;
+    left: 50%;
+    margin-left: -8px;
+    margin-top: -8px;
+    border: 2px solid transparent;
+    border-top-color: currentColor;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Responsive */
+@media (max-width: 991px) {
+    .info-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .session-info-grid {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Store change and session IDs
+const changeId = {{ detail.change.id }};
+const referenceId = '{{ detail.session.reference_id }}';
+
+// Character counter for notes
+const notesTextarea = document.getElementById('change-notes');
+const charCount = document.getElementById('notes-char-count');
+
+notesTextarea.addEventListener('input', function() {
+    charCount.textContent = this.value.length;
+});
+
+// Helper function to show alerts
+function showAlert(message, type = 'success') {
+    const alertContainer = document.getElementById('alert-container');
+    const alert = document.createElement('div');
+    alert.className = `alert alert-${type}`;
+    alert.innerHTML = `
+        <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i>
+        <span>${message}</span>
+    `;
+    alertContainer.appendChild(alert);
+    
+    // Auto-remove after 3 seconds
+    setTimeout(() => {
+        alert.style.animation = 'slideOut 0.3s ease';
+        setTimeout(() => alert.remove(), 300);
+    }, 3000);
+}
+
+// Helper function to update session info panel
+function updateSessionInfo(data) {
+    if (data.reviewed_count !== undefined) {
+        document.getElementById('reviewed-count').textContent = data.reviewed_count;
+    }
+    if (data.skipped_count !== undefined) {
+        document.getElementById('skipped-count').textContent = data.skipped_count;
+    }
+    if (data.total_changes !== undefined) {
+        const totalChanges = data.total_changes;
+        const reviewed = parseInt(document.getElementById('reviewed-count').textContent);
+        const skipped = parseInt(document.getElementById('skipped-count').textContent);
+        const pending = totalChanges - reviewed - skipped;
+        document.getElementById('pending-count').textContent = pending;
+    }
+}
+
+// Mark as Reviewed button
+document.getElementById('mark-reviewed-btn').addEventListener('click', async function() {
+    const btn = this;
+    btn.classList.add('btn-loading');
+    btn.disabled = true;
+    
+    try {
+        const response = await fetch(`/merge/${referenceId}/changes/${changeId}/review`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showAlert('Change marked as reviewed', 'success');
+            // Reload page to update UI
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showAlert(result.error || 'Failed to mark as reviewed', 'error');
+            btn.classList.remove('btn-loading');
+            btn.disabled = false;
+        }
+    } catch (error) {
+        showAlert('An error occurred', 'error');
+        btn.classList.remove('btn-loading');
+        btn.disabled = false;
+    }
+});
+
+// Skip button
+document.getElementById('skip-btn').addEventListener('click', async function() {
+    const btn = this;
+    btn.classList.add('btn-loading');
+    btn.disabled = true;
+    
+    try {
+        const response = await fetch(`/merge/${referenceId}/changes/${changeId}/skip`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showAlert('Change skipped', 'success');
+            // Reload page to update UI
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showAlert(result.error || 'Failed to skip change', 'error');
+            btn.classList.remove('btn-loading');
+            btn.disabled = false;
+        }
+    } catch (error) {
+        showAlert('An error occurred', 'error');
+        btn.classList.remove('btn-loading');
+        btn.disabled = false;
+    }
+});
+
+// Save Notes button
+document.getElementById('save-notes-btn').addEventListener('click', async function() {
+    const btn = this;
+    const notes = notesTextarea.value;
+    
+    btn.classList.add('btn-loading');
+    btn.disabled = true;
+    
+    try {
+        const response = await fetch(`/merge/${referenceId}/changes/${changeId}/notes`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ notes })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showAlert('Notes saved successfully', 'success');
+        } else {
+            showAlert(result.error || 'Failed to save notes', 'error');
+        }
+    } catch (error) {
+        showAlert('An error occurred', 'error');
+    } finally {
+        btn.classList.remove('btn-loading');
+        btn.disabled = false;
+    }
+});
+
+// Undo button (if present)
+const undoBtn = document.getElementById('undo-btn');
+if (undoBtn) {
+    undoBtn.addEventListener('click', async function() {
+        const btn = this;
+        btn.classList.add('btn-loading');
+        btn.disabled = true;
+        
+        try {
+            const response = await fetch(`/merge/${referenceId}/changes/${changeId}/undo`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                showAlert('Action undone', 'success');
+                // Reload page to update UI
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                showAlert(result.error || 'Failed to undo action', 'error');
+                btn.classList.remove('btn-loading');
+                btn.disabled = false;
+            }
+        } catch (error) {
+            showAlert('An error occurred', 'error');
+            btn.classList.remove('btn-loading');
+            btn.disabled = false;
+        }
+    });
+}
+
+// Add slideOut animation
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes slideOut {
+        from {
+            transform: translateX(0);
+            opacity: 1;
+        }
+        to {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+    }
+`;
+document.head.appendChild(style);
+</script>
+{% endblock %}

@@ -1,0 +1,464 @@
+{% extends "base.html" %}
+
+{% block title %}{{ object.name }} - {{ session.reference_id }}{% endblock %}
+
+{% block breadcrumbs %}
+<nav class="breadcrumb-nav">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}"><i class="fas fa-home"></i> Home</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('merge.sessions') }}">Merge Sessions</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('merge.summary', reference_id=session.reference_id) }}">{{ session.reference_id }}</a></li>
+        <li class="breadcrumb-item active">{{ object.name }}</li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block page_title %}{% endblock %}
+{% block page_subtitle %}{% endblock %}
+
+{% block content %}
+<!-- Progress Bar -->
+<div class="progress-section mb-4">
+    <div class="progress-info">
+        <span class="progress-text">
+            Change {{ change.display_order }} of {{ session.total_changes }}
+        </span>
+        <span class="progress-percentage">
+            {{ ((change.display_order / session.total_changes) * 100) | round(1) }}%
+        </span>
+    </div>
+    <div class="progress">
+        <div class="progress-bar" role="progressbar" 
+             style="width: {{ ((change.display_order / session.total_changes) * 100) }}%"
+             aria-valuenow="{{ change.display_order }}" 
+             aria-valuemin="0" 
+             aria-valuemax="{{ session.total_changes }}">
+        </div>
+    </div>
+</div>
+
+<!-- Object Header -->
+<div class="object-header mb-4">
+    <div class="object-info">
+        <div class="object-icon">
+            <i class="fas fa-{{ get_object_icon(object.object_type) }}"></i>
+        </div>
+        <div class="object-details">
+            <h3 class="object-name">{{ object.name }}</h3>
+            <div class="object-meta">
+                <span class="object-type">
+                    <i class="fas fa-tag"></i> {{ object.object_type }}
+                </span>
+                <span class="object-uuid text-muted">
+                    <i class="fas fa-fingerprint"></i> {{ object.uuid }}
+                </span>
+            </div>
+        </div>
+    </div>
+    <div class="classification-badge">
+        {% if change.classification == 'NO_CONFLICT' %}
+            <span class="badge badge-no-conflict">
+                <i class="fas fa-check-circle"></i> No Conflict
+            </span>
+        {% elif change.classification == 'CONFLICT' %}
+            <span class="badge badge-conflict">
+                <i class="fas fa-exclamation-triangle"></i> Conflict
+            </span>
+        {% elif change.classification == 'NEW' %}
+            <span class="badge badge-new">
+                <i class="fas fa-plus-circle"></i> New
+            </span>
+        {% elif change.classification == 'DELETED' %}
+            <span class="badge badge-deleted">
+                <i class="fas fa-trash-alt"></i> Deleted
+            </span>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Change Summary -->
+<div class="change-summary mb-4">
+    <div class="summary-card">
+        <h6><i class="fas fa-info-circle"></i> Change Summary</h6>
+        <div class="summary-content">
+            <div class="summary-item">
+                <span class="summary-label">Vendor Change:</span>
+                <span class="summary-value">
+                    {% if change.vendor_change_type == 'ADDED' %}
+                        <i class="fas fa-plus text-success"></i> Added
+                    {% elif change.vendor_change_type == 'MODIFIED' %}
+                        <i class="fas fa-edit text-warning"></i> Modified
+                    {% elif change.vendor_change_type == 'REMOVED' %}
+                        <i class="fas fa-minus text-danger"></i> Removed
+                    {% endif %}
+                </span>
+            </div>
+            {% if change.customer_change_type %}
+            <div class="summary-item">
+                <span class="summary-label">Customer Change:</span>
+                <span class="summary-value">
+                    {% if change.customer_change_type == 'ADDED' %}
+                        <i class="fas fa-plus text-success"></i> Added
+                    {% elif change.customer_change_type == 'MODIFIED' %}
+                        <i class="fas fa-edit text-warning"></i> Modified
+                    {% elif change.customer_change_type == 'REMOVED' %}
+                        <i class="fas fa-minus text-danger"></i> Removed
+                    {% endif %}
+                </span>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Object-Specific Comparison Content -->
+<div class="comparison-content mb-4">
+    {% block comparison_content %}
+    <!-- Override this block in object-specific templates -->
+    <div class="alert alert-info">
+        <i class="fas fa-info-circle"></i>
+        Detailed comparison view for {{ object.object_type }} objects coming soon.
+    </div>
+    {% endblock %}
+</div>
+
+<!-- Notes Section -->
+<div class="notes-section mb-4">
+    <div class="notes-card">
+        <h6><i class="fas fa-sticky-note"></i> Merge Notes</h6>
+        <textarea id="mergeNotes" class="form-control" rows="4" 
+                  placeholder="Add notes about your merge decision...">{{ change.notes or '' }}</textarea>
+        <div class="notes-actions mt-2">
+            <button type="button" class="btn btn-sm btn-outline-primary" onclick="saveNotes()">
+                <i class="fas fa-save"></i> Save Notes
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Navigation -->
+<div class="navigation-section">
+    <div class="nav-buttons">
+        <a href="{{ url_for('merge.summary', reference_id=session.reference_id) }}" 
+           class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Summary
+        </a>
+        
+        <div class="nav-actions">
+            {% if change.display_order > 1 %}
+            <a href="{{ url_for('merge.get_change_detail', reference_id=session.reference_id, change_id=prev_change_id) }}" 
+               class="btn btn-outline-primary">
+                <i class="fas fa-chevron-left"></i> Previous
+            </a>
+            {% else %}
+            <button class="btn btn-outline-primary" disabled>
+                <i class="fas fa-chevron-left"></i> Previous
+            </button>
+            {% endif %}
+            
+            <button type="button" class="btn btn-primary" onclick="markReviewed()">
+                <i class="fas fa-check"></i> Mark as Reviewed
+            </button>
+            
+            {% if change.display_order < session.total_changes %}
+            <a href="{{ url_for('merge.get_change_detail', reference_id=session.reference_id, change_id=next_change_id) }}" 
+               class="btn btn-outline-primary">
+                Next <i class="fas fa-chevron-right"></i>
+            </a>
+            {% else %}
+            <a href="{{ url_for('merge.summary', reference_id=session.reference_id) }}" 
+               class="btn btn-success">
+                Complete Review <i class="fas fa-check-double"></i>
+            </a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+.progress-section {
+    background: var(--bg-card);
+    border-radius: 12px;
+    padding: 1.5rem;
+    border: 1px solid #374151;
+}
+
+.progress-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+}
+
+.progress-text {
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.progress-percentage {
+    font-weight: 600;
+    color: var(--purple);
+}
+
+.progress {
+    height: 12px;
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+}
+
+.progress-bar {
+    background: linear-gradient(90deg, var(--purple), var(--teal));
+    border-radius: 6px;
+}
+
+.object-header {
+    background: var(--bg-card);
+    border-radius: 12px;
+    padding: 1.5rem;
+    border: 1px solid #374151;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.object-info {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.object-icon {
+    width: 60px;
+    height: 60px;
+    background: rgba(139, 92, 246, 0.2);
+    color: var(--purple);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.75rem;
+}
+
+.object-details {
+    flex: 1;
+}
+
+.object-name {
+    margin: 0 0 0.5rem 0;
+    color: var(--text-primary);
+    font-size: 1.5rem;
+}
+
+.object-meta {
+    display: flex;
+    gap: 1.5rem;
+    font-size: 0.875rem;
+}
+
+.object-type {
+    color: var(--text-primary);
+}
+
+.classification-badge .badge {
+    font-size: 1rem;
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.badge-no-conflict {
+    background: rgba(16, 185, 129, 0.2);
+    color: var(--green);
+    border: 1px solid var(--green);
+}
+
+.badge-conflict {
+    background: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+    border: 1px solid #ef4444;
+}
+
+.badge-new {
+    background: rgba(59, 130, 246, 0.2);
+    color: #3b82f6;
+    border: 1px solid #3b82f6;
+}
+
+.badge-deleted {
+    background: rgba(156, 163, 175, 0.2);
+    color: #9ca3af;
+    border: 1px solid #9ca3af;
+}
+
+.change-summary {
+    background: var(--bg-card);
+    border-radius: 12px;
+    padding: 1.5rem;
+    border: 1px solid #374151;
+}
+
+.summary-card h6 {
+    margin: 0 0 1rem 0;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.summary-content {
+    display: flex;
+    gap: 2rem;
+}
+
+.summary-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.summary-label {
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.summary-value {
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.comparison-content {
+    background: var(--bg-card);
+    border-radius: 12px;
+    padding: 1.5rem;
+    border: 1px solid #374151;
+}
+
+.notes-section {
+    background: var(--bg-card);
+    border-radius: 12px;
+    padding: 1.5rem;
+    border: 1px solid #374151;
+}
+
+.notes-card h6 {
+    margin: 0 0 1rem 0;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.notes-card textarea {
+    background: rgba(139, 92, 246, 0.05);
+    border: 1px solid #374151;
+    color: var(--text-primary);
+    resize: vertical;
+}
+
+.notes-card textarea:focus {
+    background: rgba(139, 92, 246, 0.08);
+    border-color: var(--purple);
+    box-shadow: 0 0 0 0.2rem rgba(139, 92, 246, 0.25);
+}
+
+.navigation-section {
+    background: var(--bg-card);
+    border-radius: 12px;
+    padding: 1.5rem;
+    border: 1px solid #374151;
+}
+
+.nav-buttons {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.nav-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function saveNotes() {
+    const notes = document.getElementById('mergeNotes').value;
+    
+    fetch(`/merge/{{ session.reference_id }}/changes/{{ change.id }}/notes`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ notes: notes })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Show success message
+            alert('Notes saved successfully');
+        } else {
+            alert('Error saving notes: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred while saving notes');
+    });
+}
+
+function markReviewed() {
+    fetch(`/merge/{{ session.reference_id }}/changes/{{ change.id }}/review`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ reviewed: true })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Navigate to next change or summary
+            {% if change.display_order < session.total_changes %}
+                window.location.href = "{{ url_for('merge.get_change_detail', reference_id=session.reference_id, change_id=next_change_id) }}";
+            {% else %}
+                window.location.href = "{{ url_for('merge.summary', reference_id=session.reference_id) }}";
+            {% endif %}
+        } else {
+            alert('Error marking as reviewed: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred while marking as reviewed');
+    });
+}
+
+// Keyboard shortcuts
+document.addEventListener('keydown', function(e) {
+    // Left arrow - Previous
+    if (e.key === 'ArrowLeft' && !e.target.matches('textarea, input')) {
+        {% if change.display_order > 1 %}
+            window.location.href = "{{ url_for('merge.get_change_detail', reference_id=session.reference_id, change_id=prev_change_id) }}";
+        {% endif %}
+    }
+    
+    // Right arrow - Next
+    if (e.key === 'ArrowRight' && !e.target.matches('textarea, input')) {
+        {% if change.display_order < session.total_changes %}
+            window.location.href = "{{ url_for('merge.get_change_detail', reference_id=session.reference_id, change_id=next_change_id) }}";
+        {% endif %}
+    }
+    
+    // R key - Mark as reviewed
+    if (e.key === 'r' && !e.target.matches('textarea, input')) {
+        markReviewed();
+    }
+});
+</script>
+{% endblock %}

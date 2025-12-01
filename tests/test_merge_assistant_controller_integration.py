@@ -1,463 +1,215 @@
 """
 Integration Tests for Merge Assistant Controller
 
-Tests complete workflows from upload to report generation using the normalized schema.
+Tests the complete three-way merge workflow using real Appian packages.
 """
-import json
-import io
-import zipfile
+
+import os
+import pytest
 from pathlib import Path
-from unittest.mock import patch, MagicMock
-from tests.base_test import BaseTestCase
+
+from app import create_app
+from models import db, MergeSession, Change
 
 
-class TestMergeAssistantControllerIntegration(BaseTestCase):
-    """Integration tests for merge assistant controller workflows"""
-
-    def setUp(self):
-        """Set up test fixtures"""
-        super().setUp()
+class TestMergeAssistantControllerIntegration:
+    """Integration test suite for merge assistant controller."""
+    
+    # Test package paths
+    BASE_DIR = Path("applicationArtifacts/Three Way Testing Files/V2")
+    BASE_PACKAGE = BASE_DIR / "Test Application - Base Version.zip"
+    CUSTOMIZED_PACKAGE = BASE_DIR / "Test Application Customer Version.zip"
+    NEW_VENDOR_PACKAGE = (
+        BASE_DIR / "Test Application Vendor New Version.zip"
+    )
+    
+    @pytest.fixture(autouse=True)
+    def setup(self):
+        """Set up test fixtures."""
+        # Create app
+        self.app = create_app()
+        self.app.config['TESTING'] = True
+        self.client = self.app.test_client()
         
-        # Create test ZIP files
-        self.base_zip = self._create_test_zip('base_package.zip')
-        self.customized_zip = self._create_test_zip('customized_package.zip')
-        self.vendor_zip = self._create_test_zip('new_vendor_package.zip')
-
-    def _create_test_zip(self, filename):
-        """Create a minimal test ZIP file"""
-        zip_path = Path('uploads/merge_assistant') / filename
-        zip_path.parent.mkdir(parents=True, exist_ok=True)
+        # Set up database
+        with self.app.app_context():
+            db.create_all()
         
-        with zipfile.ZipFile(zip_path, 'w') as zf:
-            # Add a minimal package.properties file
-            zf.writestr('package.properties', 'name=TestPackage\nversion=1.0')
-            # Add a minimal object file
-            zf.writestr('objects/test_interface.xml', '<interface><name>TestInterface</name></interface>')
+        yield
         
-        return zip_path
-
-    def test_complete_upload_to_summary_workflow(self):
-        """Test complete workflow: create session -> view summary (uses normalized schema)"""
-        from models import db, MergeSession, Package, Change
+        # Teardown
+        with self.app.app_context():
+            db.session.remove()
+            db.drop_all()
+    
+    @pytest.mark.skipif(
+        not BASE_PACKAGE.exists(),
+        reason="Test packages not available"
+    )
+    def test_complete_merge_workflow(self):
+        """
+        Test complete three-way merge workflow with real packages.
         
-        # Create a session with normalized data (simulating what upload would create)
-        session = MergeSession(
-            reference_id='MRG_INT_001',
-            base_package_name='base_package',
-            customized_package_name='customized_package',
-            new_vendor_package_name='new_vendor_package',
-            status='ready',
-            total_changes=5
-        )
-        db.session.add(session)
-        db.session.commit()
-        
-        # Create packages (normalized schema)
-        for pkg_type, pkg_name in [
-            ('base', 'base_package'),
-            ('customized', 'customized_package'),
-            ('new_vendor', 'new_vendor_package')
-        ]:
-            package = Package(
-                session_id=session.id,
-                package_type=pkg_type,
-                package_name=pkg_name,
-                total_objects=10
-            )
-            db.session.add(package)
-        db.session.commit()
-        
-        # Create some changes
-        for i in range(5):
-            change = Change(
-                session_id=session.id,
-                object_uuid=f'uuid-{i:03d}',
-                object_name=f'TestObject{i}',
-                object_type='Interface',
-                classification='NO_CONFLICT',
-                change_type='MODIFIED',
-                display_order=i
-            )
-            db.session.add(change)
-        db.session.commit()
-        
-        # View summary (uses SQL aggregates on normalized schema)
-        response = self.client.get(
-            f'/merge-assistant/session/{session.id}/summary'
-        )
-        self.assertEqual(response.status_code, 200)
-        self.assertIn(b'MRG_INT_001', response.data)
-        self.assertIn(b'base_package', response.data)
-        
-        # Verify API endpoint also works
-        response = self.client.get(
-            f'/merge-assistant/api/session/{session.id}/summary'
-        )
-        self.assertEqual(response.status_code, 200)
-        data = json.loads(response.data)
-        self.assertEqual(data['reference_id'], 'MRG_INT_001')
-        self.assertEqual(data['statistics']['total_changes'], 5)
-
-    def test_complete_filtering_workflow(self):
-        """Test complete filtering workflow (uses indexed SQL WHERE clauses)"""
-        from models import db, MergeSession, Package, AppianObject, Change
-        
-        # Create test session with normalized data
-        session = MergeSession(
-            reference_id='MRG_FILTER_001',
-            base_package_name='BasePackage',
-            customized_package_name='CustomizedPackage',
-            new_vendor_package_name='NewVendorPackage',
-            status='ready',
-            total_changes=10
-        )
-        db.session.add(session)
-        db.session.commit()
-        
-        # Create package
-        package = Package(
-            session_id=session.id,
-            package_type='base',
-            package_name='BasePackage',
-            total_objects=10
-        )
-        db.session.add(package)
-        db.session.commit()
-        
-        # Create test changes with different classifications and types
-        changes = []
-        for i in range(10):
-            classification = ['NO_CONFLICT', 'CONFLICT', 'CUSTOMER_ONLY'][i % 3]
-            obj_type = ['Interface', 'Expression Rule', 'Record Type'][i % 3]
+        This test verifies:
+        1. Create merge session with 3 packages
+        2. Get merge summary
+        3. Get working set
+        4. Get individual change details
+        """
+        # Step 1: Create merge session
+        with open(self.BASE_PACKAGE, 'rb') as base_file, \
+             open(self.CUSTOMIZED_PACKAGE, 'rb') as customized_file, \
+             open(self.NEW_VENDOR_PACKAGE, 'rb') as new_vendor_file:
             
-            change = Change(
-                session_id=session.id,
-                object_uuid=f'uuid-{i:03d}',
-                object_name=f'TestObject{i}',
-                object_type=obj_type,
-                classification=classification,
-                change_type='MODIFIED',
-                display_order=i
+            response = self.client.post(
+                '/merge/create',
+                data={
+                    'base_package': (base_file, 'base.zip'),
+                    'customized_package': (customized_file, 'customized.zip'),
+                    'new_vendor_package': (new_vendor_file, 'new_vendor.zip')
+                },
+                content_type='multipart/form-data'
             )
-            changes.append(change)
         
-        db.session.add_all(changes)
-        db.session.commit()
+        # Verify session created
+        assert response.status_code == 201
+        data = response.get_json()
+        assert data['success'] is True
+        assert 'reference_id' in data['data']
+        assert 'total_changes' in data['data']
         
-        # Test 1: Filter by classification
+        reference_id = data['data']['reference_id']
+        total_changes = data['data']['total_changes']
+        
+        print(f"\n✓ Session created: {reference_id}")
+        print(f"  Total changes: {total_changes}")
+        
+        # Step 2: Get merge summary
+        response = self.client.get(f'/merge/{reference_id}/summary')
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['success'] is True
+        assert 'reference_id' in data['data']
+        assert 'status' in data['data']
+        assert 'packages' in data['data']
+        assert 'statistics' in data['data']
+        
+        session_data = data['data']
+        assert session_data['reference_id'] == reference_id
+        assert session_data['status'] == 'ready'
+        
+        statistics = data['data']['statistics']
+        
+        print(f"\n✓ Summary retrieved:")
+        print(f"  Status: {session_data['status']}")
+        print(f"  Classifications: {statistics}")
+        
+        # Step 3: Get working set (all changes)
+        response = self.client.get(f'/merge/{reference_id}/changes')
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['success'] is True
+        assert 'changes' in data['data']
+        assert 'total' in data['data']
+        assert 'filtered' in data['data']
+        
+        changes = data['data']['changes']
+        assert len(changes) == total_changes
+        assert data['data']['total'] == total_changes
+        assert data['data']['filtered'] == total_changes
+        
+        print(f"\n✓ Working set retrieved:")
+        print(f"  Total changes: {len(changes)}")
+        
+        # Verify change structure
+        if changes:
+            first_change = changes[0]
+            assert 'change_id' in first_change
+            assert 'classification' in first_change
+            assert 'object' in first_change
+            assert 'uuid' in first_change['object']
+            assert 'name' in first_change['object']
+            assert 'object_type' in first_change['object']
+            
+            print(f"  First change: {first_change['object']['name']}")
+            print(f"    Type: {first_change['object']['object_type']}")
+            print(f"    Classification: {first_change['classification']}")
+        
+        # Step 4: Get working set with filter (conflicts only)
         response = self.client.get(
-            f'/merge-assistant/api/session/{session.id}/changes'
-            f'?classification=NO_CONFLICT'
+            f'/merge/{reference_id}/changes',
+            query_string={'classification': 'CONFLICT'}
         )
-        self.assertEqual(response.status_code, 200)
-        data = json.loads(response.data)
-        self.assertGreater(data['total'], 0)
-        for change in data['changes']:
-            self.assertEqual(change['classification'], 'NO_CONFLICT')
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['success'] is True
         
-        # Test 2: Filter by object type
-        response = self.client.get(
-            f'/merge-assistant/api/session/{session.id}/changes'
-            f'?object_type=Interface'
-        )
-        self.assertEqual(response.status_code, 200)
-        data = json.loads(response.data)
-        self.assertGreater(data['total'], 0)
-        for change in data['changes']:
-            self.assertEqual(change['type'], 'Interface')
+        conflicts = data['data']['changes']
+        conflict_count = len(conflicts)
         
-        # Test 3: Search by name
-        response = self.client.get(
-            f'/merge-assistant/api/session/{session.id}/changes'
-            f'?search=TestObject5'
-        )
-        self.assertEqual(response.status_code, 200)
-        data = json.loads(response.data)
-        self.assertEqual(data['total'], 1)
-        self.assertIn('TestObject5', data['changes'][0]['name'])
+        print(f"\n✓ Filtered working set (CONFLICT):")
+        print(f"  Conflicts: {conflict_count}")
         
-        # Test 4: Combined filters
-        response = self.client.get(
-            f'/merge-assistant/api/session/{session.id}/changes'
-            f'?classification=CONFLICT&object_type=Expression Rule'
-        )
-        self.assertEqual(response.status_code, 200)
-        data = json.loads(response.data)
-        for change in data['changes']:
-            self.assertEqual(change['classification'], 'CONFLICT')
-            self.assertEqual(change['type'], 'Expression Rule')
-
-    def test_complete_review_workflow(self):
-        """Test complete review workflow (updates ChangeReview table in normalized schema)"""
-        from models import db, MergeSession, Change, ChangeReview
+        # Verify all returned changes are conflicts
+        for change in conflicts:
+            assert change['classification'] == 'CONFLICT'
         
-        # Create test session
-        session = MergeSession(
-            reference_id='MRG_REVIEW_001',
-            base_package_name='BasePackage',
-            customized_package_name='CustomizedPackage',
-            new_vendor_package_name='NewVendorPackage',
-            status='in_progress',
-            total_changes=3,
-            reviewed_count=0,
-            skipped_count=0
-        )
-        db.session.add(session)
-        db.session.commit()
-        
-        # Create test changes
-        changes = []
-        for i in range(3):
-            change = Change(
-                session_id=session.id,
-                object_uuid=f'uuid-{i:03d}',
-                object_name=f'TestObject{i}',
-                object_type='Interface',
-                classification='NO_CONFLICT',
-                change_type='MODIFIED',
-                display_order=i
+        # Step 5: Get individual change details
+        if changes:
+            first_change_id = changes[0]['change_id']
+            
+            response = self.client.get(
+                f'/merge/{reference_id}/changes/{first_change_id}'
             )
-            changes.append(change)
-            db.session.add(change)
-        db.session.commit()
+            assert response.status_code == 200
+            data = response.get_json()
+            assert data['success'] is True
+            assert 'change' in data['data']
+            assert 'object' in data['data']
+            assert 'session' in data['data']
+            
+            change_detail = data['data']['change']
+            assert change_detail['id'] == first_change_id
+            
+            print(f"\n✓ Change detail retrieved:")
+            print(f"  Change ID: {change_detail['id']}")
+            print(f"  Display order: {change_detail['display_order']}")
+            print(f"  Classification: {change_detail['classification']}")
         
-        # Create initial reviews
-        for change in changes:
-            review = ChangeReview(
-                session_id=session.id,
-                change_id=change.id,
-                review_status='pending'
+        print("\n✓ Complete workflow test passed!")
+    
+    def test_get_summary_for_nonexistent_session(self):
+        """Test getting summary for non-existent session."""
+        response = self.client.get('/merge/MS_INVALID/summary')
+        assert response.status_code == 404
+        data = response.get_json()
+        assert data['success'] is False
+    
+    def test_get_changes_for_nonexistent_session(self):
+        """Test getting changes for non-existent session."""
+        response = self.client.get('/merge/MS_INVALID/changes')
+        assert response.status_code == 404
+        data = response.get_json()
+        assert data['success'] is False
+    
+    def test_get_change_detail_for_nonexistent_change(self):
+        """Test getting detail for non-existent change."""
+        # Create a session first
+        with self.app.app_context():
+            session = MergeSession(
+                reference_id='MS_TEST02',
+                status='ready',
+                total_changes=0
             )
-            db.session.add(review)
-        db.session.commit()
+            db.session.add(session)
+            db.session.commit()
         
-        # Step 1: Start workflow
-        response = self.client.get(
-            f'/merge-assistant/session/{session.id}/workflow'
-        )
-        self.assertEqual(response.status_code, 302)  # Redirect to first change
-        
-        # Step 2: Review first change
-        data = {'action': 'reviewed', 'notes': 'Looks good'}
-        response = self.client.post(
-            f'/merge-assistant/session/{session.id}/change/0/review',
-            data=json.dumps(data),
-            content_type='application/json'
-        )
-        self.assertEqual(response.status_code, 200)
-        result = json.loads(response.data)
-        self.assertTrue(result['success'])
-        self.assertEqual(result['reviewed_count'], 1)
-        
-        # Step 3: Skip second change
-        data = {'action': 'skipped', 'notes': 'Will review later'}
-        response = self.client.post(
-            f'/merge-assistant/session/{session.id}/change/1/review',
-            data=json.dumps(data),
-            content_type='application/json'
-        )
-        self.assertEqual(response.status_code, 200)
-        result = json.loads(response.data)
-        self.assertTrue(result['success'])
-        self.assertEqual(result['skipped_count'], 1)
-        
-        # Step 4: Review third change (last one)
-        data = {'action': 'reviewed', 'notes': 'Approved'}
-        response = self.client.post(
-            f'/merge-assistant/session/{session.id}/change/2/review',
-            data=json.dumps(data),
-            content_type='application/json'
-        )
-        self.assertEqual(response.status_code, 200)
-        result = json.loads(response.data)
-        self.assertTrue(result['success'])
-        self.assertTrue(result['is_complete'])
-        
-        # Verify session status updated to completed
-        db.session.refresh(session)
-        self.assertEqual(session.status, 'completed')
-        self.assertEqual(session.reviewed_count, 2)
-        self.assertEqual(session.skipped_count, 1)
-        
-        # Step 5: Generate report (uses JOIN queries on normalized schema)
-        response = self.client.get(
-            f'/merge-assistant/session/{session.id}/report'
-        )
-        self.assertEqual(response.status_code, 200)
-        self.assertIn(b'MRG_REVIEW_001', response.data)
+        # Try to get non-existent change
+        response = self.client.get('/merge/MS_TEST02/changes/99999')
+        assert response.status_code == 404
+        data = response.get_json()
+        assert data['success'] is False
 
-    def test_complete_export_workflow(self):
-        """Test complete export workflow"""
-        from models import db, MergeSession, Package, Change
-        
-        # Create test session
-        session = MergeSession(
-            reference_id='MRG_EXPORT_001',
-            base_package_name='BasePackage',
-            customized_package_name='CustomizedPackage',
-            new_vendor_package_name='NewVendorPackage',
-            status='completed',
-            total_changes=2
-        )
-        db.session.add(session)
-        db.session.commit()
-        
-        # Create package
-        package = Package(
-            session_id=session.id,
-            package_type='base',
-            package_name='BasePackage',
-            total_objects=2
-        )
-        db.session.add(package)
-        db.session.commit()
-        
-        # Create changes
-        for i in range(2):
-            change = Change(
-                session_id=session.id,
-                object_uuid=f'uuid-{i:03d}',
-                object_name=f'TestObject{i}',
-                object_type='Interface',
-                classification='NO_CONFLICT',
-                change_type='MODIFIED',
-                display_order=i
-            )
-            db.session.add(change)
-        db.session.commit()
-        
-        # Test JSON export
-        response = self.client.get(
-            f'/merge-assistant/session/{session.id}/export/json'
-        )
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.content_type, 'application/json')
-        
-        # Verify JSON structure
-        data = json.loads(response.data)
-        self.assertIn('summary', data)
-        self.assertIn('changes', data)
-        self.assertIn('session', data)
-        self.assertEqual(data['session']['reference_id'], 'MRG_EXPORT_001')
-        self.assertEqual(len(data['changes']), 2)
 
-    def test_session_deletion_cascade(self):
-        """Test that deleting session cascades to all normalized tables"""
-        from models import (
-            db, MergeSession, Package, AppianObject, Change,
-            ChangeReview, ObjectDependency
-        )
-        
-        # Create test session with complete normalized data
-        session = MergeSession(
-            reference_id='MRG_DELETE_001',
-            base_package_name='BasePackage',
-            customized_package_name='CustomizedPackage',
-            new_vendor_package_name='NewVendorPackage',
-            status='ready',
-            total_changes=1
-        )
-        db.session.add(session)
-        db.session.commit()
-        
-        # Create package
-        package = Package(
-            session_id=session.id,
-            package_type='base',
-            package_name='BasePackage',
-            total_objects=1
-        )
-        db.session.add(package)
-        db.session.commit()
-        
-        # Create object
-        obj = AppianObject(
-            package_id=package.id,
-            uuid='uuid-001',
-            name='TestInterface',
-            object_type='Interface'
-        )
-        db.session.add(obj)
-        db.session.commit()
-        
-        # Create dependency
-        dep = ObjectDependency(
-            package_id=package.id,
-            parent_uuid='uuid-001',
-            child_uuid='uuid-002',
-            dependency_type='reference'
-        )
-        db.session.add(dep)
-        db.session.commit()
-        
-        # Create change
-        change = Change(
-            session_id=session.id,
-            object_uuid='uuid-001',
-            object_name='TestInterface',
-            object_type='Interface',
-            classification='NO_CONFLICT',
-            change_type='MODIFIED',
-            base_object_id=obj.id,
-            display_order=0
-        )
-        db.session.add(change)
-        db.session.commit()
-        
-        # Create review
-        review = ChangeReview(
-            session_id=session.id,
-            change_id=change.id,
-            review_status='pending'
-        )
-        db.session.add(review)
-        db.session.commit()
-        
-        # Record IDs for verification
-        session_id = session.id
-        package_id = package.id
-        object_id = obj.id
-        change_id = change.id
-        
-        # Delete session
-        response = self.client.post(
-            f'/merge-assistant/session/{session_id}/delete'
-        )
-        self.assertEqual(response.status_code, 200)
-        
-        # Verify cascade deletes worked
-        self.assertIsNone(MergeSession.query.get(session_id))
-        self.assertIsNone(Package.query.get(package_id))
-        self.assertIsNone(AppianObject.query.get(object_id))
-        self.assertIsNone(Change.query.get(change_id))
-        
-        # Verify no orphaned records
-        self.assertEqual(
-            Package.query.filter_by(session_id=session_id).count(),
-            0
-        )
-        self.assertEqual(
-            AppianObject.query.filter_by(package_id=package_id).count(),
-            0
-        )
-        self.assertEqual(
-            Change.query.filter_by(session_id=session_id).count(),
-            0
-        )
-        self.assertEqual(
-            ChangeReview.query.filter_by(session_id=session_id).count(),
-            0
-        )
-        self.assertEqual(
-            ObjectDependency.query.filter_by(package_id=package_id).count(),
-            0
-        )
-
-    def tearDown(self):
-        """Clean up test files"""
-        super().tearDown()
-        
-        # Clean up test ZIP files
-        for zip_file in [self.base_zip, self.customized_zip, self.vendor_zip]:
-            if zip_file.exists():
-                zip_file.unlink()
+if __name__ == '__main__':
+    pytest.main([__file__, '-v'])

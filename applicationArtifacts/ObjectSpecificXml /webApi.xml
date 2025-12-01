@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<webApiHaul xmlns:a="http://www.appian.com/ae/types/2009">
+    <versionUuid>33169fa0-cde2-4b08-8a48-58afdfb0c11c</versionUuid>
+    <webApi a:uuid="305d1d4d-d480-414f-8541-37f49313ecfd" name="AS_RM_WA_POST_getFromSharepoint">
+        <a:description>Post Web API to get document link from sharepoint</a:description>
+        <a:expression>#"SYSTEM_SYSRULES_startProcess3"(
+  processModel: if(
+    http!request.queryParameters.isDocFromTemplate = "true",
+    #"_a-0000ed49-6a91-8000-9dee-011c48011c48_14983056",
+    #"_a-0000ed36-f3bd-8000-9dea-011c48011c48_14860604"
+  ),
+  /* A dictionary or map of parameters passed to the process model */
+  processParameters: {
+    appianDocumentId: http!request.queryParameters.appianDocumentId,
+    loggedInUser: http!request.queryParameters.loggedInUser,
+    requirementId: http!request.queryParameters.requirementId,
+    isDocFromTemplate: http!request.queryParameters.isDocFromTemplate
+  },
+  isSynchronous: true,
+  /* This expression will run when the process is started (when run asynchronously) or completed (when run synchronously) */
+  onSuccess: #"SYSTEM_SYSRULES_httpResponse_v1"(
+    statusCode: 200,
+    headers: {
+      #"SYSTEM_SYSRULES_httpHeader"(
+        name: "Content-Type",
+        value: "application/json"
+      )
+    },
+    body: #"SYSTEM_SYSRULES_toJson_v1"(
+      a!map(
+        sharepointLink: fv!processInfo.pv.sharepointLink
+      )
+    )
+  ),
+  /* This expression will run if the process fails to start */
+  onError: #"SYSTEM_SYSRULES_httpResponse_v1"(
+    statusCode: 500,
+    headers: {
+      #"SYSTEM_SYSRULES_httpHeader"(
+        name: "Content-Type",
+        value: "application/json"
+      )
+    },
+    body: #"SYSTEM_SYSRULES_toJson_v1"(
+      {
+        error: "There was an error starting the process"
+      }
+    )
+  )
+)</a:expression>
+        <a:urlAlias>redirectToSharepoint</a:urlAlias>
+        <a:httpMethod>POST</a:httpMethod>
+        <a:system>false</a:system>
+        <a:requestBodyType>NONE</a:requestBodyType>
+        <a:loggingEnabled>false</a:loggingEnabled>
+    </webApi>
+    <roleMap>
+        <role name="web_api_administrator">
+            <users/>
+            <groups>
+                <groupUuid>_e-0000e42d-ffef-8000-9af3-01075c01075c_19</groupUuid>
+            </groups>
+        </role>
+        <role name="web_api_viewer">
+            <users/>
+            <groups>
+                <groupUuid>_e-0000e42d-ffef-8000-9af3-01075c01075c_23</groupUuid>
+            </groups>
+        </role>
+    </roleMap>
+    <typedValue>
+        <type>
+            <name>WebApiRequest?list</name>
+            <namespace>http://www.appian.com/ae/types/2009</namespace>
+        </type>
+        <value>
+            <el>
+                <a:path/>
+                <a:headers>
+                    <a:name>Content-Type</a:name>
+                    <a:value>application/json</a:value>
+                </a:headers>
+                <a:body>{}</a:body>
+            </el>
+        </value>
+    </typedValue>
+    <history>
+        <historyInfo versionUuid="b95b158c-dd6a-4e55-ac5e-7af911bc34b5"/>
+        <historyInfo versionUuid="453ba8f5-b8e6-44cf-b430-2e8bcd69f231"/>
+        <historyInfo versionUuid="9baed545-2c0f-4a60-bbd5-de71d09d32b1"/>
+        <historyInfo versionUuid="33169fa0-cde2-4b08-8a48-58afdfb0c11c"/>
+    </history>
+</webApiHaul>

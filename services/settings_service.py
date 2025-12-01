@@ -10,7 +10,7 @@ import logging
 from datetime import datetime
 from pathlib import Path
 from logging.handlers import RotatingFileHandler
-from models import db, MergeSession, ChangeReview, ComparisonRequest, Request
+from models import db, Request
 
 
 def _get_settings_logger():
@@ -91,29 +91,12 @@ class SettingsService:
         self.logger.info("Starting database cleanup operation")
 
         deleted_counts = {
-            'merge_sessions': 0,
-            'change_reviews': 0,
-            'comparison_requests': 0,
             'requests': 0,
             'files': 0
         }
 
         try:
-            # Delete all records from each table
-            # Order matters due to foreign key constraints
-            self.logger.debug("Deleting records from change_reviews table")
-            deleted_counts['change_reviews'] = ChangeReview.query.delete()
-
-            self.logger.debug("Deleting records from merge_sessions table")
-            deleted_counts['merge_sessions'] = MergeSession.query.delete()
-
-            self.logger.debug(
-                "Deleting records from comparison_requests table"
-            )
-            deleted_counts['comparison_requests'] = (
-                ComparisonRequest.query.delete()
-            )
-
+            # Delete all records from requests table
             self.logger.debug("Deleting records from requests table")
             deleted_counts['requests'] = Request.query.delete()
 
@@ -126,12 +109,7 @@ class SettingsService:
             deleted_counts['files'] = self._delete_uploaded_files()
 
             # Calculate totals
-            total_records = (
-                deleted_counts['merge_sessions'] +
-                deleted_counts['change_reviews'] +
-                deleted_counts['comparison_requests'] +
-                deleted_counts['requests']
-            )
+            total_records = deleted_counts['requests']
 
             elapsed = (datetime.now() - start_time).total_seconds()
 
@@ -165,7 +143,6 @@ class SettingsService:
             int: Number of files deleted
         """
         upload_dirs = [
-            'uploads/merge_assistant',
             'uploads'
         ]
 
@@ -443,9 +420,6 @@ class SettingsService:
             # Count restored records
             self.logger.debug("Counting restored records")
             restored_counts = {
-                'merge_sessions': MergeSession.query.count(),
-                'change_reviews': ChangeReview.query.count(),
-                'comparison_requests': ComparisonRequest.query.count(),
                 'requests': Request.query.count()
             }
 

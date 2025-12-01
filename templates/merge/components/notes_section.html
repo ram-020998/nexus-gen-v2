@@ -1,0 +1,366 @@
+{# Notes Section Component
+   Usage: {% include 'merge/components/notes_section.html' with session=session, change=change %}
+   Parameters:
+   - session: MergeSession object
+   - change: Change object
+   - title: Optional custom title (default: "Merge Notes")
+   - placeholder: Optional custom placeholder text
+   - rows: Number of textarea rows (default: 4)
+   - show_save_button: true/false (default: true)
+   - auto_save: true/false (default: false) - auto-save on blur
+#}
+
+{% set title = title|default('Merge Notes') %}
+{% set placeholder = placeholder|default('Add notes about your merge decision, concerns, or action items...') %}
+{% set rows = rows|default(4) %}
+{% set show_save_button = show_save_button if show_save_button is defined else true %}
+{% set auto_save = auto_save if auto_save is defined else false %}
+
+<div class="notes-section-component">
+    <div class="notes-header">
+        <h6 class="notes-title">
+            <i class="fas fa-sticky-note"></i> {{ title }}
+        </h6>
+        <div class="notes-status">
+            <span class="status-indicator" id="notes-status">
+                <i class="fas fa-circle"></i>
+                <span class="status-text">Saved</span>
+            </span>
+        </div>
+    </div>
+    
+    <div class="notes-body">
+        <textarea id="mergeNotes" 
+                  class="form-control notes-textarea" 
+                  rows="{{ rows }}" 
+                  placeholder="{{ placeholder }}"
+                  {% if auto_save %}onblur="saveNotes()"{% endif %}
+                  oninput="markUnsaved()">{{ change.notes or '' }}</textarea>
+        
+        <div class="notes-meta">
+            <span class="char-count">
+                <span id="char-count">{{ (change.notes|length) if change.notes else 0 }}</span> characters
+            </span>
+            {% if change.updated_at %}
+            <span class="last-saved">
+                Last saved: <span id="last-saved-time">{{ change.updated_at.strftime('%Y-%m-%d %H:%M') }}</span>
+            </span>
+            {% endif %}
+        </div>
+    </div>
+    
+    {% if show_save_button %}
+    <div class="notes-actions">
+        <button type="button" 
+                class="btn btn-sm btn-outline-primary save-notes-btn" 
+                onclick="saveNotes()"
+                id="save-notes-btn">
+            <i class="fas fa-save"></i> Save Notes
+        </button>
+        <button type="button" 
+                class="btn btn-sm btn-outline-secondary clear-notes-btn" 
+                onclick="clearNotes()"
+                title="Clear all notes">
+            <i class="fas fa-eraser"></i> Clear
+        </button>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.notes-section-component {
+    background: var(--bg-card);
+    border-radius: 12px;
+    padding: 1.5rem;
+    border: 1px solid var(--border-color);
+}
+
+.notes-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.notes-title {
+    margin: 0;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.notes-status {
+    display: flex;
+    align-items: center;
+}
+
+.status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-size: 0.75rem;
+    padding: 0.25rem 0.75rem;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+}
+
+.status-indicator.saved {
+    color: var(--green);
+    background: rgba(16, 185, 129, 0.1);
+}
+
+.status-indicator.saved i {
+    color: var(--green);
+}
+
+.status-indicator.unsaved {
+    color: #f59e0b;
+    background: rgba(245, 158, 11, 0.1);
+}
+
+.status-indicator.unsaved i {
+    color: #f59e0b;
+}
+
+.status-indicator.saving {
+    color: var(--purple);
+    background: rgba(139, 92, 246, 0.1);
+}
+
+.status-indicator.saving i {
+    color: var(--purple);
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+.notes-body {
+    margin-bottom: 1rem;
+}
+
+.notes-textarea {
+    background: rgba(139, 92, 246, 0.05);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    resize: vertical;
+    font-size: 0.875rem;
+    line-height: 1.6;
+    transition: all 0.2s ease;
+}
+
+.notes-textarea:focus {
+    background: rgba(139, 92, 246, 0.08);
+    border-color: var(--purple);
+    box-shadow: 0 0 0 0.2rem rgba(139, 92, 246, 0.25);
+    outline: none;
+}
+
+.notes-textarea::placeholder {
+    color: var(--text-secondary);
+    opacity: 0.6;
+}
+
+.notes-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 0.5rem;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+.char-count {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+#char-count {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.notes-actions {
+    display: flex;
+    gap: 0.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.notes-actions .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+}
+
+.save-notes-btn {
+    border-color: var(--purple);
+    color: var(--purple);
+}
+
+.save-notes-btn:hover {
+    background: var(--purple);
+    color: white;
+}
+
+.save-notes-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.clear-notes-btn {
+    border-color: var(--border-color);
+    color: var(--text-secondary);
+}
+
+.clear-notes-btn:hover {
+    background: rgba(239, 68, 68, 0.1);
+    border-color: #ef4444;
+    color: #ef4444;
+}
+
+/* Light theme adjustments */
+[data-theme="light"] .notes-textarea {
+    background: #f8f9fa;
+}
+
+[data-theme="light"] .notes-textarea:focus {
+    background: #f1f3f5;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .notes-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+    
+    .notes-meta {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.25rem;
+    }
+    
+    .notes-actions {
+        flex-direction: column;
+    }
+    
+    .notes-actions .btn {
+        width: 100%;
+        justify-content: center;
+    }
+}
+</style>
+
+<script>
+let notesUnsaved = false;
+
+function markUnsaved() {
+    notesUnsaved = true;
+    const statusIndicator = document.getElementById('notes-status');
+    statusIndicator.className = 'status-indicator unsaved';
+    statusIndicator.innerHTML = '<i class="fas fa-circle"></i><span class="status-text">Unsaved</span>';
+    
+    // Update character count
+    const textarea = document.getElementById('mergeNotes');
+    const charCount = document.getElementById('char-count');
+    charCount.textContent = textarea.value.length;
+}
+
+function saveNotes() {
+    if (!notesUnsaved) {
+        return;
+    }
+    
+    const notes = document.getElementById('mergeNotes').value;
+    const statusIndicator = document.getElementById('notes-status');
+    const saveBtn = document.getElementById('save-notes-btn');
+    
+    // Show saving state
+    statusIndicator.className = 'status-indicator saving';
+    statusIndicator.innerHTML = '<i class="fas fa-circle"></i><span class="status-text">Saving...</span>';
+    
+    if (saveBtn) {
+        saveBtn.disabled = true;
+    }
+    
+    fetch(`/merge/{{ session.reference_id }}/changes/{{ change.id }}/notes`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ notes: notes })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            notesUnsaved = false;
+            statusIndicator.className = 'status-indicator saved';
+            statusIndicator.innerHTML = '<i class="fas fa-circle"></i><span class="status-text">Saved</span>';
+            
+            // Update last saved time
+            const lastSavedTime = document.getElementById('last-saved-time');
+            if (lastSavedTime) {
+                const now = new Date();
+                lastSavedTime.textContent = now.toLocaleString();
+            }
+        } else {
+            statusIndicator.className = 'status-indicator unsaved';
+            statusIndicator.innerHTML = '<i class="fas fa-exclamation-circle"></i><span class="status-text">Error</span>';
+            alert('Error saving notes: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        statusIndicator.className = 'status-indicator unsaved';
+        statusIndicator.innerHTML = '<i class="fas fa-exclamation-circle"></i><span class="status-text">Error</span>';
+        alert('An error occurred while saving notes');
+    })
+    .finally(() => {
+        if (saveBtn) {
+            saveBtn.disabled = false;
+        }
+    });
+}
+
+function clearNotes() {
+    if (confirm('Are you sure you want to clear all notes? This action cannot be undone.')) {
+        document.getElementById('mergeNotes').value = '';
+        markUnsaved();
+        saveNotes();
+    }
+}
+
+// Warn before leaving if there are unsaved notes
+window.addEventListener('beforeunload', function(e) {
+    if (notesUnsaved) {
+        e.preventDefault();
+        e.returnValue = 'You have unsaved notes. Are you sure you want to leave?';
+        return e.returnValue;
+    }
+});
+
+// Auto-save every 30 seconds if there are unsaved changes
+{% if auto_save %}
+setInterval(function() {
+    if (notesUnsaved) {
+        saveNotes();
+    }
+}, 30000);
+{% endif %}
+</script>

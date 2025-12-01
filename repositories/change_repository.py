@@ -1,401 +1,467 @@
 """
-Change repository for managing Change model data access.
+Change Repository
 
-This module provides data access methods for the Change model,
-which stores individual change records from three-way comparisons.
+Provides data access for changes table (working set).
+Stores classified changes for user review.
 """
 
-from typing import List, Optional
-from core.base_repository import BaseRepository
-from models import Change
+from typing import List, Optional, Dict, Any
+from sqlalchemy import func, and_
+from sqlalchemy.orm import joinedload
+from models import db, Change, ObjectLookup
+from repositories.base_repository import BaseRepository
 
 
 class ChangeRepository(BaseRepository[Change]):
     """
-    Repository for Change model operations.
-
-    Provides data access methods for managing changes identified during
-    three-way merge comparisons, including classification, filtering,
-    and ordering.
-
-    Example:
-        >>> repo = ChangeRepository()
-        >>> change = repo.create(
-        ...     session_id=1,
-        ...     object_uuid='_a-0001ed6e-54f1-8000-9df6-011c48011c48',
-        ...     object_name='MyInterface',
-        ...     object_type='Interface',
-        ...     classification='CONFLICT',
-        ...     display_order=0
-        ... )
-        >>> conflicts = repo.get_by_classification(1, 'CONFLICT')
+    Repository for Change entities.
+    
+    Manages the working set of classified changes for user review.
+    Each change represents a delta object with classification applied.
+    
+    Key Methods:
+        - create_change: Create single change
+        - bulk_create_changes: Optimized bulk creation
+        - get_by_session: Get all changes for a session
+        - get_by_classification: Filter by classification
+        - get_ordered_changes: Get changes in display order
     """
-
+    
     def __init__(self):
-        """Initialize ChangeRepository with Change model."""
+        """Initialize repository with Change model."""
         super().__init__(Change)
-
-    def get_by_session_id(self, session_id: int) -> List[Change]:
+    
+    def create_change(
+        self,
+        session_id: int,
+        object_id: int,
+        classification: str,
+        display_order: int,
+        vendor_change_type: Optional[str] = None,
+        customer_change_type: Optional[str] = None,
+        change_type: Optional[str] = None
+    ) -> Change:
         """
-        Get all changes for a specific session.
-
+        Create a change record.
+        
         Args:
-            session_id: ID of the merge session
-
+            session_id: Merge session ID
+            object_id: Object ID (from object_lookup)
+            classification: NO_CONFLICT, CONFLICT, NEW, or DELETED
+            display_order: Order for presentation
+            vendor_change_type: ADDED, MODIFIED, or REMOVED
+            customer_change_type: ADDED, MODIFIED, or REMOVED
+            change_type: Legacy field (optional)
+            
         Returns:
-            List[Change]: List of changes ordered by display_order
-
+            Change: Created change
+            
         Example:
-            >>> changes = repo.get_by_session_id(session_id=1)
+            >>> change = repo.create_change(
+            ...     session_id=1,
+            ...     object_id=42,
+            ...     classification="CONFLICT",
+            ...     display_order=1,
+            ...     vendor_change_type="MODIFIED",
+            ...     customer_change_type="MODIFIED"
+            ... )
         """
-        return (self.model_class.query
-                .filter_by(session_id=session_id)
-                .order_by(self.model_class.display_order.asc())
-                .all())
-
+        change = Change(
+            session_id=session_id,
+            object_id=object_id,
+            classification=classification,
+            display_order=display_order,
+            vendor_change_type=vendor_change_type,
+            customer_change_type=customer_change_type,
+            change_type=change_type
+        )
+        self.db.session.add(change)
+        self.db.session.flush()
+        return change
+    
+    def bulk_create_changes(
+        self,
+        changes: List[Dict[str, Any]]
+    ) -> None:
+        """
+        Optimized bulk creation of changes.
+        
+        Args:
+            changes: List of dicts with keys:
+                - session_id
+                - object_id
+                - classification
+                - display_order
+                - vendor_change_type (optional)
+                - customer_change_type (optional)
+                - change_type (optional)
+                
+        Example:
+            >>> changes = [
+            ...     {
+            ...         "session_id": 1,
+            ...         "object_id": 10,
+            ...         "classification": "NEW",
+            ...         "display_order": 1,
+            ...         "vendor_change_type": "ADDED"
+            ...     },
+            ...     {
+            ...         "session_id": 1,
+            ...         "object_id": 11,
+            ...         "classification": "CONFLICT",
+            ...         "display_order": 2,
+            ...         "vendor_change_type": "MODIFIED",
+            ...         "customer_change_type": "MODIFIED"
+            ...     }
+            ... ]
+            >>> repo.bulk_create_changes(changes)
+        """
+        if not changes:
+            return
+        
+        # Create change objects
+        change_objects = [
+            Change(
+                session_id=c['session_id'],
+                object_id=c['object_id'],
+                classification=c['classification'],
+                display_order=c['display_order'],
+                vendor_change_type=c.get('vendor_change_type'),
+                customer_change_type=c.get('customer_change_type'),
+                change_type=c.get('change_type')
+            )
+            for c in changes
+        ]
+        
+        # Bulk insert
+        self.db.session.bulk_save_objects(change_objects)
+        self.db.session.flush()
+    
+    def get_by_session(
+        self,
+        session_id: int
+    ) -> List[Change]:
+        """
+        Get all changes for a session.
+        
+        Args:
+            session_id: Merge session ID
+            
+        Returns:
+            List of Change objects
+            
+        Example:
+            >>> changes = repo.get_by_session(session_id=1)
+            >>> print(f"Found {len(changes)} changes")
+        """
+        return self.filter_by(session_id=session_id)
+    
+    def get_ordered_changes(
+        self,
+        session_id: int
+    ) -> List[Change]:
+        """
+        Get changes in display order with eager loading of related objects.
+        
+        Uses joinedload to fetch object_lookup data in a single query,
+        avoiding N+1 query problem.
+        
+        Args:
+            session_id: Merge session ID
+            
+        Returns:
+            List of Change objects ordered by display_order
+            
+        Example:
+            >>> changes = repo.get_ordered_changes(session_id=1)
+            >>> for i, change in enumerate(changes, 1):
+            ...     print(f"{i}. {change.object.name}")
+        """
+        return self.db.session.query(Change).options(
+            joinedload(Change.object)
+        ).filter(
+            Change.session_id == session_id
+        ).order_by(
+            Change.display_order
+        ).all()
+    
+    def get_by_session_with_objects(
+        self,
+        session_id: int
+    ) -> List[tuple]:
+        """
+        Get changes with object details.
+        
+        Joins with object_lookup to include object name and type.
+        
+        Args:
+            session_id: Merge session ID
+            
+        Returns:
+            List of tuples (Change, ObjectLookup)
+            
+        Example:
+            >>> changes = repo.get_by_session_with_objects(session_id=1)
+            >>> for change, obj in changes:
+            ...     print(f"{change.classification}: {obj.name}")
+        """
+        return self.db.session.query(
+            Change,
+            ObjectLookup
+        ).join(
+            ObjectLookup,
+            Change.object_id == ObjectLookup.id
+        ).filter(
+            Change.session_id == session_id
+        ).order_by(
+            Change.display_order
+        ).all()
+    
     def get_by_classification(
         self,
         session_id: int,
         classification: str
     ) -> List[Change]:
         """
-        Get changes by classification type.
-
+        Get changes filtered by classification.
+        
         Args:
-            session_id: ID of the merge session
-            classification: Classification type ('NO_CONFLICT', 'CONFLICT',
-                'CUSTOMER_ONLY', 'REMOVED_BUT_CUSTOMIZED')
-
+            session_id: Merge session ID
+            classification: NO_CONFLICT, CONFLICT, NEW, or DELETED
+            
         Returns:
-            List[Change]: List of changes with the specified classification
-
+            List of Change objects
+            
         Example:
-            >>> conflicts = repo.get_by_classification(1, 'CONFLICT')
-            >>> no_conflicts = repo.get_by_classification(1, 'NO_CONFLICT')
+            >>> conflicts = repo.get_by_classification(
+            ...     session_id=1,
+            ...     classification="CONFLICT"
+            ... )
         """
-        return (self.model_class.query
-                .filter_by(
-                    session_id=session_id,
-                    classification=classification
-                )
-                .order_by(self.model_class.display_order.asc())
-                .all())
-
+        return self.filter_by(
+            session_id=session_id,
+            classification=classification
+        )
+    
+    def get_by_classifications(
+        self,
+        session_id: int,
+        classifications: List[str]
+    ) -> List[Change]:
+        """
+        Get changes filtered by multiple classifications with eager loading.
+        
+        Args:
+            session_id: Merge session ID
+            classifications: List of classifications to include
+            
+        Returns:
+            List of Change objects ordered by display_order
+            
+        Example:
+            >>> changes = repo.get_by_classifications(
+            ...     session_id=1,
+            ...     classifications=["CONFLICT", "DELETED"]
+            ... )
+        """
+        return self.db.session.query(Change).options(
+            joinedload(Change.object)
+        ).filter(
+            and_(
+                Change.session_id == session_id,
+                Change.classification.in_(classifications)
+            )
+        ).order_by(
+            Change.display_order
+        ).all()
+    
+    def count_by_classification(
+        self,
+        session_id: int
+    ) -> Dict[str, int]:
+        """
+        Count changes by classification.
+        
+        Args:
+            session_id: Merge session ID
+            
+        Returns:
+            Dict mapping classification to count
+            
+        Example:
+            >>> counts = repo.count_by_classification(session_id=1)
+            >>> print(f"NO_CONFLICT: {counts.get('NO_CONFLICT', 0)}")
+            >>> print(f"CONFLICT: {counts.get('CONFLICT', 0)}")
+            >>> print(f"NEW: {counts.get('NEW', 0)}")
+            >>> print(f"DELETED: {counts.get('DELETED', 0)}")
+        """
+        results = self.db.session.query(
+            Change.classification,
+            func.count(Change.id).label('count')
+        ).filter(
+            Change.session_id == session_id
+        ).group_by(
+            Change.classification
+        ).all()
+        
+        return {classification: count for classification, count in results}
+    
+    def count_total(
+        self,
+        session_id: int
+    ) -> int:
+        """
+        Count total changes for a session.
+        
+        Args:
+            session_id: Merge session ID
+            
+        Returns:
+            Total count
+            
+        Example:
+            >>> total = repo.count_total(session_id=1)
+            >>> print(f"Total changes: {total}")
+        """
+        return self.count(session_id=session_id)
+    
+    def find_by_object(
+        self,
+        session_id: int,
+        object_id: int
+    ) -> Optional[Change]:
+        """
+        Find change for a specific object.
+        
+        Args:
+            session_id: Merge session ID
+            object_id: Object ID
+            
+        Returns:
+            Change if found, None otherwise
+            
+        Example:
+            >>> change = repo.find_by_object(session_id=1, object_id=42)
+            >>> if change:
+            ...     print(f"Classification: {change.classification}")
+        """
+        return self.find_one(session_id=session_id, object_id=object_id)
+    
+    def get_next_display_order(
+        self,
+        session_id: int
+    ) -> int:
+        """
+        Get next available display order for a session.
+        
+        Args:
+            session_id: Merge session ID
+            
+        Returns:
+            Next display order value
+            
+        Example:
+            >>> next_order = repo.get_next_display_order(session_id=1)
+        """
+        max_order = self.db.session.query(
+            func.max(Change.display_order)
+        ).filter(
+            Change.session_id == session_id
+        ).scalar()
+        
+        return (max_order or 0) + 1
+    
+    def get_statistics(
+        self,
+        session_id: int
+    ) -> Dict[str, Any]:
+        """
+        Get comprehensive statistics for a session.
+        
+        Args:
+            session_id: Merge session ID
+            
+        Returns:
+            Dict with statistics:
+                - total: Total changes
+                - by_classification: Count by classification
+                - conflicts: Count of conflicts
+                - no_conflicts: Count of no conflicts
+                
+        Example:
+            >>> stats = repo.get_statistics(session_id=1)
+            >>> print(f"Total: {stats['total']}")
+            >>> print(f"Conflicts: {stats['conflicts']}")
+        """
+        total = self.count_total(session_id)
+        by_classification = self.count_by_classification(session_id)
+        
+        conflicts = by_classification.get('CONFLICT', 0)
+        no_conflicts = by_classification.get('NO_CONFLICT', 0)
+        
+        return {
+            'total': total,
+            'by_classification': by_classification,
+            'conflicts': conflicts,
+            'no_conflicts': no_conflicts,
+            'new': by_classification.get('NEW', 0),
+            'deleted': by_classification.get('DELETED', 0)
+        }
+    
     def get_by_object_type(
         self,
         session_id: int,
         object_type: str
     ) -> List[Change]:
         """
-        Get changes by object type.
-
+        Get changes filtered by object type with eager loading.
+        
         Args:
-            session_id: ID of the merge session
-            object_type: Type of object (e.g., 'Interface', 'Process Model')
-
+            session_id: Merge session ID
+            object_type: Object type to filter by
+            
         Returns:
-            List[Change]: List of changes for the specified object type
-
+            List of Change objects
+            
         Example:
-            >>> interfaces = repo.get_by_object_type(1, 'Interface')
-        """
-        return (self.model_class.query
-                .filter_by(session_id=session_id, object_type=object_type)
-                .order_by(self.model_class.display_order.asc())
-                .all())
-
-    def get_by_uuid(
-        self,
-        session_id: int,
-        object_uuid: str
-    ) -> Optional[Change]:
-        """
-        Get a change by object UUID.
-
-        Args:
-            session_id: ID of the merge session
-            object_uuid: UUID of the object
-
-        Returns:
-            Optional[Change]: Change if found, None otherwise
-
-        Example:
-            >>> change = repo.get_by_uuid(
-            ...     1,
-            ...     '_a-0001ed6e-54f1-8000-9df6-011c48011c48'
+            >>> interface_changes = repo.get_by_object_type(
+            ...     session_id=1,
+            ...     object_type="Interface"
             ... )
         """
-        return self.find_one(session_id=session_id, object_uuid=object_uuid)
-
-    def get_conflicts(self, session_id: int) -> List[Change]:
-        """
-        Get all conflicting changes for a session.
-
-        Args:
-            session_id: ID of the merge session
-
-        Returns:
-            List[Change]: List of changes with CONFLICT classification
-
-        Example:
-            >>> conflicts = repo.get_conflicts(session_id=1)
-        """
-        return self.get_by_classification(session_id, 'CONFLICT')
-
-    def get_no_conflicts(self, session_id: int) -> List[Change]:
-        """
-        Get all non-conflicting changes for a session.
-
-        Args:
-            session_id: ID of the merge session
-
-        Returns:
-            List[Change]: List of changes with NO_CONFLICT classification
-
-        Example:
-            >>> no_conflicts = repo.get_no_conflicts(session_id=1)
-        """
-        return self.get_by_classification(session_id, 'NO_CONFLICT')
-
-    def get_customer_only_changes(self, session_id: int) -> List[Change]:
-        """
-        Get all customer-only changes for a session.
-
-        Args:
-            session_id: ID of the merge session
-
-        Returns:
-            List[Change]: List of changes with CUSTOMER_ONLY classification
-
-        Example:
-            >>> customer_only = repo.get_customer_only_changes(session_id=1)
-        """
-        return self.get_by_classification(session_id, 'CUSTOMER_ONLY')
-
-    def get_removed_but_customized(self, session_id: int) -> List[Change]:
-        """
-        Get all removed but customized changes for a session.
-
-        Args:
-            session_id: ID of the merge session
-
-        Returns:
-            List[Change]: List of changes with REMOVED_BUT_CUSTOMIZED
-                classification
-
-        Example:
-            >>> removed = repo.get_removed_but_customized(session_id=1)
-        """
-        return self.get_by_classification(session_id, 'REMOVED_BUT_CUSTOMIZED')
-
-    def count_by_classification(
-        self,
-        session_id: int,
-        classification: str
-    ) -> int:
-        """
-        Count changes by classification.
-
-        Args:
-            session_id: ID of the merge session
-            classification: Classification type to count
-
-        Returns:
-            int: Number of changes with the specified classification
-
-        Example:
-            >>> conflict_count = repo.count_by_classification(1, 'CONFLICT')
-        """
-        return self.count(session_id=session_id, classification=classification)
-
-    def count_by_object_type(
-        self,
-        session_id: int,
-        object_type: str
-    ) -> int:
-        """
-        Count changes by object type.
-
-        Args:
-            session_id: ID of the merge session
-            object_type: Type of object to count
-
-        Returns:
-            int: Number of changes for the specified object type
-
-        Example:
-            >>> interface_count = repo.count_by_object_type(1, 'Interface')
-        """
-        return self.count(session_id=session_id, object_type=object_type)
-
-    def get_classification_summary(
+        return self.db.session.query(Change).options(
+            joinedload(Change.object)
+        ).join(
+            ObjectLookup,
+            Change.object_id == ObjectLookup.id
+        ).filter(
+            and_(
+                Change.session_id == session_id,
+                ObjectLookup.object_type == object_type
+            )
+        ).order_by(
+            Change.display_order
+        ).all()
+    
+    def delete_by_session(
         self,
         session_id: int
-    ) -> dict[str, int]:
-        """
-        Get summary of changes by classification.
-
-        Args:
-            session_id: ID of the merge session
-
-        Returns:
-            dict: Dictionary mapping classification to count
-
-        Example:
-            >>> summary = repo.get_classification_summary(session_id=1)
-            >>> # Returns: {'CONFLICT': 10, 'NO_CONFLICT': 50, ...}
-        """
-        classifications = [
-            'NO_CONFLICT',
-            'CONFLICT',
-            'CUSTOMER_ONLY',
-            'REMOVED_BUT_CUSTOMIZED'
-        ]
-        return {
-            cls: self.count_by_classification(session_id, cls)
-            for cls in classifications
-        }
-
-    def get_object_type_summary(
-        self,
-        session_id: int
-    ) -> dict[str, int]:
-        """
-        Get summary of changes by object type.
-
-        Args:
-            session_id: ID of the merge session
-
-        Returns:
-            dict: Dictionary mapping object type to count
-
-        Example:
-            >>> summary = repo.get_object_type_summary(session_id=1)
-            >>> # Returns: {'Interface': 25, 'Process Model': 10, ...}
-        """
-        changes = self.get_by_session_id(session_id)
-        summary: dict[str, int] = {}
-        for change in changes:
-            obj_type = change.object_type
-            summary[obj_type] = summary.get(obj_type, 0) + 1
-        return summary
-
-    def get_by_display_order_range(
-        self,
-        session_id: int,
-        start_order: int,
-        end_order: int
-    ) -> List[Change]:
-        """
-        Get changes within a display order range.
-
-        Args:
-            session_id: ID of the merge session
-            start_order: Starting display order (inclusive)
-            end_order: Ending display order (inclusive)
-
-        Returns:
-            List[Change]: List of changes in the specified range
-
-        Example:
-            >>> changes = repo.get_by_display_order_range(1, 0, 9)
-        """
-        return (self.model_class.query
-                .filter_by(session_id=session_id)
-                .filter(self.model_class.display_order >= start_order)
-                .filter(self.model_class.display_order <= end_order)
-                .order_by(self.model_class.display_order.asc())
-                .all())
-
-    def get_paginated(
-        self,
-        session_id: int,
-        page: int = 1,
-        per_page: int = 10
-    ) -> tuple[List[Change], int]:
-        """
-        Get paginated changes for a session.
-
-        Args:
-            session_id: ID of the merge session
-            page: Page number (1-indexed)
-            per_page: Number of changes per page
-
-        Returns:
-            tuple: (list of changes, total count)
-
-        Example:
-            >>> changes, total = repo.get_paginated(1, page=2, per_page=10)
-        """
-        query = (self.model_class.query
-                 .filter_by(session_id=session_id)
-                 .order_by(self.model_class.display_order.asc()))
-
-        total = query.count()
-        changes = query.offset((page - 1) * per_page).limit(per_page).all()
-
-        return (changes, total)
-
-    def delete_by_session(self, session_id: int) -> int:
+    ) -> int:
         """
         Delete all changes for a session.
-
+        
         Args:
-            session_id: ID of the merge session
-
+            session_id: Merge session ID
+            
         Returns:
-            int: Number of changes deleted
-
+            Number of changes deleted
+            
         Example:
             >>> deleted = repo.delete_by_session(session_id=1)
         """
-        changes = self.get_by_session_id(session_id)
-        count = len(changes)
-        for change in changes:
-            self.db.session.delete(change)
-        self.db.session.commit()
+        count = self.count_total(session_id)
+        self.db.session.query(Change).filter(
+            Change.session_id == session_id
+        ).delete()
+        self.db.session.flush()
         return count
-
-    def get_changes_with_guidance(
-        self,
-        session_id: int
-    ) -> List[Change]:
-        """
-        Get all changes that have merge guidance.
-
-        Args:
-            session_id: ID of the merge session
-
-        Returns:
-            List[Change]: List of changes with merge guidance
-
-        Example:
-            >>> guided = repo.get_changes_with_guidance(session_id=1)
-        """
-        return (self.model_class.query
-                .filter_by(session_id=session_id)
-                .filter(self.model_class.merge_guidance.isnot(None))
-                .order_by(self.model_class.display_order.asc())
-                .all())
-
-    def get_changes_with_reviews(
-        self,
-        session_id: int
-    ) -> List[Change]:
-        """
-        Get all changes that have been reviewed.
-
-        Args:
-            session_id: ID of the merge session
-
-        Returns:
-            List[Change]: List of changes with reviews
-
-        Example:
-            >>> reviewed = repo.get_changes_with_reviews(session_id=1)
-        """
-        return (self.model_class.query
-                .filter_by(session_id=session_id)
-                .filter(self.model_class.review.isnot(None))
-                .order_by(self.model_class.display_order.asc())
-                .all())
