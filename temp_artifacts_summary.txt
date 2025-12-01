@@ -1,6 +1,0 @@
-SOURCE SELECTION APPLICATION ARTIFACTS SUMMARY
-
-BLUEPRINT FILE: /Users/ramaswamy.u/repo/nexus-gen-v2/applicationArtifacts/Source Selection/SourceSelectionv2.6.0_blueprint.json
-LOOKUP FILE: /Users/ramaswamy.u/repo/nexus-gen-v2/applicationArtifacts/Source Selection/SourceSelectionv2.6.0_object_lookup.json
-
-KEY EVALUATION-RELATED OBJECTS TO REFERENCE:
