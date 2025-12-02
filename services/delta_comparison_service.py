@@ -193,6 +193,7 @@ class DeltaComparisonService(BaseService):
             DeltaChange(
                 object_id=result['object_id'],
                 change_category=ChangeCategory(result['change_category']),
+                change_type=ChangeType(result['change_type']),
                 version_changed=result['version_changed'],
                 content_changed=result['content_changed']
             )
@@ -271,6 +272,18 @@ class DeltaComparisonService(BaseService):
             new_content
         )
         
+        # CRITICAL FIX: Also check object-specific tables
+        # Many object types store their actual content in dedicated tables
+        # (process_models, constants, record_types, etc.)
+        object_specific_changed = self._compare_object_specific_content(
+            obj_lookup,
+            base_package_id,
+            new_package_id
+        )
+        
+        # Content is changed if EITHER object_versions OR object-specific tables differ
+        content_changed = content_changed or object_specific_changed
+        
         return version_changed, content_changed
     
     def _get_object_version(
@@ -326,6 +339,240 @@ class DeltaComparisonService(BaseService):
                 content['properties'] = version.properties
         
         return content
+    
+    def _compare_object_specific_content(
+        self,
+        obj_lookup: ObjectLookup,
+        base_package_id: int,
+        new_package_id: int
+    ) -> bool:
+        """
+        Compare object-specific table content between two packages.
+        
+        Many object types store their actual content in dedicated tables:
+        - Process Models: nodes, flows, variables
+        - Constants: constant_value, constant_type
+        - Record Types: fields, relationships, views, actions
+        - Interfaces: parameters, security
+        - Expression Rules: inputs
+        - CDTs: fields
+        
+        This method routes to the appropriate comparison based on object_type.
+        
+        Args:
+            obj_lookup: ObjectLookup entity
+            base_package_id: Package A (Base) ID
+            new_package_id: Package C (New Vendor) ID
+            
+        Returns:
+            True if object-specific content differs, False otherwise
+        """
+        object_type = obj_lookup.object_type
+        
+        # Route to specific comparison method based on object type
+        if object_type == "Process Model":
+            return self._compare_process_model_content(obj_lookup.id, base_package_id, new_package_id)
+        elif object_type == "Constant":
+            return self._compare_constant_content(obj_lookup.id, base_package_id, new_package_id)
+        elif object_type == "Record Type":
+            return self._compare_record_type_content(obj_lookup.id, base_package_id, new_package_id)
+        elif object_type == "Interface":
+            return self._compare_interface_content(obj_lookup.id, base_package_id, new_package_id)
+        elif object_type == "Expression Rule":
+            return self._compare_expression_rule_content(obj_lookup.id, base_package_id, new_package_id)
+        elif object_type == "Data Type":
+            return self._compare_cdt_content(obj_lookup.id, base_package_id, new_package_id)
+        
+        # For other types, rely on object_versions comparison
+        return False
+    
+    def _compare_process_model_content(
+        self,
+        object_id: int,
+        base_package_id: int,
+        new_package_id: int
+    ) -> bool:
+        """Compare process model nodes, flows, and variables."""
+        from models import ProcessModel
+        
+        base_pm = db.session.query(ProcessModel).filter_by(
+            object_id=object_id,
+            package_id=base_package_id
+        ).first()
+        
+        new_pm = db.session.query(ProcessModel).filter_by(
+            object_id=object_id,
+            package_id=new_package_id
+        ).first()
+        
+        if not base_pm or not new_pm:
+            return False
+        
+        # Compare counts
+        if base_pm.nodes.count() != new_pm.nodes.count():
+            return True
+        if base_pm.flows.count() != new_pm.flows.count():
+            return True
+        if base_pm.variables.count() != new_pm.variables.count():
+            return True
+        
+        # Compare variable details
+        base_vars = {(v.variable_name, v.variable_type) for v in base_pm.variables}
+        new_vars = {(v.variable_name, v.variable_type) for v in new_pm.variables}
+        if base_vars != new_vars:
+            return True
+        
+        return False
+    
+    def _compare_constant_content(
+        self,
+        object_id: int,
+        base_package_id: int,
+        new_package_id: int
+    ) -> bool:
+        """Compare constant value and type."""
+        from models import Constant
+        
+        base_const = db.session.query(Constant).filter_by(
+            object_id=object_id,
+            package_id=base_package_id
+        ).first()
+        
+        new_const = db.session.query(Constant).filter_by(
+            object_id=object_id,
+            package_id=new_package_id
+        ).first()
+        
+        if not base_const or not new_const:
+            return False
+        
+        # Compare value and type
+        if base_const.constant_value != new_const.constant_value:
+            return True
+        if base_const.constant_type != new_const.constant_type:
+            return True
+        
+        return False
+    
+    def _compare_record_type_content(
+        self,
+        object_id: int,
+        base_package_id: int,
+        new_package_id: int
+    ) -> bool:
+        """Compare record type fields, relationships, views, and actions."""
+        from models import RecordType
+        
+        base_rt = db.session.query(RecordType).filter_by(
+            object_id=object_id,
+            package_id=base_package_id
+        ).first()
+        
+        new_rt = db.session.query(RecordType).filter_by(
+            object_id=object_id,
+            package_id=new_package_id
+        ).first()
+        
+        if not base_rt or not new_rt:
+            return False
+        
+        # Compare counts
+        if base_rt.fields.count() != new_rt.fields.count():
+            return True
+        if base_rt.relationships.count() != new_rt.relationships.count():
+            return True
+        if base_rt.views.count() != new_rt.views.count():
+            return True
+        if base_rt.actions.count() != new_rt.actions.count():
+            return True
+        
+        return False
+    
+    def _compare_interface_content(
+        self,
+        object_id: int,
+        base_package_id: int,
+        new_package_id: int
+    ) -> bool:
+        """Compare interface parameters and security."""
+        from models import Interface
+        
+        base_intf = db.session.query(Interface).filter_by(
+            object_id=object_id,
+            package_id=base_package_id
+        ).first()
+        
+        new_intf = db.session.query(Interface).filter_by(
+            object_id=object_id,
+            package_id=new_package_id
+        ).first()
+        
+        if not base_intf or not new_intf:
+            return False
+        
+        # Compare counts
+        if base_intf.parameters.count() != new_intf.parameters.count():
+            return True
+        if base_intf.security.count() != new_intf.security.count():
+            return True
+        
+        return False
+    
+    def _compare_expression_rule_content(
+        self,
+        object_id: int,
+        base_package_id: int,
+        new_package_id: int
+    ) -> bool:
+        """Compare expression rule inputs."""
+        from models import ExpressionRule
+        
+        base_er = db.session.query(ExpressionRule).filter_by(
+            object_id=object_id,
+            package_id=base_package_id
+        ).first()
+        
+        new_er = db.session.query(ExpressionRule).filter_by(
+            object_id=object_id,
+            package_id=new_package_id
+        ).first()
+        
+        if not base_er or not new_er:
+            return False
+        
+        # Compare input counts
+        if base_er.inputs.count() != new_er.inputs.count():
+            return True
+        
+        return False
+    
+    def _compare_cdt_content(
+        self,
+        object_id: int,
+        base_package_id: int,
+        new_package_id: int
+    ) -> bool:
+        """Compare CDT fields."""
+        from models import CDT
+        
+        base_cdt = db.session.query(CDT).filter_by(
+            object_id=object_id,
+            package_id=base_package_id
+        ).first()
+        
+        new_cdt = db.session.query(CDT).filter_by(
+            object_id=object_id,
+            package_id=new_package_id
+        ).first()
+        
+        if not base_cdt or not new_cdt:
+            return False
+        
+        # Compare field counts
+        if base_cdt.fields.count() != new_cdt.fields.count():
+            return True
+        
+        return False
     
     def get_delta_statistics(
         self,

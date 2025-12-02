@@ -15,8 +15,10 @@
 {% block page_title %}
     Merge Session Summary
     {% if session.status == 'ready' or session.status == 'in_progress' or session.status == 'completed' %}
-        <button id="generateReportBtn" class="btn btn-outline-primary btn-sm float-end">
-            <i class="fas fa-file-download"></i> Generate Report
+        <button id="generateReportBtn" class="btn btn-modern-primary float-end">
+            <i class="fas fa-file-excel me-2"></i>
+            <span class="btn-text">Generate Report</span>
+            <i class="fas fa-sparkles ms-2"></i>
         </button>
     {% endif %}
 {% endblock %}
@@ -438,15 +440,15 @@
 
 .info-panel {
     background: var(--bg-card);
-    border-radius: 12px;
+    border-radius: 16px;
     padding: 1.5rem;
-    border: 1px solid #374151;
+    border: 1px solid var(--border-color);
 }
 
 .panel-title {
     margin: 0 0 1.5rem 0;
     padding-bottom: 1rem;
-    border-bottom: 1px solid #374151;
+    border-bottom: 1px solid #cfd3da;
     color: var(--text-primary);
     display: flex;
     align-items: center;
@@ -884,6 +886,104 @@
     background: rgba(239, 68, 68, 0.2);
     color: #ef4444;
 }
+
+/* Modern Generate Report Button */
+.btn-modern-primary {
+    background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+    border: none;
+    color: white;
+    padding: 0.75rem 1.75rem;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-modern-primary::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(255, 255, 255, 0.2),
+        transparent
+    );
+    transition: left 0.5s;
+}
+
+.btn-modern-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(139, 92, 246, 0.4);
+    background: linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%);
+}
+
+.btn-modern-primary:hover::before {
+    left: 100%;
+}
+
+.btn-modern-primary:active {
+    transform: translateY(0);
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+}
+
+.btn-modern-primary:disabled {
+    background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+.btn-modern-primary .fa-sparkles {
+    animation: sparkle 2s ease-in-out infinite;
+}
+
+@keyframes sparkle {
+    0%, 100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.6;
+        transform: scale(1.1);
+    }
+}
+
+.btn-modern-primary .btn-text {
+    position: relative;
+    z-index: 1;
+}
+
+/* Loading state for button */
+.btn-modern-primary.loading {
+    pointer-events: none;
+}
+
+.btn-modern-primary.loading .btn-text {
+    opacity: 0.7;
+}
+
+.btn-modern-primary.loading .fa-file-excel {
+    animation: bounce 1s ease-in-out infinite;
+}
+
+@keyframes bounce {
+    0%, 100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-4px);
+    }
+}
 </style>
 {% endblock %}
 
@@ -1011,7 +1111,7 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-// Generate Report button handler
+// Generate Report button handler with modern loading states
 document.addEventListener('DOMContentLoaded', function() {
     const generateReportBtn = document.getElementById('generateReportBtn');
     
@@ -1021,9 +1121,14 @@ document.addEventListener('DOMContentLoaded', function() {
             const btn = this;
             const originalHtml = btn.innerHTML;
             
-            // Show loading state
+            // Show modern loading state
             btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
+            btn.classList.add('loading');
+            btn.innerHTML = `
+                <i class="fas fa-spinner fa-spin me-2"></i>
+                <span class="btn-text">Generating Report...</span>
+                <i class="fas fa-magic ms-2"></i>
+            `;
             
             // Trigger report generation
             fetch(`/merge/${referenceId}/report?format=xlsx`, {
@@ -1046,18 +1151,29 @@ document.addEventListener('DOMContentLoaded', function() {
                 window.URL.revokeObjectURL(url);
                 document.body.removeChild(a);
                 
-                // Reset button
-                btn.disabled = false;
-                btn.innerHTML = originalHtml;
+                // Show success state briefly
+                btn.innerHTML = `
+                    <i class="fas fa-check-circle me-2"></i>
+                    <span class="btn-text">Report Downloaded!</span>
+                    <i class="fas fa-sparkles ms-2"></i>
+                `;
                 
-                // Show success message
-                showNotification('Report generated successfully!', 'success');
+                // Reset button after 2 seconds
+                setTimeout(() => {
+                    btn.disabled = false;
+                    btn.classList.remove('loading');
+                    btn.innerHTML = originalHtml;
+                }, 2000);
+                
+                // Show success notification
+                showNotification('📊 Report generated successfully!', 'success');
             })
             .catch(error => {
                 console.error('Error generating report:', error);
                 btn.disabled = false;
+                btn.classList.remove('loading');
                 btn.innerHTML = originalHtml;
-                showNotification('Failed to generate report. Please try again.', 'error');
+                showNotification('❌ Failed to generate report. Please try again.', 'error');
             });
         });
     }

@@ -111,7 +111,8 @@
              data-name="{{ change.object.name|lower }}"
              data-type="{{ change.object.object_type|lower }}"
              data-uuid="{{ change.object.uuid|lower }}"
-             data-order="{{ change.display_order }}">
+             data-order="{{ change.display_order }}"
+             data-status="{{ change.status }}">
             
             <!-- Classification Badge -->
             <div class="change-card-badge change-badge-{{ change.classification|lower }}">
@@ -165,7 +166,18 @@
 
             <!-- Card Footer -->
             <div class="change-card-footer">
-                <span class="change-card-order">#{{ change.display_order }}</span>
+                <div class="change-card-order-section">
+                    <span class="change-card-order">#{{ change.display_order }}</span>
+                    {% if change.status == 'reviewed' %}
+                    <span class="change-status-badge status-reviewed">
+                        <i class="fas fa-check-circle"></i> Reviewed
+                    </span>
+                    {% elif change.status == 'skipped' %}
+                    <span class="change-status-badge status-skipped">
+                        <i class="fas fa-forward"></i> Skipped
+                    </span>
+                    {% endif %}
+                </div>
                 <a href="{{ url_for('merge.get_change_detail', reference_id=session.reference_id, change_id=change.change_id) }}" 
                    class="btn-view-details">
                     <span>View Details</span>
@@ -809,10 +821,48 @@
     background: rgba(107, 107, 247, 0.02);
 }
 
+.change-card-order-section {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
 .change-card-order {
     font-size: 0.875rem;
     font-weight: 600;
     color: var(--text-secondary);
+}
+
+.change-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.25rem 0.625rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.status-reviewed {
+    background: var(--green-1);
+    color: var(--green-4);
+    border: 1px solid var(--green-2);
+}
+
+.status-reviewed i {
+    font-size: 0.875rem;
+}
+
+.status-skipped {
+    background: var(--orange-1);
+    color: var(--orange-4);
+    border: 1px solid var(--orange-2);
+}
+
+.status-skipped i {
+    font-size: 0.875rem;
 }
 
 .btn-view-details {
@@ -1336,6 +1386,15 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         if (e.key === 'ArrowRight' && !nextPageBtn.disabled) {
             nextPageBtn.click();
+        }
+    });
+    
+    // Listen for storage events to update card status when changes are made in detail view
+    window.addEventListener('storage', function(e) {
+        if (e.key === 'merge_card_update') {
+            const data = JSON.parse(e.newValue);
+            // Reload page to show updated status badges
+            location.reload();
         }
     });
     

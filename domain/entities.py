@@ -41,21 +41,23 @@ class ObjectIdentity:
 
 
 @dataclass
-class DeltaChange:
+class VendorChange:
     """
-    Represents a change identified in the delta comparison (A→C).
-
-    This captures what changed in the vendor package between the base
-    version and the new version.
+    Represents a change in the vendor package (Set D: A→C).
+    
+    This represents what the vendor changed from the base version
+    to the new vendor version.
 
     Attributes:
         object_id: Database ID of the object in object_lookup
         change_category: Type of change (NEW, MODIFIED, DEPRECATED)
+        change_type: Type of change (ADDED, MODIFIED, REMOVED)
         version_changed: Whether the version UUID changed
-        content_changed: Whether the content changed (when version is same)
+        content_changed: Whether the content changed
     """
     object_id: int
     change_category: ChangeCategory
+    change_type: ChangeType
     version_changed: bool
     content_changed: bool
 
@@ -67,12 +69,88 @@ class DeltaChange:
             raise ValueError(
                 "change_category must be a ChangeCategory enum"
             )
+        if not isinstance(self.change_type, ChangeType):
+            raise ValueError(
+                "change_type must be a ChangeType enum"
+            )
+
+
+@dataclass
+class DeltaChange:
+    """
+    Legacy alias for VendorChange for backward compatibility.
+    
+    Represents a change identified in the delta comparison (A→C).
+
+    This captures what changed in the vendor package between the base
+    version and the new version.
+
+    Attributes:
+        object_id: Database ID of the object in object_lookup
+        change_category: Type of change (NEW, MODIFIED, DEPRECATED)
+        change_type: Type of change (ADDED, MODIFIED, REMOVED)
+        version_changed: Whether the version UUID changed
+        content_changed: Whether the content changed (when version is same)
+    """
+    object_id: int
+    change_category: ChangeCategory
+    change_type: ChangeType
+    version_changed: bool
+    content_changed: bool
+
+    def __post_init__(self):
+        """Validate fields."""
+        if self.object_id <= 0:
+            raise ValueError("object_id must be positive")
+        if not isinstance(self.change_category, ChangeCategory):
+            raise ValueError(
+                "change_category must be a ChangeCategory enum"
+            )
+        if not isinstance(self.change_type, ChangeType):
+            raise ValueError(
+                "change_type must be a ChangeType enum"
+            )
+
+
+@dataclass
+class CustomerChange:
+    """
+    Represents a change in the customer package (Set E: A→B).
+    
+    This represents what the customer changed from the base version
+    to their customized version.
+
+    Attributes:
+        object_id: Database ID of the object in object_lookup
+        change_category: Type of change (NEW, MODIFIED, DEPRECATED)
+        change_type: Type of change (ADDED, MODIFIED, REMOVED)
+        version_changed: Whether the version UUID changed
+        content_changed: Whether the content changed
+    """
+    object_id: int
+    change_category: ChangeCategory
+    change_type: ChangeType
+    version_changed: bool
+    content_changed: bool
+
+    def __post_init__(self):
+        """Validate fields."""
+        if self.object_id <= 0:
+            raise ValueError("object_id must be positive")
+        if not isinstance(self.change_category, ChangeCategory):
+            raise ValueError(
+                "change_category must be a ChangeCategory enum"
+            )
+        if not isinstance(self.change_type, ChangeType):
+            raise ValueError(
+                "change_type must be a ChangeType enum"
+            )
 
 
 @dataclass
 class CustomerModification:
     """
-    Represents customer modifications to an object.
+    Legacy entity for customer modifications (deprecated).
 
     This captures whether and how the customer modified an object
     that appears in the vendor delta.
@@ -97,6 +175,54 @@ class CustomerModification:
 
 
 @dataclass
+class MergeAnalysis:
+    """
+    Represents the merge analysis result for an object.
+    
+    This combines vendor and customer changes to determine
+    if there's a conflict.
+
+    Attributes:
+        object_id: Database ID of the object in object_lookup
+        in_vendor_changes: Object in Set D
+        in_customer_changes: Object in Set E
+        vendor_change: VendorChange entity (if in Set D)
+        customer_change: CustomerChange entity (if in Set E)
+        classification: Classification result
+    """
+    object_id: int
+    in_vendor_changes: bool
+    in_customer_changes: bool
+    vendor_change: Optional['VendorChange']
+    customer_change: Optional['CustomerChange']
+    classification: Classification
+    
+    @property
+    def is_conflict(self) -> bool:
+        """Check if this is a conflict (object in both D and E)."""
+        return self.in_vendor_changes and self.in_customer_changes
+    
+    @property
+    def is_vendor_only(self) -> bool:
+        """Check if this is a vendor-only change (in D, not in E)."""
+        return self.in_vendor_changes and not self.in_customer_changes
+    
+    @property
+    def is_customer_only(self) -> bool:
+        """Check if this is a customer-only change (in E, not in D)."""
+        return not self.in_vendor_changes and self.in_customer_changes
+
+    def __post_init__(self):
+        """Validate fields."""
+        if self.object_id <= 0:
+            raise ValueError("object_id must be positive")
+        if not isinstance(self.classification, Classification):
+            raise ValueError(
+                "classification must be a Classification enum"
+            )
+
+
+@dataclass
 class ClassifiedChange:
     """
     Represents a classified change ready for the working set.
@@ -108,14 +234,13 @@ class ClassifiedChange:
         object_id: Database ID of the object in object_lookup
         classification: Classification result
                        (NO_CONFLICT, CONFLICT, NEW, DELETED)
-        vendor_change_type: Type of vendor change
-                           (ADDED, MODIFIED, REMOVED)
+        vendor_change_type: Type of vendor change (optional)
         customer_change_type: Type of customer change (optional)
         display_order: Order for presenting changes to user
     """
     object_id: int
     classification: Classification
-    vendor_change_type: ChangeType
+    vendor_change_type: Optional[ChangeType]
     customer_change_type: Optional[ChangeType]
     display_order: int
 
@@ -127,9 +252,10 @@ class ClassifiedChange:
             raise ValueError(
                 "classification must be a Classification enum"
             )
-        if not isinstance(self.vendor_change_type, ChangeType):
+        if (self.vendor_change_type is not None and
+                not isinstance(self.vendor_change_type, ChangeType)):
             raise ValueError(
-                "vendor_change_type must be a ChangeType enum"
+                "vendor_change_type must be a ChangeType enum or None"
             )
         if (self.customer_change_type is not None and
                 not isinstance(self.customer_change_type, ChangeType)):

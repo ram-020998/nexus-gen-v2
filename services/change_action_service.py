@@ -113,6 +113,10 @@ class ChangeActionService(BaseService):
         if user_id:
             change.reviewed_by = user_id
 
+        # Update session status to in_progress if it's the first action
+        if session.status == 'ready':
+            session.status = 'in_progress'
+
         # Update session timestamp
         session.updated_at = datetime.utcnow()
 
@@ -178,6 +182,10 @@ class ChangeActionService(BaseService):
 
         # Update change
         change.status = 'skipped'
+
+        # Update session status to in_progress if it's the first action
+        if session.status == 'ready':
+            session.status = 'in_progress'
 
         # Update session timestamp
         session.updated_at = datetime.utcnow()
@@ -327,3 +335,58 @@ class ChangeActionService(BaseService):
         )
 
         return change
+
+    def complete_session(self, reference_id: str) -> MergeSession:
+        """
+        Mark a merge session as completed.
+
+        Updates the session status to 'completed' if all changes have been
+        reviewed or skipped.
+
+        Args:
+            reference_id: Session reference ID (e.g., MRG_001)
+
+        Returns:
+            Updated MergeSession object
+
+        Raises:
+            ValueError: If session not found or has pending changes
+
+        Example:
+            >>> session = service.complete_session("MRG_001")
+            >>> assert session.status == 'completed'
+        """
+        # Find session
+        session = db.session.query(MergeSession).filter_by(
+            reference_id=reference_id
+        ).first()
+
+        if not session:
+            raise ValueError(f"Session not found: {reference_id}")
+
+        # Check if all changes are reviewed or skipped
+        pending_count = db.session.query(Change).filter_by(
+            session_id=session.id,
+            status='pending'
+        ).count()
+
+        if pending_count > 0:
+            raise ValueError(
+                f"Cannot complete session: {pending_count} changes are still pending"
+            )
+
+        # Update session status
+        session.status = 'completed'
+        session.updated_at = datetime.utcnow()
+
+        # Commit changes
+        db.session.commit()
+
+        # Invalidate statistics cache
+        self._get_statistics_service().invalidate_cache(session.id)
+
+        self.logger.info(
+            f"Session {reference_id} marked as completed"
+        )
+
+        return session

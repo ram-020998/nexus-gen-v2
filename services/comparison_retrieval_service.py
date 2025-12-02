@@ -145,6 +145,22 @@ class ComparisonRetrievalService(BaseService):
         vendor_inputs = self._get_expression_rule_inputs(vendor_er.id) if vendor_er else []
         customer_inputs = self._get_expression_rule_inputs(customer_er.id) if customer_er else []
         
+        # Generate SAIL code diff
+        from services.sail_diff_service import SailDiffService
+        diff_service = SailDiffService()
+        
+        old_code = customer_er.sail_code if customer_er else None
+        new_code = vendor_er.sail_code if vendor_er else None
+        
+        diff_hunks = diff_service.generate_unified_diff(
+            old_code,
+            new_code,
+            old_label='Customer',
+            new_label='Vendor'
+        )
+        
+        diff_stats = diff_service.get_change_stats(old_code, new_code)
+        
         return {
             'object_type': 'Expression Rule',
             'vendor': {
@@ -157,6 +173,8 @@ class ComparisonRetrievalService(BaseService):
                 'inputs': customer_inputs,
                 'output_type': customer_er.output_type if customer_er else None
             },
+            'diff_hunks': diff_hunks,
+            'diff_stats': diff_stats,
             'has_changes': vendor_er and customer_er and (
                 vendor_er.sail_code != customer_er.sail_code or
                 vendor_inputs != customer_inputs
@@ -185,6 +203,22 @@ class ComparisonRetrievalService(BaseService):
         vendor_version = self._get_object_version(obj_id, new_vendor_package_id)
         customer_version = self._get_object_version(obj_id, customer_package_id)
         
+        # Generate SAIL code diff
+        from services.sail_diff_service import SailDiffService
+        diff_service = SailDiffService()
+        
+        old_code = customer_version.sail_code if customer_version else None
+        new_code = vendor_version.sail_code if vendor_version else None
+        
+        diff_hunks = diff_service.generate_unified_diff(
+            old_code,
+            new_code,
+            old_label='Customer',
+            new_label='Vendor'
+        )
+        
+        diff_stats = diff_service.get_change_stats(old_code, new_code)
+        
         return {
             'object_type': 'Interface',
             'vendor': {
@@ -195,6 +229,8 @@ class ComparisonRetrievalService(BaseService):
                 'sail_code': customer_version.sail_code if customer_version else None,
                 'parameters': customer_params
             },
+            'diff_hunks': diff_hunks,
+            'diff_stats': diff_stats,
             'has_changes': vendor_version and customer_version and (
                 vendor_version.sail_code != customer_version.sail_code or
                 vendor_params != customer_params
@@ -758,7 +794,7 @@ class ComparisonRetrievalService(BaseService):
         return [
             {
                 'name': r.relationship_name,
-                'target': r.target_record_type
+                'target': r.related_record_uuid
             }
             for r in relationships
         ]
@@ -771,9 +807,8 @@ class ComparisonRetrievalService(BaseService):
         return [
             {
                 'name': v.view_name,
-                'interface': v.interface_uuid,
-                'context': v.context,
-                'security': v.security
+                'type': v.view_type,
+                'configuration': v.configuration
             }
             for v in views
         ]
@@ -786,9 +821,8 @@ class ComparisonRetrievalService(BaseService):
         return [
             {
                 'name': a.action_name,
-                'process_model': a.process_model_uuid,
-                'interface': a.interface_uuid,
-                'security': a.security
+                'type': a.action_type,
+                'configuration': a.configuration
             }
             for a in actions
         ]

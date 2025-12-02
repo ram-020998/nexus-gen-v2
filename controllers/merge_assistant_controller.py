@@ -746,6 +746,64 @@ def save_change_notes(reference_id, change_id):
         )
 
 
+@merge_bp.route('/<reference_id>/complete', methods=['POST'])
+def complete_session(reference_id):
+    """
+    Mark a merge session as completed.
+    
+    Uses ChangeActionService to update the session status to 'completed'.
+    All changes must be reviewed or skipped before completion.
+    
+    Args:
+        reference_id: Session reference ID (e.g., MRG_001)
+        
+    Returns:
+        JSON response with updated session information
+        
+    Status Codes:
+        200: Success
+        400: Session has pending changes
+        404: Session not found
+        500: Server error
+        
+    Example:
+        >>> response = requests.post(
+        ...     'http://localhost:5002/merge/MRG_001/complete'
+        ... )
+    """
+    from services.change_action_service import ChangeActionService
+    
+    try:
+        # Get action service
+        action_service = controller.get_service(ChangeActionService)
+        
+        # Complete session
+        try:
+            session = action_service.complete_session(reference_id)
+        except ValueError as e:
+            return controller.json_error(
+                str(e),
+                status_code=400 if 'pending' in str(e).lower() else 404
+            )
+        
+        # Return success response
+        return controller.json_success(
+            data={
+                'reference_id': session.reference_id,
+                'status': session.status,
+                'updated_at': session.updated_at.isoformat()
+            },
+            message='Session marked as completed'
+        )
+        
+    except Exception as e:
+        logger.error(f"Error completing session: {e}", exc_info=True)
+        return controller.json_error(
+            f"Failed to complete session: {str(e)}",
+            status_code=500
+        )
+
+
 @merge_bp.route(
     '/<reference_id>/changes/<int:change_id>/undo',
     methods=['POST']

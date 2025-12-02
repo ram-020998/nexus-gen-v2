@@ -234,36 +234,40 @@ class ThreeWayMergeOrchestrator(BaseService):
                 f"in {step_duration:.2f}s"
             )
             
-            # Step 6: Perform customer comparison (delta vs B)
+            # Step 6: Perform customer comparison (A→B, Set E)
             step_start = time.time()
-            LoggerConfig.log_step(self.logger, 6, 8, "Performing customer comparison (delta vs B)")
+            LoggerConfig.log_step(self.logger, 6, 8, "Performing customer comparison (A→B, Set E)")
             self.logger.debug(
-                f"Analyzing customer modifications in package B (id={package_b.id})"
+                f"Comparing base package (id={package_a.id}) with "
+                f"customer package (id={package_b.id})"
             )
             
-            customer_modifications = (
+            customer_changes = (
                 self.customer_comparison_service.compare(
+                    session_id=session.id,
                     base_package_id=package_a.id,
-                    customer_package_id=package_b.id,
-                    delta_changes=delta_changes
+                    customer_package_id=package_b.id
                 )
             )
             
             step_duration = time.time() - step_start
             self.logger.info(
-                f"✓ Customer comparison complete: {len(customer_modifications)} objects analyzed "
+                f"✓ Customer comparison complete: {len(customer_changes)} changes detected "
                 f"in {step_duration:.2f}s"
             )
             
-            # Step 7: Classify changes (apply 7 rules)
+            # Step 7: Classify changes (set-based: D ∩ E, D \ E, E \ D)
             step_start = time.time()
-            LoggerConfig.log_step(self.logger, 7, 8, "Classifying changes (applying 7 classification rules)")
-            self.logger.debug("Applying classification rules 10a-10g")
+            LoggerConfig.log_step(self.logger, 7, 8, "Classifying changes (set-based logic)")
+            self.logger.debug("Applying set-based classification: D ∩ E, D \\ E, E \\ D")
+            self.logger.debug("Comparing B vs C content for objects in D ∩ E")
             
             classified_changes = self.classification_service.classify(
                 session_id=session.id,
-                delta_changes=delta_changes,
-                customer_modifications=customer_modifications
+                vendor_changes=delta_changes,
+                customer_changes=customer_changes,
+                customer_package_id=package_b.id,
+                new_vendor_package_id=package_c.id
             )
             
             step_duration = time.time() - step_start
@@ -546,6 +550,8 @@ class ThreeWayMergeOrchestrator(BaseService):
             'reference_id': session.reference_id,
             'status': session.status,
             'total_changes': session.total_changes,
+            'reviewed_count': session.reviewed_count,
+            'skipped_count': session.skipped_count,
             'created_at': session.created_at.isoformat(),
             'updated_at': session.updated_at.isoformat(),
             'packages': package_info,

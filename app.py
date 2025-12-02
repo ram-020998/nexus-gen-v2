@@ -186,6 +186,9 @@ def _register_repositories(container):
     from repositories.delta_comparison_repository import (
         DeltaComparisonRepository
     )
+    from repositories.customer_comparison_repository import (
+        CustomerComparisonRepository
+    )
     
     # Register each repository
     container.register_repository(RequestRepository)
@@ -194,6 +197,7 @@ def _register_repositories(container):
     container.register_repository(ObjectLookupRepository)
     container.register_repository(PackageObjectMappingRepository)
     container.register_repository(DeltaComparisonRepository)
+    container.register_repository(CustomerComparisonRepository)
 
 
 def _register_services(container):

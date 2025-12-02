@@ -1,346 +1,267 @@
-{% extends "merge/_base_comparison.html" %}
-
-{% block comparison_content %}
-<!-- Fields Comparison -->
-{% if record_type_comparison %}
-<div class="comparison-section mb-4">
-    <h5 class="section-title">
-        <i class="fas fa-columns"></i> Fields
-    </h5>
-    
-    {% if record_type_comparison.fields_added %}
-    <div class="change-group added">
-        <h6 class="change-group-title">
-            <i class="fas fa-plus-circle"></i> Added Fields ({{ record_type_comparison.fields_added|length }})
-        </h6>
-        <div class="change-list">
-            {% for field in record_type_comparison.fields_added %}
-            <div class="change-item">
-                <span class="field-name">{{ field.field_name }}</span>
-                <span class="field-type badge badge-secondary">{{ field.field_type }}</span>
-                {% if field.is_required %}
-                <span class="badge badge-warning">Required</span>
-                {% endif %}
-                {% if field.is_primary_key %}
-                <span class="badge badge-primary">Primary Key</span>
-                {% endif %}
-            </div>
-            {% endfor %}
-        </div>
+<!-- Record Type Comparison Component -->
+{% if comparison and comparison.object_type == 'Record Type' %}
+<div class="comparison-section">
+    <div class="comparison-header">
+        <h5><i class="fas fa-database"></i> Record Type Details</h5>
     </div>
-    {% endif %}
     
-    {% if record_type_comparison.fields_removed %}
-    <div class="change-group removed">
-        <h6 class="change-group-title">
-            <i class="fas fa-minus-circle"></i> Removed Fields ({{ record_type_comparison.fields_removed|length }})
-        </h6>
-        <div class="change-list">
-            {% for field in record_type_comparison.fields_removed %}
-            <div class="change-item">
-                <span class="field-name">{{ field.field_name }}</span>
-                <span class="field-type badge badge-secondary">{{ field.field_type }}</span>
-            </div>
-            {% endfor %}
-        </div>
-    </div>
-    {% endif %}
-    
-    {% if record_type_comparison.fields_modified %}
-    <div class="change-group modified">
-        <h6 class="change-group-title">
-            <i class="fas fa-edit"></i> Modified Fields ({{ record_type_comparison.fields_modified|length }})
-        </h6>
-        <div class="change-list">
-            {% for field in record_type_comparison.fields_modified %}
-            <div class="change-item">
-                <div class="field-name">{{ field.field_name }}</div>
-                <div class="field-changes">
-                    <div class="before-after">
-                        <span class="label">Before:</span>
-                        <span class="field-type badge badge-secondary">{{ field.before_type }}</span>
-                        {% if field.before_required %}
-                        <span class="badge badge-warning">Required</span>
-                        {% endif %}
-                        {% if field.before_primary_key %}
-                        <span class="badge badge-primary">Primary Key</span>
+    <div class="comparison-body">
+        <!-- Fields Section -->
+        <div class="subsection">
+            <h6><i class="fas fa-columns"></i> Fields</h6>
+            <div class="comparison-grid">
+                <!-- Vendor Fields -->
+                <div class="version-column vendor-column">
+                    <div class="version-header">
+                        <span class="badge bg-info">Vendor Fields</span>
+                    </div>
+                    <div class="version-content">
+                        {% if comparison.vendor.fields %}
+                        <table class="params-table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Type</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for field in comparison.vendor.fields %}
+                                <tr>
+                                    <td>{{ field.name }}</td>
+                                    <td><span class="badge bg-secondary">{{ field.type }}</span></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        {% else %}
+                        <p class="text-muted">No fields</p>
                         {% endif %}
                     </div>
-                    <div class="before-after">
-                        <span class="label">After:</span>
-                        <span class="field-type badge badge-secondary">{{ field.after_type }}</span>
-                        {% if field.after_required %}
-                        <span class="badge badge-warning">Required</span>
-                        {% endif %}
-                        {% if field.after_primary_key %}
-                        <span class="badge badge-primary">Primary Key</span>
+                </div>
+                
+                <!-- Customer Fields -->
+                <div class="version-column customer-column">
+                    <div class="version-header">
+                        <span class="badge bg-success">Customer Fields</span>
+                    </div>
+                    <div class="version-content">
+                        {% if comparison.customer.fields %}
+                        <table class="params-table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Type</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for field in comparison.customer.fields %}
+                                <tr>
+                                    <td>{{ field.name }}</td>
+                                    <td><span class="badge bg-secondary">{{ field.type }}</span></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        {% else %}
+                        <p class="text-muted">No fields</p>
                         {% endif %}
                     </div>
                 </div>
             </div>
-            {% endfor %}
         </div>
-    </div>
-    {% endif %}
-    
-    {% if not record_type_comparison.fields_added and not record_type_comparison.fields_removed and not record_type_comparison.fields_modified %}
-    <div class="no-changes">
-        <i class="fas fa-check-circle"></i> No field changes
-    </div>
-    {% endif %}
-</div>
-
-<!-- Relationships Comparison -->
-<div class="comparison-section mb-4">
-    <h5 class="section-title">
-        <i class="fas fa-link"></i> Relationships
-    </h5>
-    
-    {% if record_type_comparison.relationships_added %}
-    <div class="change-group added">
-        <h6 class="change-group-title">
-            <i class="fas fa-plus-circle"></i> Added Relationships ({{ record_type_comparison.relationships_added|length }})
-        </h6>
-        <div class="change-list">
-            {% for rel in record_type_comparison.relationships_added %}
-            <div class="change-item">
-                <span class="relationship-name">{{ rel.relationship_name }}</span>
-                <span class="relationship-type badge badge-info">{{ rel.relationship_type }}</span>
-                <span class="relationship-target text-muted">→ {{ rel.target_record_type }}</span>
+        
+        <!-- Relationships Section -->
+        <div class="subsection">
+            <h6><i class="fas fa-link"></i> Relationships</h6>
+            <div class="comparison-grid">
+                <!-- Vendor Relationships -->
+                <div class="version-column vendor-column">
+                    <div class="version-header">
+                        <span class="badge bg-info">Vendor Relationships</span>
+                    </div>
+                    <div class="version-content">
+                        {% if comparison.vendor.relationships %}
+                        <table class="params-table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Target</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for rel in comparison.vendor.relationships %}
+                                <tr>
+                                    <td>{{ rel.name }}</td>
+                                    <td><span class="badge bg-secondary">{{ rel.target }}</span></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        {% else %}
+                        <p class="text-muted">No relationships</p>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <!-- Customer Relationships -->
+                <div class="version-column customer-column">
+                    <div class="version-header">
+                        <span class="badge bg-success">Customer Relationships</span>
+                    </div>
+                    <div class="version-content">
+                        {% if comparison.customer.relationships %}
+                        <table class="params-table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Target</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for rel in comparison.customer.relationships %}
+                                <tr>
+                                    <td>{{ rel.name }}</td>
+                                    <td><span class="badge bg-secondary">{{ rel.target }}</span></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        {% else %}
+                        <p class="text-muted">No relationships</p>
+                        {% endif %}
+                    </div>
+                </div>
             </div>
-            {% endfor %}
         </div>
-    </div>
-    {% endif %}
-    
-    {% if record_type_comparison.relationships_removed %}
-    <div class="change-group removed">
-        <h6 class="change-group-title">
-            <i class="fas fa-minus-circle"></i> Removed Relationships ({{ record_type_comparison.relationships_removed|length }})
-        </h6>
-        <div class="change-list">
-            {% for rel in record_type_comparison.relationships_removed %}
-            <div class="change-item">
-                <span class="relationship-name">{{ rel.relationship_name }}</span>
-                <span class="relationship-type badge badge-info">{{ rel.relationship_type }}</span>
-                <span class="relationship-target text-muted">→ {{ rel.target_record_type }}</span>
+        
+        <!-- Views Section -->
+        <div class="subsection">
+            <h6><i class="fas fa-eye"></i> Views</h6>
+            <div class="comparison-grid">
+                <!-- Vendor Views -->
+                <div class="version-column vendor-column">
+                    <div class="version-header">
+                        <span class="badge bg-info">Vendor Views</span>
+                    </div>
+                    <div class="version-content">
+                        {% if comparison.vendor.views %}
+                        <table class="params-table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Type</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for view in comparison.vendor.views %}
+                                <tr>
+                                    <td>{{ view.name }}</td>
+                                    <td><span class="badge bg-secondary">{{ view.type }}</span></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        {% else %}
+                        <p class="text-muted">No views</p>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <!-- Customer Views -->
+                <div class="version-column customer-column">
+                    <div class="version-header">
+                        <span class="badge bg-success">Customer Views</span>
+                    </div>
+                    <div class="version-content">
+                        {% if comparison.customer.views %}
+                        <table class="params-table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Type</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for view in comparison.customer.views %}
+                                <tr>
+                                    <td>{{ view.name }}</td>
+                                    <td><span class="badge bg-secondary">{{ view.type }}</span></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        {% else %}
+                        <p class="text-muted">No views</p>
+                        {% endif %}
+                    </div>
+                </div>
             </div>
-            {% endfor %}
         </div>
-    </div>
-    {% endif %}
-    
-    {% if not record_type_comparison.relationships_added and not record_type_comparison.relationships_removed %}
-    <div class="no-changes">
-        <i class="fas fa-check-circle"></i> No relationship changes
-    </div>
-    {% endif %}
-</div>
-
-<!-- Views Comparison -->
-<div class="comparison-section mb-4">
-    <h5 class="section-title">
-        <i class="fas fa-eye"></i> Views
-    </h5>
-    
-    {% if record_type_comparison.views_modified %}
-    <div class="change-group modified">
-        <h6 class="change-group-title">
-            <i class="fas fa-edit"></i> Modified Views ({{ record_type_comparison.views_modified|length }})
-        </h6>
-        <div class="change-list">
-            {% for view in record_type_comparison.views_modified %}
-            <div class="change-item">
-                <span class="view-name">{{ view.view_name }}</span>
-                <span class="view-type badge badge-secondary">{{ view.view_type }}</span>
-                {% if view.configuration_changed %}
-                <span class="text-muted">Configuration changed</span>
-                {% endif %}
+        
+        <!-- Actions Section -->
+        <div class="subsection">
+            <h6><i class="fas fa-bolt"></i> Actions</h6>
+            <div class="comparison-grid">
+                <!-- Vendor Actions -->
+                <div class="version-column vendor-column">
+                    <div class="version-header">
+                        <span class="badge bg-info">Vendor Actions</span>
+                    </div>
+                    <div class="version-content">
+                        {% if comparison.vendor.actions %}
+                        <table class="params-table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Type</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for action in comparison.vendor.actions %}
+                                <tr>
+                                    <td>{{ action.name }}</td>
+                                    <td><span class="badge bg-secondary">{{ action.type }}</span></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        {% else %}
+                        <p class="text-muted">No actions</p>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <!-- Customer Actions -->
+                <div class="version-column customer-column">
+                    <div class="version-header">
+                        <span class="badge bg-success">Customer Actions</span>
+                    </div>
+                    <div class="version-content">
+                        {% if comparison.customer.actions %}
+                        <table class="params-table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Type</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for action in comparison.customer.actions %}
+                                <tr>
+                                    <td>{{ action.name }}</td>
+                                    <td><span class="badge bg-secondary">{{ action.type }}</span></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        {% else %}
+                        <p class="text-muted">No actions</p>
+                        {% endif %}
+                    </div>
+                </div>
             </div>
-            {% endfor %}
         </div>
     </div>
-    {% else %}
-    <div class="no-changes">
-        <i class="fas fa-check-circle"></i> No view changes
-    </div>
-    {% endif %}
-</div>
-
-<!-- Actions Comparison -->
-<div class="comparison-section mb-4">
-    <h5 class="section-title">
-        <i class="fas fa-bolt"></i> Actions
-    </h5>
-    
-    {% if record_type_comparison.actions_added %}
-    <div class="change-group added">
-        <h6 class="change-group-title">
-            <i class="fas fa-plus-circle"></i> Added Actions ({{ record_type_comparison.actions_added|length }})
-        </h6>
-        <div class="change-list">
-            {% for action in record_type_comparison.actions_added %}
-            <div class="change-item">
-                <span class="action-name">{{ action.action_name }}</span>
-                <span class="action-type badge badge-success">{{ action.action_type }}</span>
-            </div>
-            {% endfor %}
-        </div>
-    </div>
-    {% endif %}
-    
-    {% if record_type_comparison.actions_removed %}
-    <div class="change-group removed">
-        <h6 class="change-group-title">
-            <i class="fas fa-minus-circle"></i> Removed Actions ({{ record_type_comparison.actions_removed|length }})
-        </h6>
-        <div class="change-list">
-            {% for action in record_type_comparison.actions_removed %}
-            <div class="change-item">
-                <span class="action-name">{{ action.action_name }}</span>
-                <span class="action-type badge badge-success">{{ action.action_type }}</span>
-            </div>
-            {% endfor %}
-        </div>
-    </div>
-    {% endif %}
-    
-    {% if not record_type_comparison.actions_added and not record_type_comparison.actions_removed %}
-    <div class="no-changes">
-        <i class="fas fa-check-circle"></i> No action changes
-    </div>
-    {% endif %}
 </div>
 {% endif %}
 
-<style>
-.comparison-section {
-    background: rgba(139, 92, 246, 0.05);
-    border-radius: 8px;
-    padding: 1.5rem;
-    border: 1px solid #374151;
-}
-
-.section-title {
-    margin: 0 0 1rem 0;
-    color: var(--text-primary);
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 1.125rem;
-}
-
-.change-group {
-    margin-top: 1rem;
-    padding: 1rem;
-    border-radius: 6px;
-}
-
-.change-group.added {
-    background: rgba(16, 185, 129, 0.1);
-    border: 1px solid rgba(16, 185, 129, 0.3);
-}
-
-.change-group.removed {
-    background: rgba(239, 68, 68, 0.1);
-    border: 1px solid rgba(239, 68, 68, 0.3);
-}
-
-.change-group.modified {
-    background: rgba(251, 191, 36, 0.1);
-    border: 1px solid rgba(251, 191, 36, 0.3);
-}
-
-.change-group-title {
-    margin: 0 0 0.75rem 0;
-    color: var(--text-primary);
-    font-size: 1rem;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.change-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-}
-
-.change-item {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    flex-wrap: wrap;
-}
-
-.field-name, .relationship-name, .view-name, .action-name {
-    font-weight: 600;
-    color: var(--text-primary);
-}
-
-.field-changes {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    margin-top: 0.5rem;
-    width: 100%;
-}
-
-.before-after {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem;
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 4px;
-}
-
-.before-after .label {
-    font-weight: 600;
-    color: var(--text-secondary);
-    min-width: 60px;
-}
-
-.no-changes {
-    padding: 1rem;
-    text-align: center;
-    color: var(--text-secondary);
-    font-style: italic;
-}
-
-.badge {
-    font-size: 0.75rem;
-    padding: 0.25rem 0.5rem;
-    border-radius: 4px;
-}
-
-.badge-secondary {
-    background: rgba(107, 114, 128, 0.3);
-    color: #9ca3af;
-}
-
-.badge-warning {
-    background: rgba(251, 191, 36, 0.3);
-    color: #fbbf24;
-}
-
-.badge-primary {
-    background: rgba(139, 92, 246, 0.3);
-    color: var(--purple);
-}
-
-.badge-info {
-    background: rgba(59, 130, 246, 0.3);
-    color: #3b82f6;
-}
-
-.badge-success {
-    background: rgba(16, 185, 129, 0.3);
-    color: var(--green);
-}
-
-.relationship-target {
-    font-size: 0.875rem;
-}
-</style>
-{% endblock %}

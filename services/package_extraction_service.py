@@ -14,10 +14,11 @@ from typing import Dict, Any, List, Optional
 
 from core.base_service import BaseService
 from core.logger import get_merge_logger, LoggerConfig
-from models import db, Package, ObjectLookup, ObjectVersion
+from models import db, Package, ObjectLookup, ObjectVersion, PackageObjectMapping
 from repositories.object_lookup_repository import ObjectLookupRepository
 from repositories.package_object_mapping_repository import PackageObjectMappingRepository
 from services.parsers.xml_parser_factory import XMLParserFactory
+from services.sail_formatter import SAILFormatter
 
 
 class PackageExtractionService(BaseService):
@@ -43,12 +44,16 @@ class PackageExtractionService(BaseService):
         """Initialize service with dependencies."""
         super().__init__(container)
         self.logger = get_merge_logger()
+        self.object_lookup_cache = {}
     
     def _initialize_dependencies(self) -> None:
         """Initialize service dependencies."""
         self.object_lookup_repo = self._get_repository(ObjectLookupRepository)
         self.package_object_mapping_repo = self._get_repository(PackageObjectMappingRepository)
         self.parser_factory = XMLParserFactory()
+        # Initialize SAIL formatter (not a service, just a utility class)
+        self.sail_formatter = SAILFormatter()
+        self.sail_formatter._initialize_dependencies()
     
     def _ensure_not_none(self, value: Any, default: str = 'Unknown') -> str:
         """
@@ -198,6 +203,10 @@ class PackageExtractionService(BaseService):
             # Step 6: Update package statistics
             package.total_objects = objects_processed
             db.session.flush()
+            
+            # Step 6.5: Format SAIL code with UUID resolution
+            self.logger.info("Formatting SAIL code with UUID resolution...")
+            self._format_sail_code_for_package(package.id, session_id)
             
             extraction_duration = time.time() - extraction_start
             
@@ -539,11 +548,194 @@ class PackageExtractionService(BaseService):
         except Exception as e:
             self.logger.warning(f"Failed to clean up temp directory {temp_dir}: {e}")
     
+    def _format_sail_code_for_package(self, package_id: int, session_id: int) -> None:
+        """
+        Format SAIL code for all objects in a package with UUID resolution.
+        
+        This method:
+        1. Builds object lookup cache from all packages in the session
+        2. Formats SAIL code in object_versions table
+        3. Formats SAIL code in object-specific tables (interfaces, expression_rules, etc.)
+        
+        Args:
+            package_id: Package ID to format
+            session_id: Session ID to build object lookup cache
+        """
+        try:
+            format_start = time.time()
+            
+            # Build object lookup cache from all packages in session
+            self.logger.debug("Building object lookup cache...")
+            object_lookup_dict = self._build_object_lookup_cache(session_id)
+            self.sail_formatter.set_object_lookup(object_lookup_dict)
+            self.logger.debug(f"Object lookup cache built with {len(object_lookup_dict)} objects")
+            
+            # Format SAIL code in object_versions
+            formatted_count = self._format_object_versions(package_id)
+            
+            # Format SAIL code in object-specific tables
+            formatted_count += self._format_interfaces(package_id)
+            formatted_count += self._format_expression_rules(package_id)
+            formatted_count += self._format_integrations(package_id)
+            formatted_count += self._format_web_apis(package_id)
+            
+            db.session.flush()
+            
+            format_duration = time.time() - format_start
+            self.logger.info(
+                f"Formatted SAIL code for {formatted_count} objects in {format_duration:.2f}s"
+            )
+            
+        except Exception as e:
+            self.logger.error(f"Failed to format SAIL code: {e}")
+            # Don't raise - formatting is optional enhancement
+    
+    def _build_object_lookup_cache(self, session_id: int) -> Dict[str, Dict[str, Any]]:
+        """
+        Build object lookup cache for UUID resolution.
+        
+        Args:
+            session_id: Session ID
+            
+        Returns:
+            Dict mapping UUID -> {name, object_type}
+        """
+        from models import MergeSession, Package
+        
+        # Get all packages in session
+        session = MergeSession.query.get(session_id)
+        if not session:
+            return {}
+        
+        # Query all objects from object_lookup that are in this session's packages
+        objects = db.session.query(ObjectLookup).join(
+            PackageObjectMapping,
+            PackageObjectMapping.object_id == ObjectLookup.id
+        ).join(
+            Package,
+            Package.id == PackageObjectMapping.package_id
+        ).filter(
+            Package.session_id == session_id
+        ).distinct().all()
+        
+        # Build lookup dict
+        lookup_dict = {}
+        for obj in objects:
+            lookup_dict[obj.uuid] = {
+                'name': obj.name,
+                'object_type': obj.object_type
+            }
+        
+        return lookup_dict
+    
+    def _format_object_versions(self, package_id: int) -> int:
+        """Format SAIL code in object_versions table."""
+        versions = ObjectVersion.query.filter_by(package_id=package_id).all()
+        formatted_count = 0
+        
+        for version in versions:
+            if version.sail_code:
+                try:
+                    formatted_code = self.sail_formatter.format_sail_code(version.sail_code)
+                    if formatted_code != version.sail_code:
+                        version.sail_code = formatted_code
+                        formatted_count += 1
+                except Exception as e:
+                    self.logger.warning(f"Failed to format SAIL code for version {version.id}: {e}")
+        
+        return formatted_count
+    
+    def _format_interfaces(self, package_id: int) -> int:
+        """Format SAIL code in interfaces table."""
+        from models import Interface
+        
+        interfaces = Interface.query.filter_by(package_id=package_id).all()
+        formatted_count = 0
+        
+        for interface in interfaces:
+            if interface.sail_code:
+                try:
+                    formatted_code = self.sail_formatter.format_sail_code(interface.sail_code)
+                    if formatted_code != interface.sail_code:
+                        interface.sail_code = formatted_code
+                        formatted_count += 1
+                except Exception as e:
+                    self.logger.warning(f"Failed to format SAIL code for interface {interface.id}: {e}")
+        
+        return formatted_count
+    
+    def _format_expression_rules(self, package_id: int) -> int:
+        """Format SAIL code in expression_rules table."""
+        from models import ExpressionRule
+        
+        rules = ExpressionRule.query.filter_by(package_id=package_id).all()
+        formatted_count = 0
+        
+        for rule in rules:
+            if rule.sail_code:
+                try:
+                    formatted_code = self.sail_formatter.format_sail_code(rule.sail_code)
+                    if formatted_code != rule.sail_code:
+                        rule.sail_code = formatted_code
+                        formatted_count += 1
+                except Exception as e:
+                    self.logger.warning(f"Failed to format SAIL code for rule {rule.id}: {e}")
+        
+        return formatted_count
+    
+    def _format_integrations(self, package_id: int) -> int:
+        """Format SAIL code in integrations table."""
+        from models import Integration
+        
+        integrations = Integration.query.filter_by(package_id=package_id).all()
+        formatted_count = 0
+        
+        for integration in integrations:
+            if integration.sail_code:
+                try:
+                    formatted_code = self.sail_formatter.format_sail_code(integration.sail_code)
+                    if formatted_code != integration.sail_code:
+                        integration.sail_code = formatted_code
+                        formatted_count += 1
+                except Exception as e:
+                    self.logger.warning(f"Failed to format SAIL code for integration {integration.id}: {e}")
+        
+        return formatted_count
+    
+    def _format_web_apis(self, package_id: int) -> int:
+        """Format SAIL code in web_apis table."""
+        from models import WebAPI
+        
+        web_apis = WebAPI.query.filter_by(package_id=package_id).all()
+        formatted_count = 0
+        
+        for web_api in web_apis:
+            if web_api.sail_code:
+                try:
+                    formatted_code = self.sail_formatter.format_sail_code(web_api.sail_code)
+                    if formatted_code != web_api.sail_code:
+                        web_api.sail_code = formatted_code
+                        formatted_count += 1
+                except Exception as e:
+                    self.logger.warning(f"Failed to format SAIL code for web_api {web_api.id}: {e}")
+        
+        return formatted_count
+    
     # Object-specific storage methods
     
     def _store_interface_data(self, object_id: int, package_id: int, data: Dict[str, Any]) -> None:
         """Store Interface-specific data."""
         from models import Interface, InterfaceParameter, InterfaceSecurity
+        
+        # Check if already exists (prevent duplicate insertion)
+        existing = Interface.query.filter_by(
+            object_id=object_id,
+            package_id=package_id
+        ).first()
+        
+        if existing:
+            self.logger.debug(f"Interface already exists for object_id={object_id}, package_id={package_id}, skipping")
+            return
         
         interface = Interface(
             object_id=object_id,
@@ -584,6 +776,16 @@ class PackageExtractionService(BaseService):
         """Store Expression Rule-specific data."""
         from models import ExpressionRule, ExpressionRuleInput
         
+        # Check if already exists (prevent duplicate insertion)
+        existing = ExpressionRule.query.filter_by(
+            object_id=object_id,
+            package_id=package_id
+        ).first()
+        
+        if existing:
+            self.logger.debug(f"ExpressionRule already exists for object_id={object_id}, package_id={package_id}, skipping")
+            return
+        
         rule = ExpressionRule(
             object_id=object_id,
             package_id=package_id,
@@ -614,6 +816,16 @@ class PackageExtractionService(BaseService):
     def _store_process_model_data(self, object_id: int, package_id: int, data: Dict[str, Any]) -> None:
         """Store Process Model-specific data."""
         from models import ProcessModel, ProcessModelNode, ProcessModelFlow, ProcessModelVariable
+        
+        # Check if already exists (prevent duplicate insertion)
+        existing = ProcessModel.query.filter_by(
+            object_id=object_id,
+            package_id=package_id
+        ).first()
+        
+        if existing:
+            self.logger.debug(f"ProcessModel already exists for object_id={object_id}, package_id={package_id}, skipping")
+            return
         
         pm = ProcessModel(
             object_id=object_id,
@@ -678,6 +890,16 @@ class PackageExtractionService(BaseService):
         """Store Record Type-specific data."""
         from models import RecordType, RecordTypeField, RecordTypeRelationship, RecordTypeView, RecordTypeAction
         
+        # Check if already exists (prevent duplicate insertion)
+        existing = RecordType.query.filter_by(
+            object_id=object_id,
+            package_id=package_id
+        ).first()
+        
+        if existing:
+            self.logger.debug(f"RecordType already exists for object_id={object_id}, package_id={package_id}, skipping")
+            return
+        
         rt = RecordType(
             object_id=object_id,
             package_id=package_id,
@@ -738,6 +960,16 @@ class PackageExtractionService(BaseService):
         """Store CDT-specific data."""
         from models import CDT, CDTField
         
+        # Check if already exists (prevent duplicate insertion)
+        existing = CDT.query.filter_by(
+            object_id=object_id,
+            package_id=package_id
+        ).first()
+        
+        if existing:
+            self.logger.debug(f"CDT already exists for object_id={object_id}, package_id={package_id}, skipping")
+            return
+        
         cdt = CDT(
             object_id=object_id,
             package_id=package_id,
@@ -768,6 +1000,16 @@ class PackageExtractionService(BaseService):
         """Store Integration-specific data."""
         from models import Integration
         
+        # Check if already exists (prevent duplicate insertion)
+        existing = Integration.query.filter_by(
+            object_id=object_id,
+            package_id=package_id
+        ).first()
+        
+        if existing:
+            self.logger.debug(f"Integration already exists for object_id={object_id}, package_id={package_id}, skipping")
+            return
+        
         integration = Integration(
             object_id=object_id,
             package_id=package_id,
@@ -787,6 +1029,16 @@ class PackageExtractionService(BaseService):
         """Store Web API-specific data."""
         from models import WebAPI
         
+        # Check if already exists (prevent duplicate insertion)
+        existing = WebAPI.query.filter_by(
+            object_id=object_id,
+            package_id=package_id
+        ).first()
+        
+        if existing:
+            self.logger.debug(f"WebAPI already exists for object_id={object_id}, package_id={package_id}, skipping")
+            return
+        
         web_api = WebAPI(
             object_id=object_id,
             package_id=package_id,
@@ -805,6 +1057,16 @@ class PackageExtractionService(BaseService):
         """Store Site-specific data."""
         from models import Site
         
+        # Check if already exists (prevent duplicate insertion)
+        existing = Site.query.filter_by(
+            object_id=object_id,
+            package_id=package_id
+        ).first()
+        
+        if existing:
+            self.logger.debug(f"Site already exists for object_id={object_id}, package_id={package_id}, skipping")
+            return
+        
         site = Site(
             object_id=object_id,
             package_id=package_id,
@@ -820,6 +1082,16 @@ class PackageExtractionService(BaseService):
     def _store_group_data(self, object_id: int, package_id: int, data: Dict[str, Any]) -> None:
         """Store Group-specific data."""
         from models import Group
+        
+        # Check if already exists (prevent duplicate insertion)
+        existing = Group.query.filter_by(
+            object_id=object_id,
+            package_id=package_id
+        ).first()
+        
+        if existing:
+            self.logger.debug(f"Group already exists for object_id={object_id}, package_id={package_id}, skipping")
+            return
         
         group = Group(
             object_id=object_id,
@@ -837,6 +1109,16 @@ class PackageExtractionService(BaseService):
     def _store_constant_data(self, object_id: int, package_id: int, data: Dict[str, Any]) -> None:
         """Store Constant-specific data."""
         from models import Constant
+        
+        # Check if already exists (prevent duplicate insertion)
+        existing = Constant.query.filter_by(
+            object_id=object_id,
+            package_id=package_id
+        ).first()
+        
+        if existing:
+            self.logger.debug(f"Constant already exists for object_id={object_id}, package_id={package_id}, skipping")
+            return
         
         constant = Constant(
             object_id=object_id,
@@ -856,6 +1138,16 @@ class PackageExtractionService(BaseService):
         """Store Connected System-specific data."""
         from models import ConnectedSystem
         
+        # Check if already exists (prevent duplicate insertion)
+        existing = ConnectedSystem.query.filter_by(
+            object_id=object_id,
+            package_id=package_id
+        ).first()
+        
+        if existing:
+            self.logger.debug(f"ConnectedSystem already exists for object_id={object_id}, package_id={package_id}, skipping")
+            return
+        
         cs = ConnectedSystem(
             object_id=object_id,
             package_id=package_id,
@@ -872,6 +1164,16 @@ class PackageExtractionService(BaseService):
     def _store_unknown_object_data(self, object_id: int, package_id: int, data: Dict[str, Any]) -> None:
         """Store Unknown object data."""
         from models import UnknownObject
+        
+        # Check if already exists (prevent duplicate insertion)
+        existing = UnknownObject.query.filter_by(
+            object_id=object_id,
+            package_id=package_id
+        ).first()
+        
+        if existing:
+            self.logger.debug(f"UnknownObject already exists for object_id={object_id}, package_id={package_id}, skipping")
+            return
         
         unknown = UnknownObject(
             object_id=object_id,

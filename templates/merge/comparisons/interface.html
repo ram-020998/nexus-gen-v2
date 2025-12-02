@@ -74,49 +74,54 @@
         <!-- SAIL Code Section -->
         <div class="subsection">
             <h6><i class="fas fa-code"></i> SAIL Code Differences</h6>
-            <div class="code-diff-container">
-                <!-- Vendor Code -->
-                <div class="code-diff-column vendor-version">
-                    <div class="code-diff-header">
-                        <div class="code-diff-label">
-                            <i class="fas fa-cube"></i>
-                            <span>Vendor Code</span>
+            {% if comparison.diff_hunks is defined %}
+                {% from "merge/comparisons/_sail_diff.html" import render_sail_diff %}
+                {{ render_sail_diff(comparison.diff_hunks, old_label='Customer', new_label='Vendor', stats=comparison.diff_stats) }}
+            {% else %}
+                <div class="code-diff-container">
+                    <!-- Vendor Code -->
+                    <div class="code-diff-column vendor-version">
+                        <div class="code-diff-header">
+                            <div class="code-diff-label">
+                                <i class="fas fa-cube"></i>
+                                <span>Vendor Code</span>
+                            </div>
+                            <span class="code-diff-badge vendor">New Version</span>
                         </div>
-                        <span class="code-diff-badge vendor">New Version</span>
+                        <div class="code-diff-body">
+                            {% if comparison.vendor.sail_code %}
+                            <pre><code class="language-sail">{{ comparison.vendor.sail_code | e }}</code></pre>
+                            {% else %}
+                            <div class="code-empty-state">
+                                <i class="fas fa-code"></i>
+                                <p>No code available</p>
+                            </div>
+                            {% endif %}
+                        </div>
                     </div>
-                    <div class="code-diff-body">
-                        {% if comparison.vendor.sail_code %}
-                        <pre><code class="language-sail">{{ comparison.vendor.sail_code | e }}</code></pre>
-                        {% else %}
-                        <div class="code-empty-state">
-                            <i class="fas fa-code"></i>
-                            <p>No code available</p>
+                    
+                    <!-- Customer Code -->
+                    <div class="code-diff-column customer-version">
+                        <div class="code-diff-header">
+                            <div class="code-diff-label">
+                                <i class="fas fa-user"></i>
+                                <span>Customer Code</span>
+                            </div>
+                            <span class="code-diff-badge customer">Current</span>
                         </div>
-                        {% endif %}
+                        <div class="code-diff-body">
+                            {% if comparison.customer.sail_code %}
+                            <pre><code class="language-sail">{{ comparison.customer.sail_code | e }}</code></pre>
+                            {% else %}
+                            <div class="code-empty-state">
+                                <i class="fas fa-code"></i>
+                                <p>No code available</p>
+                            </div>
+                            {% endif %}
+                        </div>
                     </div>
                 </div>
-                
-                <!-- Customer Code -->
-                <div class="code-diff-column customer-version">
-                    <div class="code-diff-header">
-                        <div class="code-diff-label">
-                            <i class="fas fa-user"></i>
-                            <span>Customer Code</span>
-                        </div>
-                        <span class="code-diff-badge customer">Current</span>
-                    </div>
-                    <div class="code-diff-body">
-                        {% if comparison.customer.sail_code %}
-                        <pre><code class="language-sail">{{ comparison.customer.sail_code | e }}</code></pre>
-                        {% else %}
-                        <div class="code-empty-state">
-                            <i class="fas fa-code"></i>
-                            <p>No code available</p>
-                        </div>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
+            {% endif %}
         </div>
     </div>
 </div>

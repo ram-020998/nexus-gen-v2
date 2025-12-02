@@ -1,4 +1,5 @@
 {% extends "merge/_base_comparison.html" %}
+{% from "merge/comparisons/_sail_diff.html" import render_sail_diff %}
 
 {% block comparison_content %}
 <!-- SAIL Code Comparison -->
@@ -7,24 +8,28 @@
         <i class="fas fa-code"></i> SAIL Code Comparison
     </h5>
     
-    <div class="sail-diff-container">
-        <div class="diff-side">
-            <div class="diff-side-header before">
-                <i class="fas fa-minus-circle"></i> Before ({{ 'Customer' if customer_object else 'Base' }})
+    {% if diff_hunks is defined %}
+        {{ render_sail_diff(diff_hunks, old_label='Customer' if customer_object else 'Base', new_label='Vendor', stats=diff_stats) }}
+    {% else %}
+        <div class="sail-diff-container">
+            <div class="diff-side">
+                <div class="diff-side-header before">
+                    <i class="fas fa-minus-circle"></i> Before ({{ 'Customer' if customer_object else 'Base' }})
+                </div>
+                <div class="diff-code-content">
+                    <pre><code class="language-sail">{{ (customer_object.sail_code if customer_object else base_object.sail_code) or 'No SAIL code available' }}</code></pre>
+                </div>
             </div>
-            <div class="diff-code-content">
-                <pre><code class="language-sail">{{ (customer_object.sail_code if customer_object else base_object.sail_code) or 'No SAIL code available' }}</code></pre>
+            <div class="diff-side">
+                <div class="diff-side-header after">
+                    <i class="fas fa-plus-circle"></i> After (Vendor)
+                </div>
+                <div class="diff-code-content">
+                    <pre><code class="language-sail">{{ vendor_object.sail_code or 'No SAIL code available' }}</code></pre>
+                </div>
             </div>
         </div>
-        <div class="diff-side">
-            <div class="diff-side-header after">
-                <i class="fas fa-plus-circle"></i> After (Vendor)
-            </div>
-            <div class="diff-code-content">
-                <pre><code class="language-sail">{{ vendor_object.sail_code or 'No SAIL code available' }}</code></pre>
-            </div>
-        </div>
-    </div>
+    {% endif %}
 </div>
 
 <!-- Rule Inputs Comparison -->

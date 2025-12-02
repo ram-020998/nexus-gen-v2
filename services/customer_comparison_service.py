@@ -1,8 +1,8 @@
 """
 Customer Comparison Service
 
-Handles comparison of delta objects against Package B (Customer Customized)
-to identify customer modifications and potential conflicts.
+Handles comparison between Package A (Base) and Package B (Customer)
+to identify customer changes (Set E).
 """
 
 import logging
@@ -11,10 +11,10 @@ from typing import List, Dict, Any, Tuple, Optional
 from core.base_service import BaseService
 from models import db, ObjectLookup, ObjectVersion
 from repositories.object_lookup_repository import ObjectLookupRepository
-from repositories.package_object_mapping_repository import (
-    PackageObjectMappingRepository
-)
-from domain.entities import CustomerModification, DeltaChange
+from repositories.package_object_mapping_repository import PackageObjectMappingRepository
+from repositories.customer_comparison_repository import CustomerComparisonRepository
+from domain.entities import CustomerChange
+from domain.enums import ChangeCategory, ChangeType
 from domain.comparison_strategies import (
     SimpleVersionComparisonStrategy,
     SAILCodeComparisonStrategy
@@ -23,327 +23,389 @@ from domain.comparison_strategies import (
 
 class CustomerComparisonService(BaseService):
     """
-    Service for comparing delta objects against Package B (Customer).
-
-    This service checks if the customer modified the same objects that
-    the vendor changed. For each object in the delta:
-    - Check if it exists in Package B
-    - If it exists, compare it to Package A to detect modifications
-    - Return comparison data for classification
-
-    Key Design Principles:
-    - Only analyzes objects from the delta (not all objects in Package B)
-    - Compares customer package (B) to base package (A)
-    - Uses same comparison strategies as delta comparison
-    - Returns CustomerModification domain entities
+    Service for comparing Package A (Base) to Package B (Customer).
+    
+    This service identifies customer changes (Set E) by comparing two packages:
+    - NEW objects: In B but not in A (customer added)
+    - DEPRECATED objects: In A but not in B (customer removed)
+    - MODIFIED objects: In both A and B with differences (customer modified)
+    
+    This is SYMMETRIC with DeltaComparisonService (vendor changes).
+    
+    Results are stored in customer_comparison_results table.
     """
-
+    
     def __init__(self, container=None):
         """Initialize service with dependencies."""
         super().__init__(container)
         self.logger = logging.getLogger(__name__)
-
+    
     def _initialize_dependencies(self) -> None:
         """Initialize service dependencies."""
-        self.object_lookup_repo = self._get_repository(
-            ObjectLookupRepository
-        )
+        self.object_lookup_repo = self._get_repository(ObjectLookupRepository)
         self.package_object_mapping_repo = self._get_repository(
             PackageObjectMappingRepository
         )
-
+        self.customer_comparison_repo = self._get_repository(
+            CustomerComparisonRepository
+        )
+        
         # Initialize comparison strategies
         self.version_strategy = SimpleVersionComparisonStrategy()
         self.content_strategy = SAILCodeComparisonStrategy(
             critical_fields=['sail_code', 'fields', 'properties']
         )
-
+    
     def compare(
         self,
+        session_id: int,
         base_package_id: int,
-        customer_package_id: int,
-        delta_changes: List[DeltaChange]
-    ) -> Dict[int, CustomerModification]:
+        customer_package_id: int
+    ) -> List[CustomerChange]:
         """
-        Compare delta objects against customer package.
-
-        This is the main entry point for customer comparison. It follows:
-        1. Get objects in Package B (customer package)
-        2. For each delta object:
-           a. Check if it exists in Package B
-           b. If exists, compare B to A to detect customer modifications
-           c. Create CustomerModification entity
-        3. Return dict mapping object_id to CustomerModification
-
+        Compare Package A (Base) to Package B (Customer) to identify customer changes.
+        
+        This performs a FULL comparison, symmetric with delta comparison.
+        
+        Steps:
+        1. Get objects in package A
+        2. Get objects in package B
+        3. Identify NEW objects (in B, not in A)
+        4. Identify DEPRECATED objects (in A, not in B)
+        5. Identify MODIFIED objects (in both A and B with differences)
+        6. Store results in customer_comparison_results
+        
         Args:
+            session_id: Merge session ID
             base_package_id: Package A (Base) ID
             customer_package_id: Package B (Customer) ID
-            delta_changes: List of DeltaChange entities from delta comparison
-
+            
         Returns:
-            Dict mapping object_id to CustomerModification
-
-        Example:
-            >>> service = CustomerComparisonService()
-            >>> customer_mods = service.compare(
-            ...     base_package_id=1,
-            ...     customer_package_id=2,
-            ...     delta_changes=delta_changes
-            ... )
-            >>> for obj_id, mod in customer_mods.items():
-            ...     if mod.customer_modified:
-            ...         print(f"Object {obj_id} was modified by customer")
+            List of CustomerChange domain entities (Set E)
         """
         self.logger.info(
-            f"Starting customer comparison: "
-            f"Package A (id={base_package_id}) vs "
-            f"Package B (id={customer_package_id}) "
-            f"for {len(delta_changes)} delta objects"
+            f"Starting customer comparison for session {session_id}: "
+            f"Package A (id={base_package_id}) → Package B (id={customer_package_id})"
         )
-
-        # Get objects in customer package
-        customer_objects = (
-            self.package_object_mapping_repo.get_objects_in_package(
-                customer_package_id
-            )
+        
+        # Get objects in both packages
+        base_objects = self.package_object_mapping_repo.get_objects_in_package(
+            base_package_id
         )
-
-        # Create lookup map by object_id for efficient comparison
-        customer_map = {obj.id: obj for obj in customer_objects}
-
+        customer_objects = self.package_object_mapping_repo.get_objects_in_package(
+            customer_package_id
+        )
+        
         self.logger.info(
+            f"Package A has {len(base_objects)} objects, "
             f"Package B has {len(customer_objects)} objects"
         )
-
-        # Compare each delta object against customer package
-        customer_modifications = {}
-
-        for delta_change in delta_changes:
-            object_id = delta_change.object_id
-
-            # Check if object exists in customer package
-            exists_in_customer = object_id in customer_map
-
-            if not exists_in_customer:
-                # Object doesn't exist in customer package
-                customer_modifications[object_id] = CustomerModification(
-                    object_id=object_id,
-                    exists_in_customer=False,
-                    customer_modified=False,
-                    version_changed=False,
-                    content_changed=False
-                )
-            else:
-                # Object exists, check if customer modified it
-                obj_lookup = customer_map[object_id]
-                version_changed, content_changed = self._compare_versions(
-                    obj_lookup,
-                    base_package_id,
-                    customer_package_id
-                )
-
-                customer_modified = version_changed or content_changed
-
-                customer_modifications[object_id] = CustomerModification(
-                    object_id=object_id,
-                    exists_in_customer=True,
-                    customer_modified=customer_modified,
-                    version_changed=version_changed,
-                    content_changed=content_changed
-                )
-
-        exists_count = sum(
-            1 for m in customer_modifications.values()
-            if m.exists_in_customer
-        )
-        modified_count = sum(
-            1 for m in customer_modifications.values()
-            if m.customer_modified
-        )
-
+        
+        # Create lookup maps by UUID
+        base_map = {obj.uuid: obj for obj in base_objects}
+        customer_map = {obj.uuid: obj for obj in customer_objects}
+        
+        customer_results = []
+        
+        # Find NEW objects (in B, not in A)
+        new_objects = [
+            obj for uuid, obj in customer_map.items()
+            if uuid not in base_map
+        ]
+        
+        for obj in new_objects:
+            customer_results.append({
+                'session_id': session_id,
+                'object_id': obj.id,
+                'change_category': ChangeCategory.NEW.value,
+                'change_type': ChangeType.ADDED.value,
+                'version_changed': False,
+                'content_changed': False
+            })
+        
+        self.logger.info(f"Found {len(new_objects)} NEW objects (customer added)")
+        
+        # Find DEPRECATED objects (in A, not in B)
+        deprecated_objects = [
+            obj for uuid, obj in base_map.items()
+            if uuid not in customer_map
+        ]
+        
+        for obj in deprecated_objects:
+            customer_results.append({
+                'session_id': session_id,
+                'object_id': obj.id,
+                'change_category': ChangeCategory.DEPRECATED.value,
+                'change_type': ChangeType.REMOVED.value,
+                'version_changed': False,
+                'content_changed': False
+            })
+        
         self.logger.info(
-            f"Customer comparison complete: "
-            f"{exists_count} exist in customer, "
-            f"{modified_count} modified by customer"
+            f"Found {len(deprecated_objects)} DEPRECATED objects (customer removed)"
         )
-
-        return customer_modifications
-
+        
+        # Find MODIFIED objects (in both A and B)
+        common_uuids = set(base_map.keys()) & set(customer_map.keys())
+        modified_count = 0
+        
+        for uuid in common_uuids:
+            base_obj = base_map[uuid]
+            
+            # Compare versions
+            version_changed, content_changed = self._compare_versions(
+                base_obj,
+                base_package_id,
+                customer_package_id
+            )
+            
+            # Only store if content actually changed
+            if content_changed:
+                customer_results.append({
+                    'session_id': session_id,
+                    'object_id': base_obj.id,
+                    'change_category': ChangeCategory.MODIFIED.value,
+                    'change_type': ChangeType.MODIFIED.value,
+                    'version_changed': version_changed,
+                    'content_changed': content_changed
+                })
+                modified_count += 1
+        
+        self.logger.info(
+            f"Found {modified_count} MODIFIED objects (customer modified)"
+        )
+        
+        # Store results in customer_comparison_results
+        if customer_results:
+            self.customer_comparison_repo.bulk_create_results(customer_results)
+            self.logger.info(
+                f"Stored {len(customer_results)} customer comparison results"
+            )
+        
+        # Convert to domain entities
+        domain_entities = [
+            CustomerChange(
+                object_id=result['object_id'],
+                change_category=ChangeCategory(result['change_category']),
+                change_type=ChangeType(result['change_type']),
+                version_changed=result['version_changed'],
+                content_changed=result['content_changed']
+            )
+            for result in customer_results
+        ]
+        
+        self.logger.info(
+            f"Customer comparison complete: {len(new_objects)} NEW, "
+            f"{modified_count} MODIFIED, {len(deprecated_objects)} DEPRECATED"
+        )
+        
+        return domain_entities
+    
     def _compare_versions(
         self,
         obj_lookup: ObjectLookup,
         base_package_id: int,
         customer_package_id: int
     ) -> Tuple[bool, bool]:
-        """
-        Compare versions of an object between base and customer packages.
-
-        This method:
-        1. Fetches object_versions for both packages
-        2. Compares version UUIDs using version comparison strategy
-        3. ALWAYS compares content to detect actual modifications
-
-        IMPORTANT: Version UUID can change without content changes (re-export, metadata).
-        We must always check content to determine if customer truly modified the object.
-
-        Args:
-            obj_lookup: ObjectLookup entity
-            base_package_id: Package A (Base) ID
-            customer_package_id: Package B (Customer) ID
-
-        Returns:
-            Tuple of (version_changed, content_changed)
-
-        Example:
-            >>> version_changed, content_changed = (
-            ...     service._compare_versions(
-            ...         obj_lookup=obj,
-            ...         base_package_id=1,
-            ...         customer_package_id=2
-            ...     )
-            ... )
-            >>> if content_changed:
-            ...     print("Customer truly modified the object")
-            >>> elif version_changed:
-            ...     print("Version UUID changed but content is same")
-        """
-        # Fetch object versions for both packages
-        base_version = self._get_object_version(
-            obj_lookup.id,
-            base_package_id
-        )
-        customer_version = self._get_object_version(
-            obj_lookup.id,
-            customer_package_id
-        )
-
-        # If either version is missing, treat as no change
-        # (This shouldn't happen in normal operation)
+        """Compare versions between base and customer packages."""
+        base_version = self._get_object_version(obj_lookup.id, base_package_id)
+        customer_version = self._get_object_version(obj_lookup.id, customer_package_id)
+        
         if not base_version or not customer_version:
-            self.logger.warning(
-                f"Missing version data for object {obj_lookup.uuid} "
-                f"(base: {base_version is not None}, "
-                f"customer: {customer_version is not None})"
-            )
             return False, False
-
-        # Compare version UUIDs
+        
         version_changed = self.version_strategy.compare(
             base_version.version_uuid,
             customer_version.version_uuid
         )
-
-        # ALWAYS compare content to detect actual modifications
-        # Version UUID can change without content changes (re-export, metadata updates)
+        
         base_content = self._extract_content(base_version)
         customer_content = self._extract_content(customer_version)
-
+        
         content_changed = self.content_strategy.compare(
             base_content,
             customer_content
         )
-
+        
+        # CRITICAL FIX: Also check object-specific tables
+        # Same fix as DeltaComparisonService
+        object_specific_changed = self._compare_object_specific_content(
+            obj_lookup,
+            base_package_id,
+            customer_package_id
+        )
+        
+        # Content is changed if EITHER object_versions OR object-specific tables differ
+        content_changed = content_changed or object_specific_changed
+        
         return version_changed, content_changed
-
+    
     def _get_object_version(
         self,
         object_id: int,
         package_id: int
     ) -> Optional[ObjectVersion]:
-        """
-        Get object version for a specific package.
-
-        Args:
-            object_id: Object ID from object_lookup
-            package_id: Package ID
-
-        Returns:
-            ObjectVersion if found, None otherwise
-        """
+        """Get object version for a specific package."""
         return db.session.query(ObjectVersion).filter_by(
             object_id=object_id,
             package_id=package_id
         ).first()
-
+    
     def _extract_content(self, version: ObjectVersion) -> Dict[str, Any]:
-        """
-        Extract content from ObjectVersion for comparison.
-
-        Args:
-            version: ObjectVersion entity
-
-        Returns:
-            Dict with content fields (sail_code, fields, properties)
-        """
+        """Extract content from ObjectVersion for comparison."""
         import json
-
+        
         content = {}
-
-        # Add SAIL code if present
+        
         if version.sail_code:
             content['sail_code'] = version.sail_code
-
-        # Add fields if present (parse JSON)
+        
         if version.fields:
             try:
                 content['fields'] = json.loads(version.fields)
             except json.JSONDecodeError:
                 content['fields'] = version.fields
-
-        # Add properties if present (parse JSON)
+        
         if version.properties:
             try:
                 content['properties'] = json.loads(version.properties)
             except json.JSONDecodeError:
                 content['properties'] = version.properties
-
+        
         return content
-
-    def get_customer_statistics(
+    
+    def _compare_object_specific_content(
         self,
-        customer_modifications: Dict[int, CustomerModification]
-    ) -> Dict[str, Any]:
+        obj_lookup: ObjectLookup,
+        base_package_id: int,
+        customer_package_id: int
+    ) -> bool:
         """
-        Get statistics for customer modifications.
-
-        Args:
-            customer_modifications: Dict of CustomerModification entities
-
-        Returns:
-            Dict with statistics:
-                - total: Total objects analyzed
-                - exists_in_customer: Count existing in customer package
-                - customer_modified: Count modified by customer
-                - version_changes: Count with version changes
-                - content_changes: Count with content changes
-
-        Example:
-            >>> stats = service.get_customer_statistics(customer_mods)
-            >>> print(f"Total: {stats['total']}")
-            >>> print(f"Modified: {stats['customer_modified']}")
+        Compare object-specific table content between base and customer packages.
+        Same logic as DeltaComparisonService but for A→B comparison.
         """
-        total = len(customer_modifications)
-        exists_in_customer = sum(
-            1 for m in customer_modifications.values()
-            if m.exists_in_customer
-        )
-        customer_modified = sum(
-            1 for m in customer_modifications.values()
-            if m.customer_modified
-        )
-        version_changes = sum(
-            1 for m in customer_modifications.values()
-            if m.version_changed
-        )
-        content_changes = sum(
-            1 for m in customer_modifications.values()
-            if m.content_changed
-        )
-
-        return {
-            'total': total,
-            'exists_in_customer': exists_in_customer,
-            'customer_modified': customer_modified,
-            'version_changes': version_changes,
-            'content_changes': content_changes
-        }
+        object_type = obj_lookup.object_type
+        
+        if object_type == "Process Model":
+            return self._compare_process_model_content(obj_lookup.id, base_package_id, customer_package_id)
+        elif object_type == "Constant":
+            return self._compare_constant_content(obj_lookup.id, base_package_id, customer_package_id)
+        elif object_type == "Record Type":
+            return self._compare_record_type_content(obj_lookup.id, base_package_id, customer_package_id)
+        elif object_type == "Interface":
+            return self._compare_interface_content(obj_lookup.id, base_package_id, customer_package_id)
+        elif object_type == "Expression Rule":
+            return self._compare_expression_rule_content(obj_lookup.id, base_package_id, customer_package_id)
+        elif object_type == "Data Type":
+            return self._compare_cdt_content(obj_lookup.id, base_package_id, customer_package_id)
+        
+        return False
+    
+    def _compare_process_model_content(self, object_id: int, base_package_id: int, customer_package_id: int) -> bool:
+        """Compare process model nodes, flows, and variables."""
+        from models import ProcessModel
+        
+        base_pm = db.session.query(ProcessModel).filter_by(object_id=object_id, package_id=base_package_id).first()
+        customer_pm = db.session.query(ProcessModel).filter_by(object_id=object_id, package_id=customer_package_id).first()
+        
+        if not base_pm or not customer_pm:
+            return False
+        
+        if base_pm.nodes.count() != customer_pm.nodes.count():
+            return True
+        if base_pm.flows.count() != customer_pm.flows.count():
+            return True
+        if base_pm.variables.count() != customer_pm.variables.count():
+            return True
+        
+        base_vars = {(v.variable_name, v.variable_type) for v in base_pm.variables}
+        customer_vars = {(v.variable_name, v.variable_type) for v in customer_pm.variables}
+        if base_vars != customer_vars:
+            return True
+        
+        return False
+    
+    def _compare_constant_content(self, object_id: int, base_package_id: int, customer_package_id: int) -> bool:
+        """Compare constant value and type."""
+        from models import Constant
+        
+        base_const = db.session.query(Constant).filter_by(object_id=object_id, package_id=base_package_id).first()
+        customer_const = db.session.query(Constant).filter_by(object_id=object_id, package_id=customer_package_id).first()
+        
+        if not base_const or not customer_const:
+            return False
+        
+        if base_const.constant_value != customer_const.constant_value:
+            return True
+        if base_const.constant_type != customer_const.constant_type:
+            return True
+        
+        return False
+    
+    def _compare_record_type_content(self, object_id: int, base_package_id: int, customer_package_id: int) -> bool:
+        """Compare record type fields, relationships, views, and actions."""
+        from models import RecordType
+        
+        base_rt = db.session.query(RecordType).filter_by(object_id=object_id, package_id=base_package_id).first()
+        customer_rt = db.session.query(RecordType).filter_by(object_id=object_id, package_id=customer_package_id).first()
+        
+        if not base_rt or not customer_rt:
+            return False
+        
+        if base_rt.fields.count() != customer_rt.fields.count():
+            return True
+        if base_rt.relationships.count() != customer_rt.relationships.count():
+            return True
+        if base_rt.views.count() != customer_rt.views.count():
+            return True
+        if base_rt.actions.count() != customer_rt.actions.count():
+            return True
+        
+        return False
+    
+    def _compare_interface_content(self, object_id: int, base_package_id: int, customer_package_id: int) -> bool:
+        """Compare interface parameters and security."""
+        from models import Interface
+        
+        base_intf = db.session.query(Interface).filter_by(object_id=object_id, package_id=base_package_id).first()
+        customer_intf = db.session.query(Interface).filter_by(object_id=object_id, package_id=customer_package_id).first()
+        
+        if not base_intf or not customer_intf:
+            return False
+        
+        if base_intf.parameters.count() != customer_intf.parameters.count():
+            return True
+        if base_intf.security.count() != customer_intf.security.count():
+            return True
+        
+        return False
+    
+    def _compare_expression_rule_content(self, object_id: int, base_package_id: int, customer_package_id: int) -> bool:
+        """Compare expression rule inputs."""
+        from models import ExpressionRule
+        
+        base_er = db.session.query(ExpressionRule).filter_by(object_id=object_id, package_id=base_package_id).first()
+        customer_er = db.session.query(ExpressionRule).filter_by(object_id=object_id, package_id=customer_package_id).first()
+        
+        if not base_er or not customer_er:
+            return False
+        
+        if base_er.inputs.count() != customer_er.inputs.count():
+            return True
+        
+        return False
+    
+    def _compare_cdt_content(self, object_id: int, base_package_id: int, customer_package_id: int) -> bool:
+        """Compare CDT fields."""
+        from models import CDT
+        
+        base_cdt = db.session.query(CDT).filter_by(object_id=object_id, package_id=base_package_id).first()
+        customer_cdt = db.session.query(CDT).filter_by(object_id=object_id, package_id=customer_package_id).first()
+        
+        if not base_cdt or not customer_cdt:
+            return False
+        
+        if base_cdt.fields.count() != customer_cdt.fields.count():
+            return True
+        
+        return False

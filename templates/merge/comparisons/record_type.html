@@ -6,291 +6,257 @@
     </div>
     
     <div class="comparison-body">
-        <!-- Tabs for different aspects -->
-        <ul class="nav nav-tabs comparison-tabs" role="tablist">
-            <li class="nav-item" role="presentation">
-                <button class="nav-link active" id="fields-tab" data-bs-toggle="tab" data-bs-target="#fields-content" type="button" role="tab">
-                    <i class="fas fa-list"></i> Fields
-                </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="relationships-tab" data-bs-toggle="tab" data-bs-target="#relationships-content" type="button" role="tab">
-                    <i class="fas fa-link"></i> Relationships
-                </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="views-tab" data-bs-toggle="tab" data-bs-target="#views-content" type="button" role="tab">
-                    <i class="fas fa-eye"></i> Views
-                </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="actions-tab" data-bs-toggle="tab" data-bs-target="#actions-content" type="button" role="tab">
-                    <i class="fas fa-bolt"></i> Actions
-                </button>
-            </li>
-        </ul>
+        <!-- Fields Section -->
+        <div class="subsection">
+            <h6><i class="fas fa-columns"></i> Fields</h6>
+            <div class="comparison-grid">
+                <!-- Vendor Fields -->
+                <div class="version-column vendor-column">
+                    <div class="version-header">
+                        <span class="badge bg-info">Vendor Fields</span>
+                    </div>
+                    <div class="version-content">
+                        {% if comparison.vendor.fields %}
+                        <table class="params-table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Type</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for field in comparison.vendor.fields %}
+                                <tr>
+                                    <td>{{ field.name }}</td>
+                                    <td><span class="badge bg-secondary">{{ field.type }}</span></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        {% else %}
+                        <p class="text-muted">No fields</p>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <!-- Customer Fields -->
+                <div class="version-column customer-column">
+                    <div class="version-header">
+                        <span class="badge bg-success">Customer Fields</span>
+                    </div>
+                    <div class="version-content">
+                        {% if comparison.customer.fields %}
+                        <table class="params-table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Type</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for field in comparison.customer.fields %}
+                                <tr>
+                                    <td>{{ field.name }}</td>
+                                    <td><span class="badge bg-secondary">{{ field.type }}</span></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        {% else %}
+                        <p class="text-muted">No fields</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
         
-        <div class="tab-content comparison-tab-content">
-            <!-- Fields Tab -->
-            <div class="tab-pane fade show active" id="fields-content" role="tabpanel">
-                <div class="comparison-grid">
-                    <div class="version-column vendor-column">
-                        <div class="version-header">
-                            <span class="badge bg-info">Vendor Fields</span>
-                        </div>
-                        <div class="version-content">
-                            {% if comparison.vendor.fields %}
-                            <table class="fields-table">
-                                <thead>
-                                    <tr>
-                                        <th>Field Name</th>
-                                        <th>Type</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for field in comparison.vendor.fields %}
-                                    <tr>
-                                        <td>{{ field.name }}</td>
-                                        <td>{{ field.type }}</td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                            {% else %}
-                            <p class="text-muted">No fields</p>
-                            {% endif %}
-                        </div>
+        <!-- Relationships Section -->
+        <div class="subsection">
+            <h6><i class="fas fa-link"></i> Relationships</h6>
+            <div class="comparison-grid">
+                <!-- Vendor Relationships -->
+                <div class="version-column vendor-column">
+                    <div class="version-header">
+                        <span class="badge bg-info">Vendor Relationships</span>
                     </div>
-                    
-                    <div class="version-column customer-column">
-                        <div class="version-header">
-                            <span class="badge bg-success">Customer Fields</span>
-                        </div>
-                        <div class="version-content">
-                            {% if comparison.customer.fields %}
-                            <table class="fields-table">
-                                <thead>
-                                    <tr>
-                                        <th>Field Name</th>
-                                        <th>Type</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for field in comparison.customer.fields %}
-                                    {% set vendor_field = comparison.vendor.fields | selectattr('name', 'equalto', field.name) | first %}
-                                    <tr class="{% if not vendor_field %}highlight-added{% elif vendor_field.type != field.type %}highlight-diff{% endif %}">
-                                        <td>{{ field.name }}</td>
-                                        <td>{{ field.type }}</td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                            {% else %}
-                            <p class="text-muted">No fields</p>
-                            {% endif %}
-                        </div>
+                    <div class="version-content">
+                        {% if comparison.vendor.relationships %}
+                        <table class="params-table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Target</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for rel in comparison.vendor.relationships %}
+                                <tr>
+                                    <td>{{ rel.name }}</td>
+                                    <td><span class="badge bg-secondary">{{ rel.target }}</span></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        {% else %}
+                        <p class="text-muted">No relationships</p>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <!-- Customer Relationships -->
+                <div class="version-column customer-column">
+                    <div class="version-header">
+                        <span class="badge bg-success">Customer Relationships</span>
+                    </div>
+                    <div class="version-content">
+                        {% if comparison.customer.relationships %}
+                        <table class="params-table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Target</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for rel in comparison.customer.relationships %}
+                                <tr>
+                                    <td>{{ rel.name }}</td>
+                                    <td><span class="badge bg-secondary">{{ rel.target }}</span></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        {% else %}
+                        <p class="text-muted">No relationships</p>
+                        {% endif %}
                     </div>
                 </div>
             </div>
-            
-            <!-- Relationships Tab -->
-            <div class="tab-pane fade" id="relationships-content" role="tabpanel">
-                <div class="comparison-grid">
-                    <div class="version-column vendor-column">
-                        <div class="version-header">
-                            <span class="badge bg-info">Vendor Relationships</span>
-                        </div>
-                        <div class="version-content">
-                            {% if comparison.vendor.relationships %}
-                            <table class="relationships-table">
-                                <thead>
-                                    <tr>
-                                        <th>Name</th>
-                                        <th>Target</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for rel in comparison.vendor.relationships %}
-                                    <tr>
-                                        <td>{{ rel.name }}</td>
-                                        <td>{{ rel.target }}</td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                            {% else %}
-                            <p class="text-muted">No relationships</p>
-                            {% endif %}
-                        </div>
+        </div>
+        
+        <!-- Views Section -->
+        <div class="subsection">
+            <h6><i class="fas fa-eye"></i> Views</h6>
+            <div class="comparison-grid">
+                <!-- Vendor Views -->
+                <div class="version-column vendor-column">
+                    <div class="version-header">
+                        <span class="badge bg-info">Vendor Views</span>
                     </div>
-                    
-                    <div class="version-column customer-column">
-                        <div class="version-header">
-                            <span class="badge bg-success">Customer Relationships</span>
-                        </div>
-                        <div class="version-content">
-                            {% if comparison.customer.relationships %}
-                            <table class="relationships-table">
-                                <thead>
-                                    <tr>
-                                        <th>Name</th>
-                                        <th>Target</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for rel in comparison.customer.relationships %}
-                                    {% set vendor_rel = comparison.vendor.relationships | selectattr('name', 'equalto', rel.name) | first %}
-                                    <tr class="{% if not vendor_rel %}highlight-added{% elif vendor_rel.target != rel.target %}highlight-diff{% endif %}">
-                                        <td>{{ rel.name }}</td>
-                                        <td>{{ rel.target }}</td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                            {% else %}
-                            <p class="text-muted">No relationships</p>
-                            {% endif %}
-                        </div>
+                    <div class="version-content">
+                        {% if comparison.vendor.views %}
+                        <table class="params-table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Type</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for view in comparison.vendor.views %}
+                                <tr>
+                                    <td>{{ view.name }}</td>
+                                    <td><span class="badge bg-secondary">{{ view.type }}</span></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        {% else %}
+                        <p class="text-muted">No views</p>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <!-- Customer Views -->
+                <div class="version-column customer-column">
+                    <div class="version-header">
+                        <span class="badge bg-success">Customer Views</span>
+                    </div>
+                    <div class="version-content">
+                        {% if comparison.customer.views %}
+                        <table class="params-table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Type</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for view in comparison.customer.views %}
+                                <tr>
+                                    <td>{{ view.name }}</td>
+                                    <td><span class="badge bg-secondary">{{ view.type }}</span></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        {% else %}
+                        <p class="text-muted">No views</p>
+                        {% endif %}
                     </div>
                 </div>
             </div>
-            
-            <!-- Views Tab -->
-            <div class="tab-pane fade" id="views-content" role="tabpanel">
-                <div class="comparison-grid">
-                    <div class="version-column vendor-column">
-                        <div class="version-header">
-                            <span class="badge bg-info">Vendor Views</span>
-                        </div>
-                        <div class="version-content">
-                            {% if comparison.vendor.views %}
-                            <table class="views-table">
-                                <thead>
-                                    <tr>
-                                        <th>Name</th>
-                                        <th>Interface</th>
-                                        <th>Context</th>
-                                        <th>Security</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for view in comparison.vendor.views %}
-                                    <tr>
-                                        <td>{{ view.name }}</td>
-                                        <td><code>{{ view.interface[:20] }}...</code></td>
-                                        <td>{{ view.context }}</td>
-                                        <td>{{ view.security }}</td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                            {% else %}
-                            <p class="text-muted">No views</p>
-                            {% endif %}
-                        </div>
+        </div>
+        
+        <!-- Actions Section -->
+        <div class="subsection">
+            <h6><i class="fas fa-bolt"></i> Actions</h6>
+            <div class="comparison-grid">
+                <!-- Vendor Actions -->
+                <div class="version-column vendor-column">
+                    <div class="version-header">
+                        <span class="badge bg-info">Vendor Actions</span>
                     </div>
-                    
-                    <div class="version-column customer-column">
-                        <div class="version-header">
-                            <span class="badge bg-success">Customer Views</span>
-                        </div>
-                        <div class="version-content">
-                            {% if comparison.customer.views %}
-                            <table class="views-table">
-                                <thead>
-                                    <tr>
-                                        <th>Name</th>
-                                        <th>Interface</th>
-                                        <th>Context</th>
-                                        <th>Security</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for view in comparison.customer.views %}
-                                    {% set vendor_view = comparison.vendor.views | selectattr('name', 'equalto', view.name) | first %}
-                                    <tr class="{% if not vendor_view %}highlight-added{% elif vendor_view.interface != view.interface or vendor_view.context != view.context %}highlight-diff{% endif %}">
-                                        <td>{{ view.name }}</td>
-                                        <td><code>{{ view.interface[:20] }}...</code></td>
-                                        <td>{{ view.context }}</td>
-                                        <td>{{ view.security }}</td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                            {% else %}
-                            <p class="text-muted">No views</p>
-                            {% endif %}
-                        </div>
+                    <div class="version-content">
+                        {% if comparison.vendor.actions %}
+                        <table class="params-table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Type</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for action in comparison.vendor.actions %}
+                                <tr>
+                                    <td>{{ action.name }}</td>
+                                    <td><span class="badge bg-secondary">{{ action.type }}</span></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        {% else %}
+                        <p class="text-muted">No actions</p>
+                        {% endif %}
                     </div>
                 </div>
-            </div>
-            
-            <!-- Actions Tab -->
-            <div class="tab-pane fade" id="actions-content" role="tabpanel">
-                <div class="comparison-grid">
-                    <div class="version-column vendor-column">
-                        <div class="version-header">
-                            <span class="badge bg-info">Vendor Actions</span>
-                        </div>
-                        <div class="version-content">
-                            {% if comparison.vendor.actions %}
-                            <table class="actions-table">
-                                <thead>
-                                    <tr>
-                                        <th>Name</th>
-                                        <th>Process Model</th>
-                                        <th>Interface</th>
-                                        <th>Security</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for action in comparison.vendor.actions %}
-                                    <tr>
-                                        <td>{{ action.name }}</td>
-                                        <td><code>{{ action.process_model[:20] if action.process_model else 'N/A' }}...</code></td>
-                                        <td><code>{{ action.interface[:20] if action.interface else 'N/A' }}...</code></td>
-                                        <td>{{ action.security }}</td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                            {% else %}
-                            <p class="text-muted">No actions</p>
-                            {% endif %}
-                        </div>
+                
+                <!-- Customer Actions -->
+                <div class="version-column customer-column">
+                    <div class="version-header">
+                        <span class="badge bg-success">Customer Actions</span>
                     </div>
-                    
-                    <div class="version-column customer-column">
-                        <div class="version-header">
-                            <span class="badge bg-success">Customer Actions</span>
-                        </div>
-                        <div class="version-content">
-                            {% if comparison.customer.actions %}
-                            <table class="actions-table">
-                                <thead>
-                                    <tr>
-                                        <th>Name</th>
-                                        <th>Process Model</th>
-                                        <th>Interface</th>
-                                        <th>Security</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for action in comparison.customer.actions %}
-                                    {% set vendor_action = comparison.vendor.actions | selectattr('name', 'equalto', action.name) | first %}
-                                    <tr class="{% if not vendor_action %}highlight-added{% elif vendor_action.process_model != action.process_model or vendor_action.interface != action.interface %}highlight-diff{% endif %}">
-                                        <td>{{ action.name }}</td>
-                                        <td><code>{{ action.process_model[:20] if action.process_model else 'N/A' }}...</code></td>
-                                        <td><code>{{ action.interface[:20] if action.interface else 'N/A' }}...</code></td>
-                                        <td>{{ action.security }}</td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                            {% else %}
-                            <p class="text-muted">No actions</p>
-                            {% endif %}
-                        </div>
+                    <div class="version-content">
+                        {% if comparison.customer.actions %}
+                        <table class="params-table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Type</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for action in comparison.customer.actions %}
+                                <tr>
+                                    <td>{{ action.name }}</td>
+                                    <td><span class="badge bg-secondary">{{ action.type }}</span></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        {% else %}
+                        <p class="text-muted">No actions</p>
+                        {% endif %}
                     </div>
                 </div>
             </div>

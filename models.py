@@ -227,6 +227,57 @@ class DeltaComparisonResult(db.Model):
         }
 
 
+class CustomerComparisonResult(db.Model):
+    """
+    Stores customer comparison results (Set E: A→B comparison).
+    
+    This table stores ALL changes made by the customer from the base version.
+    It's symmetric with delta_comparison_results (vendor changes).
+    """
+    __tablename__ = 'customer_comparison_results'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    session_id = db.Column(
+        db.Integer,
+        db.ForeignKey('merge_sessions.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True
+    )
+    object_id = db.Column(
+        db.Integer,
+        db.ForeignKey('object_lookup.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True
+    )
+    change_category = db.Column(db.String(20), nullable=False)  # NEW, MODIFIED, DEPRECATED
+    change_type = db.Column(db.String(20), nullable=False)  # ADDED, MODIFIED, REMOVED
+    version_changed = db.Column(db.Boolean, default=False)
+    content_changed = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Unique constraint: one result per object per session
+    __table_args__ = (
+        db.UniqueConstraint('session_id', 'object_id', name='uq_customer_comparison_session_object'),
+        db.Index('idx_customer_comparison_category', 'session_id', 'change_category'),
+    )
+    
+    # Relationships
+    session = db.relationship('MergeSession', backref='customer_comparison_results')
+    object = db.relationship('ObjectLookup', backref='customer_comparisons')
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'session_id': self.session_id,
+            'object_id': self.object_id,
+            'change_category': self.change_category,
+            'change_type': self.change_type,
+            'version_changed': self.version_changed,
+            'content_changed': self.content_changed,
+            'created_at': self.created_at.isoformat()
+        }
+
+
 class Change(db.Model):
     """Working set of classified changes for user review"""
     __tablename__ = 'changes'

@@ -883,14 +883,28 @@ async function handleSubmit(e) {
             body: formData
         });
         
+        // Check if response is OK (status 200-299)
+        if (!response.ok) {
+            // Try to parse error message from response
+            let errorMessage = 'Server error occurred';
+            try {
+                const errorData = await response.json();
+                errorMessage = errorData.message || errorData.error || errorMessage;
+            } catch (e) {
+                // If JSON parsing fails, use status text
+                errorMessage = `Server error: ${response.status} ${response.statusText}`;
+            }
+            throw new Error(errorMessage);
+        }
+        
         const result = await response.json();
         
         if (result.success) {
             // Complete step 1
             await updateStep(1, 'completed');
             
-            // Simulate remaining steps
-            for (let i = 2; i <= 8; i++) {
+            // Simulate remaining steps (only 4 steps in the modal)
+            for (let i = 2; i <= 4; i++) {
                 await updateStep(i, 'active');
                 await new Promise(resolve => setTimeout(resolve, 400));
                 await updateStep(i, 'completed');
@@ -902,13 +916,17 @@ async function handleSubmit(e) {
             // Redirect to summary page
             window.location.href = `/merge/${result.data.reference_id}/summary`;
         } else {
-            alert('Error: ' + result.message);
+            // Handle unsuccessful response with success=false
+            const errorMessage = result.message || result.error || 'Unknown error occurred';
+            alert('Error: ' + errorMessage);
             btn.disabled = false;
             document.getElementById('processingModal').style.display = 'none';
         }
     } catch (error) {
         console.error('Error:', error);
-        alert('An error occurred while processing the packages');
+        // Show the actual error message to help with debugging
+        const errorMessage = error.message || 'An error occurred while processing the packages';
+        alert('Error: ' + errorMessage);
         btn.disabled = false;
         document.getElementById('processingModal').style.display = 'none';
     }
@@ -917,6 +935,12 @@ async function handleSubmit(e) {
 async function updateStep(stepNumber, status) {
     const step = document.getElementById(`step${stepNumber}`);
     
+    // Check if step element exists
+    if (!step) {
+        console.warn(`Step ${stepNumber} not found in DOM`);
+        return;
+    }
+    
     // Remove all status classes
     step.classList.remove('active', 'completed');
     
@@ -924,12 +948,16 @@ async function updateStep(stepNumber, status) {
         step.classList.add('active');
         // Update icon to spinner
         const statusIcon = step.querySelector('.step-status i');
-        statusIcon.className = 'fas fa-spinner fa-spin';
+        if (statusIcon) {
+            statusIcon.className = 'fas fa-spinner fa-spin';
+        }
     } else if (status === 'completed') {
         step.classList.add('completed');
         // Update icon to check
         const statusIcon = step.querySelector('.step-status i');
-        statusIcon.className = 'fas fa-check-circle';
+        if (statusIcon) {
+            statusIcon.className = 'fas fa-check-circle';
+        }
     }
 }
 </script>
