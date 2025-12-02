@@ -136,7 +136,14 @@ class ChangeNavigationService(BaseService):
                     if change.reviewed_at
                     else None
                 ),
-                'reviewed_by': change.reviewed_by
+                'reviewed_by': change.reviewed_by,
+                'ai_summary': change.ai_summary,
+                'ai_summary_status': change.ai_summary_status,
+                'ai_summary_generated_at': (
+                    change.ai_summary_generated_at.isoformat()
+                    if change.ai_summary_generated_at
+                    else None
+                )
             },
             'object': {
                 'id': change.object.id,

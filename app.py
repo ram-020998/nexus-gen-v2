@@ -234,6 +234,7 @@ def _register_services(container):
     from services.comparison_retrieval_service import (
         ComparisonRetrievalService
     )
+    from services.merge_summary_service import MergeSummaryService
     
     # Register request services
     container.register_service(RequestService)
@@ -254,6 +255,7 @@ def _register_services(container):
     container.register_service(ChangeNavigationService)
     container.register_service(ComparisonPersistenceService)
     container.register_service(ComparisonRetrievalService)
+    container.register_service(MergeSummaryService)
 
 
 if __name__ == '__main__':

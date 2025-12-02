@@ -21,6 +21,7 @@ from services.merge_guidance_service import MergeGuidanceService
 from services.comparison_persistence_service import (
     ComparisonPersistenceService
 )
+from services.merge_summary_service import MergeSummaryService
 from domain.enums import SessionStatus
 
 
@@ -28,15 +29,17 @@ class ThreeWayMergeOrchestrator(BaseService):
     """
     Orchestrator for the complete three-way merge workflow.
     
-    This service coordinates all sub-services to execute the 8-step workflow:
+    This service coordinates all sub-services to execute the 10-step workflow:
     1. Create session record
     2. Extract all three packages (transactional)
     3. Perform delta comparison (A→C)
     4. Perform customer comparison (delta vs B)
     5. Classify changes (apply 7 rules)
-    6. Generate merge guidance
-    7. Update session status to 'ready'
-    8. Return session with reference_id and total_changes
+    6. Trigger AI summary generation (async)
+    7. Persist detailed comparisons
+    8. Generate merge guidance
+    9. Update session status to 'ready'
+    10. Return session with reference_id and total_changes
     
     Key Design Principles:
     - Transactional: All operations in a single transaction
@@ -81,6 +84,9 @@ class ThreeWayMergeOrchestrator(BaseService):
         self.comparison_persistence_service = self._get_service(
             ComparisonPersistenceService
         )
+        self.merge_summary_service = self._get_service(
+            MergeSummaryService
+        )
         self.change_repository = self._get_repository(ChangeRepository)
     
     def create_merge_session(
@@ -103,9 +109,11 @@ class ThreeWayMergeOrchestrator(BaseService):
         5. Perform delta comparison (A→C)
         6. Perform customer comparison (delta vs B)
         7. Classify changes (apply 7 rules)
-        8. Generate merge guidance
-        9. Update session status to 'READY'
-        10. Commit transaction
+        8. Trigger AI summary generation (async)
+        9. Persist detailed comparisons
+        10. Generate merge guidance
+        11. Update session status to 'READY'
+        12. Commit transaction
         
         If any step fails:
         - Log error
@@ -153,7 +161,7 @@ class ThreeWayMergeOrchestrator(BaseService):
             
             # Step 1: Create session record
             step_start = time.time()
-            LoggerConfig.log_step(self.logger, 1, 8, "Creating merge session record")
+            LoggerConfig.log_step(self.logger, 1, 10, "Creating merge session record")
             
             session = self._create_session()
             
@@ -165,7 +173,7 @@ class ThreeWayMergeOrchestrator(BaseService):
             
             # Step 2: Extract Package A (Base)
             step_start = time.time()
-            LoggerConfig.log_step(self.logger, 2, 8, "Extracting Package A (Base Version)")
+            LoggerConfig.log_step(self.logger, 2, 10, "Extracting Package A (Base Version)")
             self.logger.debug(f"Package A path: {base_zip_path}")
             
             package_a = self.package_extraction_service.extract_package(
@@ -182,7 +190,7 @@ class ThreeWayMergeOrchestrator(BaseService):
             
             # Step 3: Extract Package B (Customized)
             step_start = time.time()
-            LoggerConfig.log_step(self.logger, 3, 8, "Extracting Package B (Customer Version)")
+            LoggerConfig.log_step(self.logger, 3, 10, "Extracting Package B (Customer Version)")
             self.logger.debug(f"Package B path: {customized_zip_path}")
             
             package_b = self.package_extraction_service.extract_package(
@@ -199,7 +207,7 @@ class ThreeWayMergeOrchestrator(BaseService):
             
             # Step 4: Extract Package C (New Vendor)
             step_start = time.time()
-            LoggerConfig.log_step(self.logger, 4, 8, "Extracting Package C (New Vendor Version)")
+            LoggerConfig.log_step(self.logger, 4, 10, "Extracting Package C (New Vendor Version)")
             self.logger.debug(f"Package C path: {new_vendor_zip_path}")
             
             package_c = self.package_extraction_service.extract_package(
@@ -216,7 +224,7 @@ class ThreeWayMergeOrchestrator(BaseService):
             
             # Step 5: Perform delta comparison (A→C)
             step_start = time.time()
-            LoggerConfig.log_step(self.logger, 5, 8, "Performing delta comparison (A→C)")
+            LoggerConfig.log_step(self.logger, 5, 10, "Performing delta comparison (A→C)")
             self.logger.debug(
                 f"Comparing base package (id={package_a.id}) with "
                 f"new vendor package (id={package_c.id})"
@@ -236,7 +244,7 @@ class ThreeWayMergeOrchestrator(BaseService):
             
             # Step 6: Perform customer comparison (A→B, Set E)
             step_start = time.time()
-            LoggerConfig.log_step(self.logger, 6, 8, "Performing customer comparison (A→B, Set E)")
+            LoggerConfig.log_step(self.logger, 6, 10, "Performing customer comparison (A→B, Set E)")
             self.logger.debug(
                 f"Comparing base package (id={package_a.id}) with "
                 f"customer package (id={package_b.id})"
@@ -258,7 +266,7 @@ class ThreeWayMergeOrchestrator(BaseService):
             
             # Step 7: Classify changes (set-based: D ∩ E, D \ E, E \ D)
             step_start = time.time()
-            LoggerConfig.log_step(self.logger, 7, 8, "Classifying changes (set-based logic)")
+            LoggerConfig.log_step(self.logger, 7, 10, "Classifying changes (set-based logic)")
             self.logger.debug("Applying set-based classification: D ∩ E, D \\ E, E \\ D")
             self.logger.debug("Comparing B vs C content for objects in D ∩ E")
             
@@ -290,7 +298,7 @@ class ThreeWayMergeOrchestrator(BaseService):
             # Step 8: Persist detailed comparisons
             step_start = time.time()
             LoggerConfig.log_step(
-                self.logger, 8, 9,
+                self.logger, 8, 10,
                 "Persisting detailed object comparisons"
             )
             
@@ -311,7 +319,7 @@ class ThreeWayMergeOrchestrator(BaseService):
             
             # Step 9: Generate merge guidance
             step_start = time.time()
-            LoggerConfig.log_step(self.logger, 9, 9, "Generating merge guidance")
+            LoggerConfig.log_step(self.logger, 9, 10, "Generating merge guidance")
             
             changes = self.change_repository.get_by_session(session.id)
             self.logger.debug(
@@ -339,6 +347,26 @@ class ThreeWayMergeOrchestrator(BaseService):
             self.logger.debug("Committing database transaction")
             db.session.commit()
             self.logger.debug("Transaction committed successfully")
+            
+            # Step 10: Trigger AI summary generation (async)
+            # IMPORTANT: This must happen AFTER commit so the background thread
+            # can see the changes in the database
+            step_start = time.time()
+            LoggerConfig.log_step(
+                self.logger, 10, 10,
+                "Triggering AI summary generation (async)"
+            )
+            
+            self.merge_summary_service.generate_summaries_async(session.id)
+            
+            step_duration = time.time() - step_start
+            self.logger.info(
+                f"✓ AI summary generation triggered (processing in background) "
+                f"in {step_duration:.2f}s"
+            )
+            
+            # Note: Summaries will be generated asynchronously
+            # The workflow continues without waiting for completion
             
             # Calculate total workflow duration
             workflow_duration = time.time() - workflow_start_time

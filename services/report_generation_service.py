@@ -220,7 +220,9 @@ class ReportGenerationService(BaseService):
                 'customer_change_type': change.customer_change_type,
                 'status': change.status,
                 'notes': change.notes,
-                'actual_change': actual_change
+                'actual_change': actual_change,
+                'ai_summary': change.ai_summary,
+                'ai_summary_status': change.ai_summary_status
             })
 
         # Calculate statistics
@@ -769,6 +771,7 @@ class ReportGenerationService(BaseService):
             '🔑 Object UUID',
             '📝 Change Description',
             '💻 Actual SAIL Change',
+            '🤖 AI Summary',
             '⚡ Complexity',
             '⏱️ Est. Time',
             '📌 Notes'
@@ -884,9 +887,33 @@ class ReportGenerationService(BaseService):
             cell.fill = row_fill
             cell.border = thin_border
 
+            # AI Summary
+            cell = ws.cell(row=idx, column=7)
+            if change.get('ai_summary_status') == 'completed' and change.get('ai_summary'):
+                ai_summary = change['ai_summary']
+                # Truncate if too long
+                if len(ai_summary) > 800:
+                    ai_summary = ai_summary[:800] + '\n... [truncated]'
+                cell.value = ai_summary
+                cell.font = Font(size=10)
+            elif change.get('ai_summary_status') == 'processing':
+                cell.value = '⏳ Processing...'
+                cell.font = Font(size=10, italic=True, color='FFC000')
+            elif change.get('ai_summary_status') == 'failed':
+                cell.value = '❌ Failed to generate'
+                cell.font = Font(size=10, italic=True, color='C00000')
+            else:
+                cell.value = '⏸️ Pending'
+                cell.font = Font(size=10, italic=True, color='999999')
+            cell.alignment = Alignment(
+                horizontal='left', vertical='top', wrap_text=True
+            )
+            cell.fill = row_fill
+            cell.border = thin_border
+
             # Complexity
             complexity = self._calculate_change_complexity(change)
-            cell = ws.cell(row=idx, column=7)
+            cell = ws.cell(row=idx, column=8)
             cell.value = complexity
             cell.font = Font(
                 bold=True, size=10, color=self._get_complexity_color(
@@ -899,7 +926,7 @@ class ReportGenerationService(BaseService):
 
             # Estimated Time
             estimated_time = self._calculate_change_time(complexity)
-            cell = ws.cell(row=idx, column=8)
+            cell = ws.cell(row=idx, column=9)
             cell.value = estimated_time
             cell.font = Font(size=10)
             cell.alignment = Alignment(horizontal='center', vertical='top')
@@ -907,7 +934,7 @@ class ReportGenerationService(BaseService):
             cell.border = thin_border
 
             # Notes
-            cell = ws.cell(row=idx, column=9)
+            cell = ws.cell(row=idx, column=10)
             cell.value = change['notes'] or ''
             cell.font = Font(size=10, italic=True)
             cell.alignment = Alignment(
@@ -920,7 +947,7 @@ class ReportGenerationService(BaseService):
             ws.row_dimensions[idx].height = 40
 
         # Adjust column widths
-        column_widths = [10, 18, 30, 38, 45, 50, 14, 14, 35]
+        column_widths = [10, 18, 30, 38, 45, 50, 45, 14, 14, 35]
         for col, width in enumerate(column_widths, 1):
             ws.column_dimensions[get_column_letter(col)].width = width
 

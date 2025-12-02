@@ -133,6 +133,62 @@
         </div>
         {% endif %}
 
+        <!-- AI Summary Card -->
+        <div class="detail-card mb-4" id="aiSummaryCard">
+            <div class="card-header-custom">
+                <div class="card-icon">
+                    <i class="fas fa-robot"></i>
+                </div>
+                <div class="card-title-section">
+                    <h5>AI Analysis</h5>
+                    <small class="text-muted">Automated merge guidance</small>
+                </div>
+                {% if detail.change.ai_summary_status == 'failed' %}
+                <button id="regenerateSummaryBtn" class="btn btn-sm btn-outline-primary">
+                    <i class="fas fa-redo"></i> Retry
+                </button>
+                {% endif %}
+            </div>
+            <div class="card-body-custom">
+                <!-- Loading State -->
+                <div id="aiSummaryLoading" class="ai-summary-loading" style="display: {% if detail.change.ai_summary_status in ['pending', 'processing'] %}flex{% else %}none{% endif %};">
+                    <div class="loading-spinner">
+                        <i class="fas fa-spinner fa-spin"></i>
+                    </div>
+                    <div class="loading-text">
+                        <strong>{% if detail.change.ai_summary_status == 'pending' %}Queued for analysis...{% else %}Analyzing changes...{% endif %}</strong>
+                        <p>AI is reviewing the code differences and generating merge recommendations.</p>
+                    </div>
+                </div>
+                
+                <!-- Completed State -->
+                <div id="aiSummaryContent" class="ai-summary-content" style="display: {% if detail.change.ai_summary_status == 'completed' %}block{% else %}none{% endif %};">
+                    {% if detail.change.ai_summary %}
+                    <div class="summary-text">
+                        {{ detail.change.ai_summary|safe|replace('\n', '<br>')|replace('**', '<strong>')|replace('**', '</strong>') }}
+                    </div>
+                    <div class="summary-meta">
+                        <small class="text-muted">
+                            <i class="fas fa-clock"></i>
+                            Generated {% if detail.change.ai_summary_generated_at %}{{ detail.change.ai_summary_generated_at }}{% else %}recently{% endif %}
+                        </small>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <!-- Failed State -->
+                <div id="aiSummaryError" class="ai-summary-error" style="display: {% if detail.change.ai_summary_status == 'failed' %}flex{% else %}none{% endif %};">
+                    <div class="error-icon">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    <div class="error-text">
+                        <strong>Summary generation failed</strong>
+                        <p>{% if detail.change.ai_summary %}{{ detail.change.ai_summary }}{% else %}Unable to generate AI summary. Please try again.{% endif %}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Notes Card -->
         <div class="detail-card mb-4">
             <div class="card-header-custom">
@@ -907,6 +963,106 @@
         justify-content: center;
     }
 }
+
+/* AI Summary Styles */
+.ai-summary-loading {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    padding: 2rem;
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.05), rgba(236, 72, 153, 0.05));
+    border-radius: 12px;
+    border: 2px dashed var(--border-color);
+}
+
+.loading-spinner {
+    flex-shrink: 0;
+}
+
+.loading-spinner i {
+    font-size: 2.5rem;
+    color: var(--purple);
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.loading-text {
+    flex: 1;
+}
+
+.loading-text strong {
+    display: block;
+    color: var(--text-primary);
+    font-size: 1.125rem;
+    margin-bottom: 0.5rem;
+}
+
+.loading-text p {
+    color: var(--text-secondary);
+    margin: 0;
+    font-size: 0.875rem;
+}
+
+.ai-summary-content {
+    padding: 1.5rem;
+}
+
+.summary-text {
+    color: var(--text-primary);
+    line-height: 1.8;
+    font-size: 1rem;
+}
+
+.summary-text strong {
+    color: var(--purple);
+    font-weight: 600;
+}
+
+.summary-meta {
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.ai-summary-error {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    padding: 2rem;
+    background: rgba(239, 68, 68, 0.05);
+    border-radius: 12px;
+    border: 2px solid rgba(239, 68, 68, 0.2);
+}
+
+.error-icon {
+    flex-shrink: 0;
+}
+
+.error-icon i {
+    font-size: 2.5rem;
+    color: #ef4444;
+}
+
+.error-text {
+    flex: 1;
+}
+
+.error-text strong {
+    display: block;
+    color: #ef4444;
+    font-size: 1.125rem;
+    margin-bottom: 0.5rem;
+}
+
+.error-text p {
+    color: var(--text-secondary);
+    margin: 0;
+    font-size: 0.875rem;
+}
 </style>
 {% endblock %}
 
@@ -1216,5 +1372,173 @@ style.textContent = `
     }
 `;
 document.head.appendChild(style);
+
+// AI Summary Polling
+let aiSummaryPollInterval = null;
+const aiSummaryStatus = '{{ detail.change.ai_summary_status }}';
+
+// Start polling if summary is pending or processing
+if (aiSummaryStatus === 'pending' || aiSummaryStatus === 'processing') {
+    startAISummaryPolling();
+}
+
+function startAISummaryPolling() {
+    // Poll every 3 seconds
+    aiSummaryPollInterval = setInterval(checkAISummaryStatus, 3000);
+    // Check immediately
+    checkAISummaryStatus();
+}
+
+function stopAISummaryPolling() {
+    if (aiSummaryPollInterval) {
+        clearInterval(aiSummaryPollInterval);
+        aiSummaryPollInterval = null;
+    }
+}
+
+async function checkAISummaryStatus() {
+    try {
+        // Fetch the change detail again to get updated AI summary status
+        const response = await fetch(`/merge/${referenceId}/changes?classification=all`);
+        const data = await response.json();
+        
+        if (data.success) {
+            // Find this change in the response
+            const change = data.data.changes.find(c => c.change_id === changeId);
+            
+            if (change && change.ai_summary_status) {
+                updateAISummaryDisplay(change);
+            }
+        }
+    } catch (error) {
+        console.error('Failed to check AI summary status:', error);
+    }
+}
+
+function updateAISummaryDisplay(change) {
+    const loadingEl = document.getElementById('aiSummaryLoading');
+    const contentEl = document.getElementById('aiSummaryContent');
+    const errorEl = document.getElementById('aiSummaryError');
+    
+    // Hide all states first
+    loadingEl.style.display = 'none';
+    contentEl.style.display = 'none';
+    errorEl.style.display = 'none';
+    
+    if (change.ai_summary_status === 'completed') {
+        // Stop polling
+        stopAISummaryPolling();
+        
+        // Show completed state
+        if (change.ai_summary) {
+            // Format the summary text
+            const formattedSummary = formatAISummary(change.ai_summary);
+            contentEl.querySelector('.summary-text').innerHTML = formattedSummary;
+            
+            // Update timestamp if available
+            if (change.ai_summary_generated_at) {
+                const metaEl = contentEl.querySelector('.summary-meta small');
+                if (metaEl) {
+                    metaEl.innerHTML = `<i class="fas fa-clock"></i> Generated ${formatTimestamp(change.ai_summary_generated_at)}`;
+                }
+            }
+            
+            contentEl.style.display = 'block';
+            
+            // Show brief notification
+            showAlert('AI analysis completed!', 'success');
+        }
+    } else if (change.ai_summary_status === 'failed') {
+        // Stop polling
+        stopAISummaryPolling();
+        
+        // Show error state
+        if (change.ai_summary) {
+            errorEl.querySelector('.error-text p').textContent = change.ai_summary;
+        }
+        errorEl.style.display = 'flex';
+    } else if (change.ai_summary_status === 'processing') {
+        // Update loading text
+        loadingEl.querySelector('.loading-text strong').textContent = 'Analyzing changes...';
+        loadingEl.style.display = 'flex';
+    } else if (change.ai_summary_status === 'pending') {
+        // Update loading text
+        loadingEl.querySelector('.loading-text strong').textContent = 'Queued for analysis...';
+        loadingEl.style.display = 'flex';
+    }
+}
+
+function formatAISummary(summary) {
+    // Convert markdown-style formatting to HTML
+    return summary
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\n/g, '<br>');
+}
+
+function formatTimestamp(timestamp) {
+    try {
+        const date = new Date(timestamp);
+        const now = new Date();
+        const diffMs = now - date;
+        const diffMins = Math.floor(diffMs / 60000);
+        
+        if (diffMins < 1) return 'just now';
+        if (diffMins < 60) return `${diffMins} minute${diffMins > 1 ? 's' : ''} ago`;
+        
+        const diffHours = Math.floor(diffMins / 60);
+        if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+        
+        return date.toLocaleString();
+    } catch (e) {
+        return timestamp;
+    }
+}
+
+// Regenerate Summary Button
+const regenerateSummaryBtn = document.getElementById('regenerateSummaryBtn');
+if (regenerateSummaryBtn) {
+    regenerateSummaryBtn.addEventListener('click', async function() {
+        const btn = this;
+        const originalHtml = btn.innerHTML;
+        
+        // Disable button and show loading
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Regenerating...';
+        
+        try {
+            const response = await fetch(`/merge/change/${changeId}/regenerate-summary`, {
+                method: 'POST'
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                // Show loading state
+                document.getElementById('aiSummaryLoading').style.display = 'flex';
+                document.getElementById('aiSummaryError').style.display = 'none';
+                
+                // Start polling
+                startAISummaryPolling();
+                
+                // Hide regenerate button
+                btn.style.display = 'none';
+                
+                showAlert('Summary regeneration started', 'success');
+            } else {
+                throw new Error(result.message || 'Failed to regenerate summary');
+            }
+        } catch (error) {
+            console.error('Failed to regenerate summary:', error);
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+            showAlert('Failed to regenerate summary. Please try again.', 'error');
+        }
+    });
+}
+
+// Clean up polling on page unload
+window.addEventListener('beforeunload', function() {
+    stopAISummaryPolling();
+});
 </script>
 {% endblock %}

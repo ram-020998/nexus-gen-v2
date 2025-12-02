@@ -942,6 +942,233 @@ def generate_report(reference_id):
         )
 
 
+@merge_bp.route('/<reference_id>/summary-progress', methods=['GET'])
+def get_summary_progress(reference_id):
+    """
+    Get AI summary generation progress for a session.
+    
+    Returns statistics about AI summary generation status including
+    total changes, completed summaries, processing summaries, failed
+    summaries, and pending summaries.
+    
+    Args:
+        reference_id: Session reference ID (e.g., MRG_001)
+        
+    Returns:
+        JSON response with progress statistics:
+        {
+            "success": true,
+            "data": {
+                "total": 50,
+                "completed": 45,
+                "processing": 3,
+                "failed": 2,
+                "pending": 0,
+                "percentage": 90.0
+            }
+        }
+        
+    Status Codes:
+        200: Success
+        404: Session not found
+        500: Server error
+        
+    Example:
+        >>> response = requests.get(
+        ...     'http://localhost:5002/merge/MRG_001/summary-progress'
+        ... )
+        >>> progress = response.json()['data']
+        >>> print(f"Progress: {progress['percentage']}%")
+    """
+    from services.merge_summary_service import MergeSummaryService
+    
+    try:
+        # Get session
+        session = db.session.query(MergeSession).filter_by(
+            reference_id=reference_id
+        ).first()
+        
+        if not session:
+            return controller.json_error(
+                f"Session not found: {reference_id}",
+                status_code=404
+            )
+        
+        # Get progress from service
+        merge_summary_service = controller.get_service(MergeSummaryService)
+        progress = merge_summary_service.get_summary_progress(session.id)
+        
+        # Calculate percentage
+        if progress['total'] > 0:
+            progress['percentage'] = round(
+                (progress['completed'] / progress['total']) * 100, 1
+            )
+        else:
+            progress['percentage'] = 0
+        
+        return controller.json_success(data=progress)
+        
+    except Exception as e:
+        logger.error(f"Error getting summary progress: {e}", exc_info=True)
+        return controller.json_error(
+            f"Failed to get summary progress: {str(e)}",
+            status_code=500
+        )
+
+
+@merge_bp.route('/<reference_id>/regenerate-summaries', methods=['POST'])
+def regenerate_summaries(reference_id):
+    """
+    Manually trigger summary regeneration for all changes in a session.
+    
+    Resets all AI summary statuses to 'pending' and triggers async
+    regeneration. Useful if initial generation failed or user wants
+    to refresh summaries with updated AI models.
+    
+    Args:
+        reference_id: Session reference ID (e.g., MRG_001)
+        
+    Returns:
+        JSON response confirming regeneration started:
+        {
+            "success": true,
+            "message": "Summary regeneration triggered",
+            "data": {
+                "reference_id": "MRG_001",
+                "total_changes": 50
+            }
+        }
+        
+    Status Codes:
+        200: Success
+        404: Session not found
+        500: Server error
+        
+    Example:
+        >>> response = requests.post(
+        ...     'http://localhost:5002/merge/MRG_001/regenerate-summaries'
+        ... )
+    """
+    from services.merge_summary_service import MergeSummaryService
+    
+    try:
+        # Get session
+        session = db.session.query(MergeSession).filter_by(
+            reference_id=reference_id
+        ).first()
+        
+        if not session:
+            return controller.json_error(
+                f"Session not found: {reference_id}",
+                status_code=404
+            )
+        
+        # Reset all summaries to pending
+        db.session.query(Change).filter_by(
+            session_id=session.id
+        ).update({
+            'ai_summary_status': 'pending',
+            'ai_summary': None,
+            'ai_summary_generated_at': None
+        })
+        db.session.commit()
+        
+        logger.info(
+            f"Reset {session.total_changes} summaries to pending "
+            f"for session {reference_id}"
+        )
+        
+        # Trigger regeneration
+        merge_summary_service = controller.get_service(MergeSummaryService)
+        merge_summary_service.generate_summaries_async(session.id)
+        
+        return controller.json_success(
+            message='Summary regeneration triggered',
+            data={
+                'reference_id': reference_id,
+                'total_changes': session.total_changes
+            }
+        )
+        
+    except Exception as e:
+        logger.error(f"Error regenerating summaries: {e}", exc_info=True)
+        return controller.json_error(
+            f"Failed to regenerate summaries: {str(e)}",
+            status_code=500
+        )
+
+
+@merge_bp.route('/change/<int:change_id>/regenerate-summary', methods=['POST'])
+def regenerate_single_summary(change_id):
+    """
+    Regenerate AI summary for a single change.
+    
+    Useful for retrying failed summaries or updating a specific
+    change's summary without regenerating all summaries.
+    
+    Args:
+        change_id: Change ID
+        
+    Returns:
+        JSON response confirming regeneration:
+        {
+            "success": true,
+            "message": "Summary regenerated successfully",
+            "data": {
+                "change_id": 123,
+                "ai_summary_status": "completed"
+            }
+        }
+        
+    Status Codes:
+        200: Success
+        404: Change not found
+        500: Server error
+        
+    Example:
+        >>> response = requests.post(
+        ...     'http://localhost:5002/merge/change/123/regenerate-summary'
+        ... )
+    """
+    from services.merge_summary_service import MergeSummaryService
+    
+    try:
+        # Get change
+        change = db.session.query(Change).get(change_id)
+        
+        if not change:
+            return controller.json_error(
+                f"Change not found: {change_id}",
+                status_code=404
+            )
+        
+        logger.info(f"Regenerating summary for change {change_id}")
+        
+        # Regenerate summary
+        merge_summary_service = controller.get_service(MergeSummaryService)
+        merge_summary_service.regenerate_summary(change_id)
+        
+        # Refresh change to get updated status
+        db.session.refresh(change)
+        
+        return controller.json_success(
+            message='Summary regenerated successfully',
+            data={
+                'change_id': change_id,
+                'ai_summary_status': change.ai_summary_status
+            }
+        )
+        
+    except ValueError as e:
+        return controller.json_error(str(e), status_code=404)
+    except Exception as e:
+        logger.error(f"Error regenerating summary: {e}", exc_info=True)
+        return controller.json_error(
+            f"Failed to regenerate summary: {str(e)}",
+            status_code=500
+        )
+
+
 @merge_bp.route('/<reference_id>/objects/<object_type>', methods=['GET'])
 def get_objects_by_type(reference_id, object_type):
     """

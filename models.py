@@ -100,6 +100,7 @@ class MergeSession(db.Model):
     # Relationships
     packages = db.relationship('Package', backref='session', lazy='dynamic', cascade='all, delete-orphan')
     delta_results = db.relationship('DeltaComparisonResult', backref='session', lazy='dynamic', cascade='all, delete-orphan')
+    customer_comparison_results = db.relationship('CustomerComparisonResult', back_populates='session', lazy='dynamic', cascade='all, delete-orphan')
     changes = db.relationship('Change', backref='session', lazy='dynamic', cascade='all, delete-orphan')
 
     def to_dict(self):
@@ -262,7 +263,7 @@ class CustomerComparisonResult(db.Model):
     )
     
     # Relationships
-    session = db.relationship('MergeSession', backref='customer_comparison_results')
+    session = db.relationship('MergeSession', back_populates='customer_comparison_results')
     object = db.relationship('ObjectLookup', backref='customer_comparisons')
     
     def to_dict(self):
@@ -301,6 +302,11 @@ class Change(db.Model):
     notes = db.Column(db.Text)
     reviewed_at = db.Column(db.DateTime)
     reviewed_by = db.Column(db.String(255))
+    
+    # AI Summary fields (Migration 004)
+    ai_summary = db.Column(db.Text)
+    ai_summary_status = db.Column(db.String(20), default='pending')  # pending, processing, completed, failed
+    ai_summary_generated_at = db.Column(db.DateTime)
 
     __table_args__ = (
         db.Index('idx_change_session_classification', 'session_id', 'classification'),
@@ -329,6 +335,9 @@ class Change(db.Model):
             'notes': self.notes,
             'reviewed_at': self.reviewed_at.isoformat() if self.reviewed_at else None,
             'reviewed_by': self.reviewed_by,
+            'ai_summary': self.ai_summary,
+            'ai_summary_status': self.ai_summary_status,
+            'ai_summary_generated_at': self.ai_summary_generated_at.isoformat() if self.ai_summary_generated_at else None,
             'created_at': self.created_at.isoformat()
         }
 

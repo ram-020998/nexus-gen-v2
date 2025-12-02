@@ -104,6 +104,9 @@ class ObjectLookupRepository(BaseRepository[ObjectLookup]):
         existing = self.find_by_uuid(uuid)
         
         if existing:
+            # Ensure object is bound to current session
+            existing = self.db.session.merge(existing)
+            
             # Update name and description if they've changed
             if existing.name != name:
                 existing.name = name

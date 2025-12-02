@@ -243,6 +243,48 @@ class QAgentService(BaseService):
             self._update_request_field(request_id, 'error_log', error_msg)
             return self._generate_fallback_conversion(maria_sql)
 
+    def process_merge_summaries(self, session_id: int, changes_data: list) -> dict:
+        """
+        Process merge changes and generate AI summaries
+        
+        Args:
+            session_id: Merge session ID
+            changes_data: List of change dictionaries with version data
+            
+        Returns:
+            Dict mapping change_id to summary data
+            
+        Example:
+            >>> summaries = service.process_merge_summaries(1, changes_data)
+            >>> print(summaries[1]['summary'])
+            "Vendor added validation while customer modified layout..."
+        """
+        try:
+            # Prepare prompt with changes data
+            prompt = self._create_merge_summary_prompt(changes_data)
+            
+            # Execute Q agent
+            result = self._execute_q_agent("merge-summary-agent", prompt)
+            
+            # Parse JSON from output
+            json_output = self._extract_json_from_output(result)
+            
+            if json_output and 'summaries' in json_output:
+                # Convert list to dict keyed by change_id
+                summaries_dict = {}
+                for summary in json_output['summaries']:
+                    change_id = summary.get('change_id')
+                    if change_id:
+                        summaries_dict[change_id] = summary
+                return summaries_dict
+            else:
+                # Generate fallback summaries
+                return self._generate_fallback_summaries(changes_data)
+                
+        except Exception as e:
+            print(f"Merge summary generation failed: {e}")
+            return self._generate_fallback_summaries(changes_data)
+
     def _execute_q_agent(self, agent_name: str, prompt: str) -> subprocess.CompletedProcess:
         """
         Execute Q CLI agent with prompt
@@ -837,6 +879,144 @@ KEY EVALUATION-RELATED OBJECTS TO REFERENCE:
             
         except Exception as e:
             return f"ARTIFACTS PREP ERROR: {str(e)}\n"
+
+    def _create_merge_summary_prompt(self, changes_data: list) -> str:
+        """Create prompt for merge summary agent"""
+        
+        return f"""
+APPIAN THREE-WAY MERGE ANALYSIS
+
+You are analyzing changes in an Appian application three-way merge:
+- Package B (Customer): Customer's customized version
+- Package C (New Vendor): New vendor version
+
+Each change has been pre-classified based on comparison with the base version (Package A):
+- CONFLICT: Both customer and vendor modified the object (need to merge both changes)
+- NO_CONFLICT: Only vendor modified the object (customer kept base version)
+- NEW: Vendor added a new object
+- DELETED: Vendor removed an object that customer had
+
+Your task: Analyze the differences between customer and vendor versions, and generate actionable merge summaries.
+
+CHANGES TO ANALYZE:
+{json.dumps(changes_data, indent=2)}
+
+INSTRUCTIONS FOR EACH CLASSIFICATION:
+
+**CONFLICT Changes** (both modified):
+1. Compare customer_version vs new_vendor_version
+2. Identify specific conflicts (same lines changed differently)
+3. Determine if changes are compatible or incompatible
+4. Provide step-by-step merge recommendations
+5. Highlight any breaking changes or risks
+
+**NO_CONFLICT Changes** (only vendor modified):
+1. Analyze what the vendor changed in new_vendor_version
+2. Assess impact on customer's application
+3. Identify any dependencies or side effects
+4. Recommend acceptance with any necessary testing
+
+**NEW Changes** (vendor added):
+1. Analyze the new object in new_vendor_version
+2. Determine if it's required or optional
+3. Identify dependencies on other objects
+4. Recommend integration approach
+
+**DELETED Changes** (vendor removed):
+1. Analyze what customer has in customer_version
+2. Determine if customer is using this object
+3. Assess impact of removal
+4. Recommend whether to keep or remove
+
+FOCUS ON:
+- SAIL code differences (syntax, logic, structure)
+- Parameter changes (added, removed, modified)
+- Field and property changes
+- Dependency impacts
+- Breaking changes
+- Security implications
+
+OUTPUT FORMAT:
+Return ONLY valid JSON in this exact format:
+{{
+  "summaries": [
+    {{
+      "change_id": <int>,
+      "summary": "<concise 2-3 sentence summary explaining what changed and merge approach>",
+      "complexity": "LOW|MEDIUM|HIGH",
+      "risk_level": "LOW|MEDIUM|HIGH",
+      "estimated_effort_hours": <float>,
+      "key_conflicts": ["<specific conflict 1>", "<specific conflict 2>"],
+      "recommendations": ["<actionable recommendation 1>", "<actionable recommendation 2>"]
+    }}
+  ]
+}}
+
+IMPORTANT:
+- Be specific and actionable
+- Reference actual code changes (line numbers, variable names, etc.)
+- Prioritize merge safety and customer customizations
+- For CONFLICT changes, provide clear merge strategy
+- For NO_CONFLICT changes, explain what vendor changed and why it's safe
+"""
+
+    def _generate_fallback_summaries(self, changes_data: list) -> dict:
+        """Generate fallback summaries when Q agent fails"""
+        summaries = {}
+        
+        for change in changes_data:
+            change_id = change.get('change_id')
+            classification = change.get('classification', 'UNKNOWN')
+            object_name = change.get('object_name', 'Unknown Object')
+            
+            # Generate basic summary based on classification
+            if classification == 'CONFLICT':
+                summary_text = f"Both customer and vendor modified {object_name}. Manual merge required to combine changes."
+                complexity = "HIGH"
+                risk = "MEDIUM"
+                effort = 2.0
+                conflicts = ["Both versions modified", "Requires manual review"]
+                recommendations = ["Review both versions carefully", "Test thoroughly after merge"]
+            elif classification == 'NO_CONFLICT':
+                summary_text = f"Vendor modified {object_name}. Customer version unchanged. Accept vendor changes."
+                complexity = "LOW"
+                risk = "LOW"
+                effort = 0.5
+                conflicts = []
+                recommendations = ["Accept vendor changes", "Test integration"]
+            elif classification == 'NEW':
+                summary_text = f"Vendor added new object {object_name}. Review and integrate as needed."
+                complexity = "MEDIUM"
+                risk = "LOW"
+                effort = 1.0
+                conflicts = []
+                recommendations = ["Review new functionality", "Check dependencies"]
+            elif classification == 'DELETED':
+                summary_text = f"Vendor removed {object_name}. Verify if customer needs this object."
+                complexity = "MEDIUM"
+                risk = "MEDIUM"
+                effort = 1.5
+                conflicts = ["Object removed by vendor"]
+                recommendations = ["Check if customer uses this", "Consider keeping if needed"]
+            else:
+                summary_text = f"Change detected in {object_name}. Review required."
+                complexity = "MEDIUM"
+                risk = "MEDIUM"
+                effort = 1.0
+                conflicts = []
+                recommendations = ["Review change details"]
+            
+            summaries[change_id] = {
+                'change_id': change_id,
+                'summary': summary_text,
+                'complexity': complexity,
+                'risk_level': risk,
+                'estimated_effort_hours': effort,
+                'key_conflicts': conflicts,
+                'recommendations': recommendations
+            }
+        
+        return summaries
 
     def _clean_response(self, response: str) -> str:
         """Clean ANSI codes and unwanted characters from response"""
