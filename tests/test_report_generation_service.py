@@ -28,7 +28,7 @@ class TestReportGenerationService(BaseTestCase):
 
         # Create test session
         self.session = MergeSession(
-            reference_id='MS_REPORT01',
+            reference_id='MRG_003',
             status='ready',
             total_changes=3,
             reviewed_count=1,
@@ -113,14 +113,14 @@ class TestReportGenerationService(BaseTestCase):
         """Test generating an Excel report."""
         # Generate report
         report_path = self.service.generate_report(
-            'MS_REPORT01',
+            'MRG_003',
             format='xlsx'
         )
 
         # Verify report was created
         assert os.path.exists(report_path)
         assert report_path.endswith('.xlsx')
-        assert 'MS_REPORT01' in report_path
+        assert 'MRG_003' in report_path
 
         # Verify file is not empty
         assert os.path.getsize(report_path) > 0
@@ -128,7 +128,7 @@ class TestReportGenerationService(BaseTestCase):
     def test_invalid_format(self):
         """Test that invalid format raises ValueError."""
         with pytest.raises(ValueError) as exc_info:
-            self.service.generate_report('MS_REPORT01', format='docx')
+            self.service.generate_report('MRG_003', format='docx')
         assert 'Invalid format' in str(exc_info.value)
 
     def test_session_not_found(self):
@@ -141,7 +141,7 @@ class TestReportGenerationService(BaseTestCase):
         """Test that reports are cached for 1 hour."""
         # Generate report first time
         report_path1 = self.service.generate_report(
-            'MS_REPORT01',
+            'MRG_003',
             format='xlsx'
         )
 
@@ -150,7 +150,7 @@ class TestReportGenerationService(BaseTestCase):
 
         # Generate report second time (should use cache)
         report_path2 = self.service.generate_report(
-            'MS_REPORT01',
+            'MRG_003',
             format='xlsx'
         )
 
@@ -192,13 +192,13 @@ class TestReportGenerationService(BaseTestCase):
         """Test clearing cache for specific session."""
         # Generate report
         report_path = self.service.generate_report(
-            'MS_REPORT01',
+            'MRG_003',
             format='xlsx'
         )
         assert os.path.exists(report_path)
 
         # Clear cache for this session
-        self.service.clear_cache('MS_REPORT01')
+        self.service.clear_cache('MRG_003')
 
         # Verify report was deleted
         assert not os.path.exists(report_path)
@@ -207,7 +207,7 @@ class TestReportGenerationService(BaseTestCase):
         """Test clearing all cached reports."""
         # Generate report
         report_path = self.service.generate_report(
-            'MS_REPORT01',
+            'MRG_003',
             format='xlsx'
         )
         assert os.path.exists(report_path)

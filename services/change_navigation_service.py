@@ -29,7 +29,7 @@ class ChangeNavigationService(BaseService):
     
     Example:
         >>> service = ChangeNavigationService()
-        >>> detail = service.get_change_detail("MS_A1B2C3", 42)
+        >>> detail = service.get_change_detail("MRG_001", 42)
         >>> print(f"Change {detail['position']} - {detail['object']['name']}")
         >>> print(f"Progress: {detail['progress_percent']}%")
     """
@@ -61,7 +61,7 @@ class ChangeNavigationService(BaseService):
         - Object versions from all three packages
         
         Args:
-            reference_id: Session reference ID (e.g., MS_A1B2C3)
+            reference_id: Session reference ID (e.g., MRG_001)
             change_id: Change ID
             
         Returns:
@@ -71,7 +71,7 @@ class ChangeNavigationService(BaseService):
             ValueError: If session or change not found
             
         Example:
-            >>> detail = service.get_change_detail("MS_A1B2C3", 42)
+            >>> detail = service.get_change_detail("MRG_001", 42)
             >>> print(f"Object: {detail['object']['name']}")
             >>> print(f"Classification: {detail['change']['classification']}")
             >>> print(f"Position: {detail['position']}")
@@ -185,7 +185,7 @@ class ChangeNavigationService(BaseService):
             Next change ID or None if at end
             
         Example:
-            >>> next_id = service.get_next_change("MS_A1B2C3", 42)
+            >>> next_id = service.get_next_change("MRG_001", 42)
             >>> if next_id:
             ...     print(f"Next change: {next_id}")
             ... else:
@@ -240,7 +240,7 @@ class ChangeNavigationService(BaseService):
             Previous change ID or None if at beginning
             
         Example:
-            >>> prev_id = service.get_previous_change("MS_A1B2C3", 42)
+            >>> prev_id = service.get_previous_change("MRG_001", 42)
             >>> if prev_id:
             ...     print(f"Previous change: {prev_id}")
             ... else:
@@ -300,7 +300,7 @@ class ChangeNavigationService(BaseService):
             
         Example:
             >>> position, total = service.get_change_position(
-            ...     "MS_A1B2C3",
+            ...     "MRG_001",
             ...     42
             ... )
             >>> print(f"Change {position} of {total}")

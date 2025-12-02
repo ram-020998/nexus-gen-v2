@@ -1,0 +1,173 @@
+<!-- Process Model Comparison Component -->
+{% if comparison and comparison.object_type == 'Process Model' %}
+<div class="comparison-section">
+    <div class="comparison-header">
+        <h5><i class="fas fa-project-diagram"></i> Process Model Details</h5>
+    </div>
+    
+    <div class="comparison-body">
+        <!-- Tabs for Node Changes and Flow Changes -->
+        <ul class="nav nav-tabs comparison-tabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="nodes-tab" data-bs-toggle="tab" data-bs-target="#nodes-content" type="button" role="tab">
+                    <i class="fas fa-circle"></i> Node Changes
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="flows-tab" data-bs-toggle="tab" data-bs-target="#flows-content" type="button" role="tab">
+                    <i class="fas fa-arrow-right"></i> Flow Changes
+                </button>
+            </li>
+        </ul>
+        
+        <div class="tab-content comparison-tab-content">
+            <!-- Node Changes Tab -->
+            <div class="tab-pane fade show active" id="nodes-content" role="tabpanel">
+                <div class="comparison-grid">
+                    <!-- Vendor Nodes -->
+                    <div class="version-column vendor-column">
+                        <div class="version-header">
+                            <span class="badge bg-info">Vendor Nodes</span>
+                        </div>
+                        <div class="version-content">
+                            {% if comparison.vendor.nodes %}
+                            <table class="nodes-table">
+                                <thead>
+                                    <tr>
+                                        <th>Node Name</th>
+                                        <th>Type</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for node in comparison.vendor.nodes %}
+                                    <tr>
+                                        <td>{{ node.name }}</td>
+                                        <td><span class="badge bg-secondary">{{ node.type }}</span></td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                            {% else %}
+                            <p class="text-muted">No nodes</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <!-- Customer Nodes -->
+                    <div class="version-column customer-column">
+                        <div class="version-header">
+                            <span class="badge bg-success">Customer Nodes</span>
+                        </div>
+                        <div class="version-content">
+                            {% if comparison.customer.nodes %}
+                            <table class="nodes-table">
+                                <thead>
+                                    <tr>
+                                        <th>Node Name</th>
+                                        <th>Type</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for node in comparison.customer.nodes %}
+                                    {% set vendor_node = comparison.vendor.nodes | selectattr('node_id', 'equalto', node.node_id) | first %}
+                                    <tr class="{% if not vendor_node %}highlight-added{% elif vendor_node.name != node.name or vendor_node.type != node.type %}highlight-diff{% endif %}">
+                                        <td>{{ node.name }}</td>
+                                        <td><span class="badge bg-secondary">{{ node.type }}</span></td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                            {% else %}
+                            <p class="text-muted">No nodes</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Flow Changes Tab -->
+            <div class="tab-pane fade" id="flows-content" role="tabpanel">
+                <div class="flow-diagrams">
+                    <!-- Vendor Flow Diagram -->
+                    <div class="diagram-section">
+                        <div class="diagram-header">
+                            <span class="badge bg-info">Vendor Flow</span>
+                        </div>
+                        <div class="mermaid-container">
+                            {% if comparison.vendor.mermaid_diagram %}
+                            <pre class="mermaid">{{ comparison.vendor.mermaid_diagram }}</pre>
+                            {% else %}
+                            <p class="text-muted">No flow diagram available</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <!-- Customer Flow Diagram -->
+                    <div class="diagram-section">
+                        <div class="diagram-header">
+                            <span class="badge bg-success">Customer Flow</span>
+                        </div>
+                        <div class="mermaid-container">
+                            {% if comparison.customer.mermaid_diagram %}
+                            <pre class="mermaid">{{ comparison.customer.mermaid_diagram }}</pre>
+                            {% else %}
+                            <p class="text-muted">No flow diagram available</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Include Mermaid.js for diagram rendering -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+    mermaid.initialize({ 
+        startOnLoad: true,
+        theme: 'dark',
+        flowchart: {
+            nodeSpacing: 50,
+            rankSpacing: 80,
+            padding: 15,
+            useMaxWidth: true
+        },
+        themeVariables: {
+            primaryColor: '#8b5cf6',
+            primaryTextColor: '#fff',
+            primaryBorderColor: '#7c3aed',
+            lineColor: '#a78bfa',
+            secondaryColor: '#14b8a6',
+            tertiaryColor: '#f59e0b',
+            fontSize: '14px'
+        }
+    });
+    
+    // Re-render Mermaid diagrams when Flow Changes tab is shown
+    document.addEventListener('DOMContentLoaded', function() {
+        const flowsTab = document.getElementById('flows-tab');
+        if (flowsTab) {
+            flowsTab.addEventListener('shown.bs.tab', function() {
+                // Remove data-processed attribute to force re-render
+                document.querySelectorAll('.mermaid[data-processed="true"]').forEach(function(el) {
+                    el.removeAttribute('data-processed');
+                    const originalText = el.getAttribute('data-original-text');
+                    if (originalText) {
+                        el.textContent = originalText;
+                    }
+                });
+                // Re-initialize Mermaid
+                mermaid.run();
+            });
+        }
+        
+        // Store original Mermaid text before first render
+        document.querySelectorAll('.mermaid').forEach(function(el) {
+            if (!el.hasAttribute('data-original-text')) {
+                el.setAttribute('data-original-text', el.textContent);
+            }
+        });
+    });
+</script>
+{% endif %}

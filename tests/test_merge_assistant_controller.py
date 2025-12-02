@@ -113,7 +113,7 @@ class TestMergeAssistantController:
         # Create a mock session
         with self.app.app_context():
             session = MergeSession(
-                reference_id='MS_TEST01',
+                reference_id='MRG_001',
                 status='ready',
                 total_changes=0
             )

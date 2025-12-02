@@ -96,6 +96,10 @@ class ObjectLookupRepository(BaseRepository[ObjectLookup]):
             ... )
             >>> assert obj.id == obj2.id  # Same object!
         """
+        # Ensure name is never None (NOT NULL constraint)
+        if name is None or name == '':
+            name = 'Unknown'
+        
         # Try to find existing object (uses cache)
         existing = self.find_by_uuid(uuid)
         

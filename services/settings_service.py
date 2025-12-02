@@ -10,7 +10,18 @@ import logging
 from datetime import datetime
 from pathlib import Path
 from logging.handlers import RotatingFileHandler
-from models import db, Request
+from models import (
+    db, Request, ChatSession, MergeSession, Package, ObjectLookup,
+    PackageObjectMapping, DeltaComparisonResult, Change, ObjectVersion,
+    Interface, InterfaceParameter, InterfaceSecurity,
+    ExpressionRule, ExpressionRuleInput,
+    ProcessModel, ProcessModelNode, ProcessModelFlow, ProcessModelVariable,
+    RecordType, RecordTypeField, RecordTypeRelationship, RecordTypeView, RecordTypeAction,
+    CDT, CDTField, Integration, WebAPI, Site, Group, Constant, ConnectedSystem,
+    UnknownObject, DataStore, DataStoreEntity,
+    InterfaceComparison, ProcessModelComparison, RecordTypeComparison,
+    ExpressionRuleComparison, CDTComparison, ConstantComparison
+)
 
 
 def _get_settings_logger():
@@ -71,8 +82,13 @@ def _get_settings_logger():
 class SettingsService:
     """Service for managing application settings and database operations"""
 
-    def __init__(self):
-        """Initialize settings service with logger"""
+    def __init__(self, container=None):
+        """
+        Initialize settings service with logger.
+        
+        Args:
+            container: Dependency injection container (not used but required for DI)
+        """
         self.logger = _get_settings_logger()
 
     def cleanup_database(self) -> dict:
@@ -90,14 +106,65 @@ class SettingsService:
         start_time = datetime.now()
         self.logger.info("Starting database cleanup operation")
 
-        deleted_counts = {
-            'requests': 0,
-            'files': 0
-        }
+        deleted_counts = {}
 
         try:
-            # Delete all records from requests table
-            self.logger.debug("Deleting records from requests table")
+            # Delete in order respecting foreign key constraints
+            # Start with child tables, then parent tables
+            
+            # Comparison result tables (child of changes)
+            self.logger.debug("Deleting comparison result tables")
+            deleted_counts['interface_comparisons'] = InterfaceComparison.query.delete()
+            deleted_counts['process_model_comparisons'] = ProcessModelComparison.query.delete()
+            deleted_counts['record_type_comparisons'] = RecordTypeComparison.query.delete()
+            deleted_counts['expression_rule_comparisons'] = ExpressionRuleComparison.query.delete()
+            deleted_counts['cdt_comparisons'] = CDTComparison.query.delete()
+            deleted_counts['constant_comparisons'] = ConstantComparison.query.delete()
+            
+            # Object-specific child tables
+            self.logger.debug("Deleting object-specific child tables")
+            deleted_counts['interface_parameters'] = InterfaceParameter.query.delete()
+            deleted_counts['interface_security'] = InterfaceSecurity.query.delete()
+            deleted_counts['expression_rule_inputs'] = ExpressionRuleInput.query.delete()
+            deleted_counts['process_model_nodes'] = ProcessModelNode.query.delete()
+            deleted_counts['process_model_flows'] = ProcessModelFlow.query.delete()
+            deleted_counts['process_model_variables'] = ProcessModelVariable.query.delete()
+            deleted_counts['record_type_fields'] = RecordTypeField.query.delete()
+            deleted_counts['record_type_relationships'] = RecordTypeRelationship.query.delete()
+            deleted_counts['record_type_views'] = RecordTypeView.query.delete()
+            deleted_counts['record_type_actions'] = RecordTypeAction.query.delete()
+            deleted_counts['cdt_fields'] = CDTField.query.delete()
+            deleted_counts['data_store_entities'] = DataStoreEntity.query.delete()
+            
+            # Object-specific tables
+            self.logger.debug("Deleting object-specific tables")
+            deleted_counts['interfaces'] = Interface.query.delete()
+            deleted_counts['expression_rules'] = ExpressionRule.query.delete()
+            deleted_counts['process_models'] = ProcessModel.query.delete()
+            deleted_counts['record_types'] = RecordType.query.delete()
+            deleted_counts['cdts'] = CDT.query.delete()
+            deleted_counts['integrations'] = Integration.query.delete()
+            deleted_counts['web_apis'] = WebAPI.query.delete()
+            deleted_counts['sites'] = Site.query.delete()
+            deleted_counts['groups'] = Group.query.delete()
+            deleted_counts['constants'] = Constant.query.delete()
+            deleted_counts['connected_systems'] = ConnectedSystem.query.delete()
+            deleted_counts['unknown_objects'] = UnknownObject.query.delete()
+            deleted_counts['data_stores'] = DataStore.query.delete()
+            
+            # Three-way merge tables (child to parent order)
+            self.logger.debug("Deleting three-way merge tables")
+            deleted_counts['changes'] = Change.query.delete()
+            deleted_counts['delta_comparison_results'] = DeltaComparisonResult.query.delete()
+            deleted_counts['object_versions'] = ObjectVersion.query.delete()
+            deleted_counts['package_object_mappings'] = PackageObjectMapping.query.delete()
+            deleted_counts['object_lookup'] = ObjectLookup.query.delete()
+            deleted_counts['packages'] = Package.query.delete()
+            deleted_counts['merge_sessions'] = MergeSession.query.delete()
+            
+            # Application-wide tables
+            self.logger.debug("Deleting application-wide tables")
+            deleted_counts['chat_sessions'] = ChatSession.query.delete()
             deleted_counts['requests'] = Request.query.delete()
 
             # Commit database changes
@@ -109,7 +176,7 @@ class SettingsService:
             deleted_counts['files'] = self._delete_uploaded_files()
 
             # Calculate totals
-            total_records = deleted_counts['requests']
+            total_records = sum(v for k, v in deleted_counts.items() if k != 'files')
 
             elapsed = (datetime.now() - start_time).total_seconds()
 
@@ -143,7 +210,9 @@ class SettingsService:
             int: Number of files deleted
         """
         upload_dirs = [
-            'uploads'
+            'uploads',
+            'outputs/exports',
+            'outputs/backups'
         ]
 
         total_deleted = 0
@@ -420,7 +489,24 @@ class SettingsService:
             # Count restored records
             self.logger.debug("Counting restored records")
             restored_counts = {
-                'requests': Request.query.count()
+                'requests': Request.query.count(),
+                'chat_sessions': ChatSession.query.count(),
+                'merge_sessions': MergeSession.query.count(),
+                'packages': Package.query.count(),
+                'object_lookup': ObjectLookup.query.count(),
+                'changes': Change.query.count(),
+                'interfaces': Interface.query.count(),
+                'expression_rules': ExpressionRule.query.count(),
+                'process_models': ProcessModel.query.count(),
+                'record_types': RecordType.query.count(),
+                'cdts': CDT.query.count(),
+                'integrations': Integration.query.count(),
+                'web_apis': WebAPI.query.count(),
+                'sites': Site.query.count(),
+                'groups': Group.query.count(),
+                'constants': Constant.query.count(),
+                'connected_systems': ConnectedSystem.query.count(),
+                'data_stores': DataStore.query.count()
             }
 
             total_restored = sum(restored_counts.values())

@@ -50,6 +50,23 @@ class PackageExtractionService(BaseService):
         self.package_object_mapping_repo = self._get_repository(PackageObjectMappingRepository)
         self.parser_factory = XMLParserFactory()
     
+    def _ensure_not_none(self, value: Any, default: str = 'Unknown') -> str:
+        """
+        Ensure a value is not None or empty string.
+        
+        This prevents NOT NULL constraint violations in the database.
+        
+        Args:
+            value: Value to check
+            default: Default value if None or empty
+            
+        Returns:
+            Original value or default
+        """
+        if value is None or value == '':
+            return default
+        return value
+    
     def extract_package(
         self,
         session_id: int,
@@ -532,7 +549,7 @@ class PackageExtractionService(BaseService):
             object_id=object_id,
             package_id=package_id,
             uuid=data['uuid'],
-            name=data['name'],
+            name=self._ensure_not_none(data.get('name'), 'Unknown Interface'),
             version_uuid=data.get('version_uuid'),
             sail_code=data.get('sail_code'),
             description=data.get('description')
@@ -571,7 +588,7 @@ class PackageExtractionService(BaseService):
             object_id=object_id,
             package_id=package_id,
             uuid=data['uuid'],
-            name=data['name'],
+            name=self._ensure_not_none(data.get('name'), 'Unknown Expression Rule'),
             version_uuid=data.get('version_uuid'),
             sail_code=data.get('sail_code'),
             output_type=data.get('output_type'),
@@ -602,7 +619,7 @@ class PackageExtractionService(BaseService):
             object_id=object_id,
             package_id=package_id,
             uuid=data['uuid'],
-            name=data['name'],
+            name=self._ensure_not_none(data.get('name'), 'Unknown Process Model'),
             version_uuid=data.get('version_uuid'),
             description=data.get('description'),
             total_nodes=data.get('total_nodes', 0),
@@ -624,7 +641,10 @@ class PackageExtractionService(BaseService):
             )
             db.session.add(node_obj)
             db.session.flush()
+            # Map both node_id (UUID) and gui_id to database id for flow lookups
             node_map[node.get('node_id')] = node_obj.id
+            if node.get('gui_id'):
+                node_map[node.get('gui_id')] = node_obj.id
         
         # Store flows
         for flow in data.get('flows', []):
@@ -662,7 +682,7 @@ class PackageExtractionService(BaseService):
             object_id=object_id,
             package_id=package_id,
             uuid=data['uuid'],
-            name=data['name'],
+            name=self._ensure_not_none(data.get('name'), 'Unknown Record Type'),
             version_uuid=data.get('version_uuid'),
             description=data.get('description'),
             source_type=data.get('source_type')
@@ -722,7 +742,7 @@ class PackageExtractionService(BaseService):
             object_id=object_id,
             package_id=package_id,
             uuid=data['uuid'],
-            name=data['name'],
+            name=self._ensure_not_none(data.get('name'), 'Unknown CDT'),
             version_uuid=data.get('version_uuid'),
             namespace=data.get('namespace'),
             description=data.get('description')
@@ -752,7 +772,7 @@ class PackageExtractionService(BaseService):
             object_id=object_id,
             package_id=package_id,
             uuid=data['uuid'],
-            name=data['name'],
+            name=self._ensure_not_none(data.get('name'), 'Unknown Integration'),
             version_uuid=data.get('version_uuid'),
             sail_code=data.get('sail_code'),
             connection_info=data.get('connection_info'),
@@ -771,7 +791,7 @@ class PackageExtractionService(BaseService):
             object_id=object_id,
             package_id=package_id,
             uuid=data['uuid'],
-            name=data['name'],
+            name=self._ensure_not_none(data.get('name'), 'Unknown Web API'),
             version_uuid=data.get('version_uuid'),
             sail_code=data.get('sail_code'),
             endpoint=data.get('endpoint'),
@@ -789,7 +809,7 @@ class PackageExtractionService(BaseService):
             object_id=object_id,
             package_id=package_id,
             uuid=data['uuid'],
-            name=data['name'],
+            name=self._ensure_not_none(data.get('name'), 'Unknown Site'),
             version_uuid=data.get('version_uuid'),
             page_hierarchy=json.dumps(data.get('pages', [])),
             description=data.get('description')
@@ -805,7 +825,7 @@ class PackageExtractionService(BaseService):
             object_id=object_id,
             package_id=package_id,
             uuid=data['uuid'],
-            name=data['name'],
+            name=self._ensure_not_none(data.get('name'), 'Unknown Group'),
             version_uuid=data.get('version_uuid'),
             members=json.dumps(data.get('members', [])),
             parent_group_uuid=data.get('parent_group_uuid'),
@@ -822,10 +842,10 @@ class PackageExtractionService(BaseService):
             object_id=object_id,
             package_id=package_id,
             uuid=data['uuid'],
-            name=data['name'],
+            name=self._ensure_not_none(data.get('name'), 'Unknown Constant'),
             version_uuid=data.get('version_uuid'),
-            constant_value=data.get('constant_value'),
-            constant_type=data.get('constant_type'),
+            constant_value=data.get('value'),  # Parser returns 'value'
+            constant_type=data.get('value_type'),  # Parser returns 'value_type'
             scope=data.get('scope'),
             description=data.get('description')
         )
@@ -840,7 +860,7 @@ class PackageExtractionService(BaseService):
             object_id=object_id,
             package_id=package_id,
             uuid=data['uuid'],
-            name=data['name'],
+            name=self._ensure_not_none(data.get('name'), 'Unknown Connected System'),
             version_uuid=data.get('version_uuid'),
             system_type=data.get('system_type'),
             properties=data.get('properties'),  # Already JSON string from parser

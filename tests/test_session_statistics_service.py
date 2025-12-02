@@ -27,7 +27,7 @@ class TestSessionStatisticsService(BaseTestCase):
 
         # Create test session
         self.session = MergeSession(
-            reference_id='MS_STATS01',
+            reference_id='MRG_004',
             status='ready',
             total_changes=10,
             reviewed_count=3,
@@ -88,7 +88,7 @@ class TestSessionStatisticsService(BaseTestCase):
         """Test complexity calculation for low complexity session."""
         # Create a simple session with few changes and no conflicts
         simple_session = MergeSession(
-            reference_id='MS_SIMPLE',
+            reference_id='MRG_005',
             status='ready',
             total_changes=3
         )
@@ -129,7 +129,7 @@ class TestSessionStatisticsService(BaseTestCase):
         """Test complexity calculation for high complexity session."""
         # Create a complex session with many changes and conflicts
         complex_session = MergeSession(
-            reference_id='MS_COMPLEX',
+            reference_id='MRG_006',
             status='ready',
             total_changes=50
         )
@@ -189,7 +189,7 @@ class TestSessionStatisticsService(BaseTestCase):
     def test_estimate_review_time_zero_changes(self):
         """Test review time estimation for session with no changes."""
         empty_session = MergeSession(
-            reference_id='MS_EMPTY',
+            reference_id='MRG_007',
             status='ready',
             total_changes=0
         )
@@ -336,7 +336,7 @@ class TestSessionStatisticsService(BaseTestCase):
         ).first()
 
         action_service.mark_as_reviewed(
-            'MS_STATS01',
+            'MRG_004',
             pending_change.id
         )
 
@@ -349,7 +349,7 @@ class TestSessionStatisticsService(BaseTestCase):
     def test_progress_metrics_zero_changes(self):
         """Test progress metrics for session with no changes."""
         empty_session = MergeSession(
-            reference_id='MS_EMPTY2',
+            reference_id='MRG_008',
             status='ready',
             total_changes=0
         )
@@ -368,7 +368,7 @@ class TestSessionStatisticsService(BaseTestCase):
         """Test that process models increase complexity."""
         # Create session with mostly process models
         pm_session = MergeSession(
-            reference_id='MS_PM',
+            reference_id='MRG_009',
             status='ready',
             total_changes=10
         )
@@ -403,7 +403,7 @@ class TestSessionStatisticsService(BaseTestCase):
         """Test that process models increase review time."""
         # Create session with process models
         pm_session = MergeSession(
-            reference_id='MS_PM2',
+            reference_id='MRG_010',
             status='ready',
             total_changes=5
         )

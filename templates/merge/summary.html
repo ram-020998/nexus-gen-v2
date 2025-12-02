@@ -69,25 +69,17 @@
                 </p>
             </div>
             {% if session.status == 'ready' or session.status == 'in_progress' %}
-                {% set first_change = session.changes.filter_by(display_order=1).first() %}
-                {% if first_change %}
-                    <a href="{{ url_for('merge.get_change_detail', reference_id=session.reference_id, change_id=first_change.id) }}" 
-                       class="btn btn-light btn-lg">
-                        <i class="fas fa-play-circle"></i> {% if session.status == 'ready' %}Start Merge Workflow{% else %}Continue Review{% endif %}
-                    </a>
-                {% else %}
-                    <a href="{{ url_for('merge.workflow', reference_id=session.reference_id) }}" 
-                       class="btn btn-light btn-lg">
-                        <i class="fas fa-play-circle"></i> {% if session.status == 'ready' %}Start Merge Workflow{% else %}Continue Review{% endif %}
-                    </a>
-                {% endif %}
+                <a href="{{ url_for('merge.workflow', reference_id=session.reference_id) }}" 
+                   class="btn btn-light btn-lg">
+                    <i class="fas fa-play-circle"></i> {% if session.status == 'ready' %}Start Merge Workflow{% else %}Continue Review{% endif %}
+                </a>
             {% endif %}
         </div>
     </div>
 </div>
 
 <!-- What's in the Merge Workflow? -->
-<div class="row mb-4">
+<!-- <div class="row mb-4">
     <div class="col-12">
         <div class="info-panel">
             <h5 class="panel-title">
@@ -125,51 +117,51 @@
             </div>
         </div>
     </div>
-</div>
+</div> -->
 
 <!-- Statistics Overview -->
 <div class="row mb-4">
-    <div class="col-md-3">
-        <div class="stat-card">
-            <div class="stat-icon bg-primary">
+    <div class="col-md-3 col-sm-6 mb-3 mb-md-0">
+        <div class="stat-card-modern">
+            <div class="stat-icon-modern stat-primary">
                 <i class="fas fa-list"></i>
             </div>
-            <div class="stat-content">
-                <div class="stat-label">Total Changes</div>
-                <div class="stat-value">{{ statistics.total_changes }}</div>
+            <div class="stat-details">
+                <div class="stat-value-modern">{{ statistics.total_changes }}</div>
+                <div class="stat-label-modern">Total Changes</div>
             </div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="stat-card">
-            <div class="stat-icon bg-success">
+    <div class="col-md-3 col-sm-6 mb-3 mb-md-0">
+        <div class="stat-card-modern">
+            <div class="stat-icon-modern stat-success">
                 <i class="fas fa-check"></i>
             </div>
-            <div class="stat-content">
-                <div class="stat-label">No Conflicts</div>
-                <div class="stat-value">{{ statistics.by_classification.NO_CONFLICT or 0 }}</div>
+            <div class="stat-details">
+                <div class="stat-value-modern">{{ statistics.by_classification.NO_CONFLICT or 0 }}</div>
+                <div class="stat-label-modern">No Conflicts</div>
             </div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="stat-card">
-            <div class="stat-icon bg-danger">
+    <div class="col-md-3 col-sm-6 mb-3 mb-md-0">
+        <div class="stat-card-modern">
+            <div class="stat-icon-modern stat-danger">
                 <i class="fas fa-exclamation-triangle"></i>
             </div>
-            <div class="stat-content">
-                <div class="stat-label">Conflicts</div>
-                <div class="stat-value">{{ statistics.by_classification.CONFLICT or 0 }}</div>
+            <div class="stat-details">
+                <div class="stat-value-modern">{{ statistics.by_classification.CONFLICT or 0 }}</div>
+                <div class="stat-label-modern">Conflicts</div>
             </div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="stat-card">
-            <div class="stat-icon bg-info">
+    <div class="col-md-3 col-sm-6 mb-3 mb-md-0">
+        <div class="stat-card-modern">
+            <div class="stat-icon-modern stat-info">
                 <i class="fas fa-plus"></i>
             </div>
-            <div class="stat-content">
-                <div class="stat-label">New Objects</div>
-                <div class="stat-value">{{ statistics.by_classification.NEW or 0 }}</div>
+            <div class="stat-details">
+                <div class="stat-value-modern">{{ statistics.by_classification.NEW or 0 }}</div>
+                <div class="stat-label-modern">New Objects</div>
             </div>
         </div>
     </div>
@@ -177,27 +169,27 @@
 
 <!-- Complexity and Time Estimation -->
 <div class="row mb-4">
-    <div class="col-md-6">
-        <div class="stat-card">
-            <div class="stat-icon {% if session.estimated_complexity == 'Low' %}bg-success{% elif session.estimated_complexity == 'Medium' %}bg-warning{% else %}bg-danger{% endif %}">
+    <div class="col-md-6 mb-3 mb-md-0">
+        <div class="stat-card-modern">
+            <div class="stat-icon-modern {% if session.estimated_complexity == 'Low' %}stat-success{% elif session.estimated_complexity == 'Medium' %}stat-warning{% else %}stat-danger{% endif %}">
                 <i class="fas fa-chart-line"></i>
             </div>
-            <div class="stat-content">
-                <div class="stat-label">Estimated Complexity</div>
-                <div class="stat-value">{{ session.estimated_complexity or 'Calculating...' }}</div>
-                <small class="text-muted">Based on conflicts and object types</small>
+            <div class="stat-details">
+                <div class="stat-value-modern">{{ session.estimated_complexity or 'Calculating...' }}</div>
+                <div class="stat-label-modern">Estimated Complexity</div>
+                <small class="stat-hint">Based on conflicts and object types</small>
             </div>
         </div>
     </div>
     <div class="col-md-6">
-        <div class="stat-card">
-            <div class="stat-icon bg-purple">
+        <div class="stat-card-modern">
+            <div class="stat-icon-modern stat-primary">
                 <i class="fas fa-clock"></i>
             </div>
-            <div class="stat-content">
-                <div class="stat-label">Estimated Review Time</div>
-                <div class="stat-value">{{ session.estimated_time_hours or 0 }} hours</div>
-                <small class="text-muted">Approximate time to review all changes</small>
+            <div class="stat-details">
+                <div class="stat-value-modern">{{ session.estimated_time_hours or 0 }}h</div>
+                <div class="stat-label-modern">Estimated Review Time</div>
+                <small class="stat-hint">Approximate time to review all changes</small>
             </div>
         </div>
     </div>
@@ -251,33 +243,54 @@
 <!-- Breakdown by Object Type -->
 <div class="row">
     <div class="col-12">
-        <div class="info-panel">
-            <h5 class="panel-title">
-                <i class="fas fa-chart-bar"></i> Breakdown by Object Type
-            </h5>
-            <div class="object-type-breakdown">
+        <div class="breakdown-section">
+            <div class="breakdown-header-main">
+                <h5>
+                    <i class="fas fa-chart-bar"></i>
+                    Breakdown by Object Type
+                </h5>
+                <span class="breakdown-count">{{ statistics.by_object_type|length }} types</span>
+            </div>
+            
+            <div class="object-type-grid">
                 {% for object_type, count in statistics.by_object_type.items() %}
-                <div class="breakdown-item" data-object-type="{{ object_type }}">
-                    <div class="breakdown-header" onclick="toggleObjectTypeDetails(this, '{{ session.reference_id }}', '{{ object_type }}')">
-                        <div class="breakdown-info">
-                            <i class="fas fa-{{ get_object_icon(object_type) }} text-purple"></i>
-                            <span class="breakdown-name">{{ object_type }}</span>
-                        </div>
-                        <div class="breakdown-stats">
-                            <span class="badge bg-secondary">{{ count }}</span>
-                            <i class="fas fa-chevron-down chevron-icon"></i>
-                        </div>
+                <div class="object-type-card" data-object-type="{{ object_type }}" onclick="selectObjectType('{{ session.reference_id }}', '{{ object_type }}', this)">
+                    <div class="type-icon">
+                        <i class="fas fa-{{ get_object_icon(object_type) }}"></i>
                     </div>
-                    <div class="breakdown-details" style="display: none;">
-                        <div class="loading-indicator" style="display: none;">
-                            <i class="fas fa-spinner fa-spin"></i> Loading objects...
-                        </div>
-                        <div class="object-grid-container">
-                            <!-- Grid will be populated via AJAX -->
-                        </div>
+                    <div class="type-info">
+                        <h6 class="type-name">{{ object_type }}</h6>
+                        <span class="type-count">{{ count }} change{{ 's' if count != 1 else '' }}</span>
+                    </div>
+                    <div class="selected-indicator">
+                        <i class="fas fa-check-circle"></i>
                     </div>
                 </div>
                 {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Objects Grid (shown when a type is selected) -->
+<div class="row mt-4" id="objectsGridSection" style="display: none;">
+    <div class="col-12">
+        <div class="objects-grid-panel">
+            <div class="grid-header">
+                <h5 id="selectedTypeName">
+                    <i class="fas fa-cube"></i>
+                    <span></span>
+                </h5>
+                <button class="btn-close-grid" onclick="closeObjectsGrid()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="grid-loading" id="gridLoading">
+                <i class="fas fa-spinner fa-spin"></i>
+                <span>Loading objects...</span>
+            </div>
+            <div class="grid-content" id="gridContent">
+                <!-- Objects will be loaded here -->
             </div>
         </div>
     </div>
@@ -357,25 +370,28 @@
     color: var(--text-secondary);
 }
 
-.stat-card {
+/* Modern Stat Cards */
+.stat-card-modern {
     background: var(--bg-card);
     border-radius: 12px;
-    padding: 1.5rem;
-    border: 1px solid #374151;
+    padding: 1.25rem;
+    border: 1px solid var(--border-color);
     display: flex;
     align-items: center;
     gap: 1rem;
     transition: all 0.3s ease;
+    height: 100%;
 }
 
-.stat-card:hover {
+.stat-card-modern:hover {
     border-color: var(--purple);
-    transform: translateY(-2px);
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(139, 92, 246, 0.2);
 }
 
-.stat-icon {
-    width: 60px;
-    height: 60px;
+.stat-icon-modern {
+    width: 56px;
+    height: 56px;
     border-radius: 12px;
     display: flex;
     align-items: center;
@@ -385,20 +401,39 @@
     flex-shrink: 0;
 }
 
-.stat-content {
+.stat-primary {
+    background: linear-gradient(135deg, var(--purple), var(--pink));
+}
+
+.stat-success {
+    background: linear-gradient(135deg, #10b981, #059669);
+}
+
+.stat-danger {
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+}
+
+.stat-info {
+    background: linear-gradient(135deg, var(--teal), #0891b2);
+}
+
+.stat-details {
     flex: 1;
+    min-width: 0;
 }
 
-.stat-label {
-    font-size: 0.875rem;
-    color: var(--text-secondary);
-    margin-bottom: 0.25rem;
-}
-
-.stat-value {
+.stat-value-modern {
     font-size: 2rem;
     font-weight: 700;
     color: var(--text-primary);
+    line-height: 1;
+    margin-bottom: 0.375rem;
+}
+
+.stat-label-modern {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    font-weight: 500;
 }
 
 .info-panel {
@@ -429,52 +464,199 @@
     color: var(--text-primary);
 }
 
-.object-type-breakdown {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
+/* Breakdown Section */
+.breakdown-section {
+    background: var(--bg-card);
+    border-radius: 16px;
+    padding: 1.5rem;
+    border: 1px solid var(--border-color);
 }
 
-.breakdown-item {
-    border: 1px solid #374151;
-    border-radius: 8px;
-    overflow: hidden;
-}
-
-.breakdown-header {
-    padding: 1rem;
+.breakdown-header-main {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.breakdown-header-main h5 {
+    margin: 0;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1.125rem;
+}
+
+.breakdown-count {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    background: rgba(139, 92, 246, 0.1);
+    padding: 0.375rem 0.875rem;
+    border-radius: 20px;
+}
+
+.object-type-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+.object-type-card {
+    background: rgba(139, 92, 246, 0.03);
+    border: 2px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
     cursor: pointer;
-    transition: background 0.2s;
+    transition: all 0.3s ease;
+    position: relative;
 }
 
-.breakdown-header:hover {
-    background: rgba(139, 92, 246, 0.05);
+.object-type-card:hover {
+    border-color: var(--purple);
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(139, 92, 246, 0.2);
+    background: rgba(139, 92, 246, 0.08);
 }
 
-.breakdown-info {
+.object-type-card.selected {
+    border-color: var(--purple);
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(236, 72, 153, 0.15));
+    box-shadow: 0 8px 24px rgba(139, 92, 246, 0.3);
+}
+
+.type-icon {
+    width: 56px;
+    height: 56px;
+    background: linear-gradient(135deg, var(--purple), var(--pink));
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.5rem;
+    flex-shrink: 0;
+}
+
+.type-info {
+    text-align: center;
+    width: 100%;
+}
+
+.type-name {
+    margin: 0 0 0.375rem 0;
+    color: var(--text-primary);
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.type-count {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    display: block;
+}
+
+.selected-indicator {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    color: var(--purple);
+    font-size: 1.25rem;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.object-type-card.selected .selected-indicator {
+    opacity: 1;
+}
+
+/* Objects Grid Panel */
+.objects-grid-panel {
+    background: var(--bg-card);
+    border-radius: 16px;
+    padding: 1.5rem;
+    border: 1px solid var(--border-color);
+    animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.grid-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.grid-header h5 {
+    margin: 0;
+    color: var(--text-primary);
     display: flex;
     align-items: center;
     gap: 0.75rem;
+    font-size: 1.125rem;
 }
 
-.breakdown-name {
-    font-weight: 500;
-    color: var(--text-primary);
+.grid-header h5 i {
+    color: var(--purple);
 }
 
-.breakdown-stats {
+.btn-close-grid {
+    width: 36px;
+    height: 36px;
+    background: rgba(139, 92, 246, 0.1);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
     display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-close-grid:hover {
+    background: rgba(239, 68, 68, 0.1);
+    border-color: #ef4444;
+    color: #ef4444;
+}
+
+.grid-loading {
+    padding: 3rem;
+    text-align: center;
+    color: var(--text-secondary);
+    display: flex;
+    flex-direction: column;
     align-items: center;
     gap: 1rem;
 }
 
-.breakdown-details {
-    padding: 1rem;
-    background: rgba(139, 92, 246, 0.03);
-    border-top: 1px solid #374151;
+.grid-loading i {
+    font-size: 2rem;
+    color: var(--purple);
+}
+
+.grid-content {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 1rem;
 }
 
 .text-purple {
@@ -498,12 +680,15 @@
     color: var(--text-primary);
 }
 
-.bg-purple {
-    background-color: var(--purple) !important;
+.stat-warning {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
 }
 
-.bg-warning {
-    background-color: #f59e0b !important;
+.stat-hint {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin-top: 0.25rem;
 }
 
 .chevron-icon {
@@ -514,48 +699,141 @@
     transform: rotate(180deg);
 }
 
-.object-grid-container {
-    margin-top: 1rem;
+/* Object Cards in Grid */
+.object-card {
+    background: rgba(139, 92, 246, 0.03);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    display: flex;
+    flex-direction: column;
 }
 
-.object-grid {
-    width: 100%;
-    border-collapse: collapse;
+.object-card:hover {
+    border-color: var(--purple);
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(139, 92, 246, 0.2);
 }
 
-.object-grid th {
-    background: rgba(139, 92, 246, 0.1);
-    padding: 0.75rem;
-    text-align: left;
+.object-card-header {
+    padding: 1.25rem;
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.object-icon {
+    width: 48px;
+    height: 48px;
+    background: linear-gradient(135deg, var(--purple), var(--pink));
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.125rem;
+    flex-shrink: 0;
+}
+
+.object-title {
+    flex: 1;
+    min-width: 0;
+}
+
+.object-title h6 {
+    margin: 0 0 0.375rem 0;
+    color: var(--text-primary);
+    font-size: 1rem;
     font-weight: 600;
-    color: var(--text-primary);
-    border-bottom: 2px solid #374151;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
-.object-grid td {
-    padding: 0.75rem;
-    border-bottom: 1px solid #374151;
+.object-uuid {
+    font-family: 'Courier New', monospace;
+    font-size: 0.75rem;
     color: var(--text-secondary);
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
-.object-grid tr:hover {
-    background: rgba(139, 92, 246, 0.05);
+.object-card-body {
+    padding: 1.25rem;
+    flex: 1;
 }
 
-.object-grid .object-name {
-    color: var(--text-primary);
+.object-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.meta-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.meta-label {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
     font-weight: 500;
 }
 
-.object-grid .object-uuid {
-    font-family: monospace;
-    font-size: 0.875rem;
+.object-card-footer {
+    padding: 1.25rem;
+    border-top: 1px solid var(--border-color);
+    background: var(--bg-primary);
 }
 
-.loading-indicator {
-    padding: 1rem;
+.btn-view-object {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    background: linear-gradient(135deg, var(--purple), var(--pink));
+    color: white;
+    border-radius: 10px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    transition: all 0.2s ease;
+}
+
+.btn-view-object:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
+    color: white;
+}
+
+.empty-grid,
+.error-grid {
+    grid-column: 1 / -1;
+    padding: 3rem;
     text-align: center;
     color: var(--text-secondary);
+}
+
+.empty-grid i,
+.error-grid i {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    display: block;
+}
+
+.error-grid {
+    color: #ef4444;
+}
+
+.error-grid i {
+    color: #ef4444;
 }
 
 .classification-badge {
@@ -618,92 +896,112 @@ setTimeout(function() {
 }, 5000);
 {% endif %}
 
-// Toggle object type details
-function toggleObjectTypeDetails(headerElement, referenceId, objectType) {
-    const breakdownItem = headerElement.closest('.breakdown-item');
-    const detailsDiv = breakdownItem.querySelector('.breakdown-details');
-    const chevron = headerElement.querySelector('.chevron-icon');
-    const loadingIndicator = detailsDiv.querySelector('.loading-indicator');
-    const gridContainer = detailsDiv.querySelector('.object-grid-container');
+// Select object type and show grid
+function selectObjectType(referenceId, objectType, cardElement) {
+    // Remove selected class from all cards
+    document.querySelectorAll('.object-type-card').forEach(card => {
+        card.classList.remove('selected');
+    });
     
-    // Toggle visibility
-    if (detailsDiv.style.display === 'none') {
-        detailsDiv.style.display = 'block';
-        chevron.classList.add('rotated');
-        
-        // Load data if not already loaded
-        if (!gridContainer.hasAttribute('data-loaded')) {
-            loadingIndicator.style.display = 'block';
+    // Add selected class to clicked card
+    cardElement.classList.add('selected');
+    
+    // Show the grid section
+    const gridSection = document.getElementById('objectsGridSection');
+    const gridLoading = document.getElementById('gridLoading');
+    const gridContent = document.getElementById('gridContent');
+    const selectedTypeName = document.getElementById('selectedTypeName').querySelector('span');
+    
+    gridSection.style.display = 'block';
+    gridLoading.style.display = 'flex';
+    gridContent.innerHTML = '';
+    selectedTypeName.textContent = objectType;
+    
+    // Scroll to grid
+    setTimeout(() => {
+        gridSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 100);
+    
+    // Fetch object details via AJAX
+    fetch(`/merge/${referenceId}/objects/${encodeURIComponent(objectType)}`)
+        .then(response => response.json())
+        .then(data => {
+            gridLoading.style.display = 'none';
             
-            // Fetch object details via AJAX
-            fetch(`/merge/${referenceId}/objects/${encodeURIComponent(objectType)}`)
-                .then(response => response.json())
-                .then(data => {
-                    loadingIndicator.style.display = 'none';
-                    
-                    if (data.success && data.data.objects.length > 0) {
-                        // Build grid HTML
-                        let gridHtml = `
-                            <table class="object-grid">
-                                <thead>
-                                    <tr>
-                                        <th>Object Name</th>
-                                        <th>UUID</th>
-                                        <th>Classification</th>
-                                        <th>Complexity</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                        `;
-                        
-                        data.data.objects.forEach(obj => {
-                            gridHtml += `
-                                <tr>
-                                    <td class="object-name">${escapeHtml(obj.object_name)}</td>
-                                    <td class="object-uuid">${escapeHtml(obj.object_uuid)}</td>
-                                    <td>
+            if (data.success && data.data.objects.length > 0) {
+                // Build object cards
+                let objectsHtml = '';
+                
+                data.data.objects.forEach(obj => {
+                    objectsHtml += `
+                        <div class="object-card">
+                            <div class="object-card-header">
+                                <div class="object-icon">
+                                    <i class="fas fa-cube"></i>
+                                </div>
+                                <div class="object-title">
+                                    <h6>${escapeHtml(obj.object_name)}</h6>
+                                    <span class="object-uuid">${escapeHtml(obj.object_uuid)}</span>
+                                </div>
+                            </div>
+                            <div class="object-card-body">
+                                <div class="object-meta">
+                                    <div class="meta-item">
+                                        <span class="meta-label">Classification</span>
                                         <span class="classification-badge classification-${obj.classification}">
                                             ${obj.classification}
                                         </span>
-                                    </td>
-                                    <td>
+                                    </div>
+                                    <div class="meta-item">
+                                        <span class="meta-label">Complexity</span>
                                         <span class="complexity-badge complexity-${obj.complexity}">
                                             ${obj.complexity}
                                         </span>
-                                    </td>
-                                    <td>
-                                        <a href="/merge/${referenceId}/changes/${obj.change_id}" 
-                                           class="btn btn-sm btn-outline-primary">
-                                            <i class="fas fa-eye"></i> View
-                                        </a>
-                                    </td>
-                                </tr>
-                            `;
-                        });
-                        
-                        gridHtml += `
-                                </tbody>
-                            </table>
-                        `;
-                        
-                        gridContainer.innerHTML = gridHtml;
-                        gridContainer.setAttribute('data-loaded', 'true');
-                    } else {
-                        gridContainer.innerHTML = '<p class="text-muted">No objects found.</p>';
-                        gridContainer.setAttribute('data-loaded', 'true');
-                    }
-                })
-                .catch(error => {
-                    loadingIndicator.style.display = 'none';
-                    gridContainer.innerHTML = '<p class="text-danger">Error loading objects. Please try again.</p>';
-                    console.error('Error fetching object details:', error);
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="object-card-footer">
+                                <a href="/merge/${referenceId}/changes/${obj.change_id}" 
+                                   class="btn-view-object">
+                                    <i class="fas fa-eye"></i>
+                                    View Details
+                                </a>
+                            </div>
+                        </div>
+                    `;
                 });
-        }
-    } else {
-        detailsDiv.style.display = 'none';
-        chevron.classList.remove('rotated');
-    }
+                
+                gridContent.innerHTML = objectsHtml;
+            } else {
+                gridContent.innerHTML = `
+                    <div class="empty-grid">
+                        <i class="fas fa-inbox"></i>
+                        <p>No objects found</p>
+                    </div>
+                `;
+            }
+        })
+        .catch(error => {
+            gridLoading.style.display = 'none';
+            gridContent.innerHTML = `
+                <div class="error-grid">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <p>Error loading objects. Please try again.</p>
+                </div>
+            `;
+            console.error('Error fetching object details:', error);
+        });
+}
+
+// Close objects grid
+function closeObjectsGrid() {
+    const gridSection = document.getElementById('objectsGridSection');
+    gridSection.style.display = 'none';
+    
+    // Remove selected class from all cards
+    document.querySelectorAll('.object-type-card').forEach(card => {
+        card.classList.remove('selected');
+    });
 }
 
 // Helper function to escape HTML

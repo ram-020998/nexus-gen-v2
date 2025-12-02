@@ -14,7 +14,9 @@ from models import (
     RecordTypeView, RecordTypeAction,
     CDT, CDTField,
     Integration, WebAPI, Site, Group, Constant, ConnectedSystem,
-    UnknownObject
+    UnknownObject, DataStore, DataStoreEntity,
+    InterfaceComparison, ProcessModelComparison, RecordTypeComparison,
+    ExpressionRuleComparison, CDTComparison, ConstantComparison
 )
 from sqlalchemy import inspect
 
@@ -51,7 +53,15 @@ TABLE_MODELS = {
     'groups': Group,
     'constants': Constant,
     'connected_systems': ConnectedSystem,
-    'unknown_objects': UnknownObject
+    'unknown_objects': UnknownObject,
+    'data_stores': DataStore,
+    'data_store_entities': DataStoreEntity,
+    'interface_comparisons': InterfaceComparison,
+    'process_model_comparisons': ProcessModelComparison,
+    'record_type_comparisons': RecordTypeComparison,
+    'expression_rule_comparisons': ExpressionRuleComparison,
+    'cdt_comparisons': CDTComparison,
+    'constant_comparisons': ConstantComparison
 }
 
 OBJECT_TYPE_TABLES = {
@@ -77,6 +87,7 @@ OBJECT_TYPE_TABLES = {
     'Group': ['groups'],
     'Constant': ['constants'],
     'Connected System': ['connected_systems'],
+    'Data Store': ['data_stores', 'data_store_entities'],
     'Unknown': ['unknown_objects']
 }
 
@@ -234,6 +245,26 @@ def collect_table_data(session_id, package_ids, object_ids,
                     table_name, object_ids, package_ids
                 )
 
+    # Comparison result tables
+    tables_data['interface_comparisons'] = collect_comparison_data(
+        InterfaceComparison, session_id, object_ids
+    )
+    tables_data['process_model_comparisons'] = collect_comparison_data(
+        ProcessModelComparison, session_id, object_ids
+    )
+    tables_data['record_type_comparisons'] = collect_comparison_data(
+        RecordTypeComparison, session_id, object_ids
+    )
+    tables_data['expression_rule_comparisons'] = collect_comparison_data(
+        ExpressionRuleComparison, session_id, object_ids
+    )
+    tables_data['cdt_comparisons'] = collect_comparison_data(
+        CDTComparison, session_id, object_ids
+    )
+    tables_data['constant_comparisons'] = collect_comparison_data(
+        ConstantComparison, session_id, object_ids
+    )
+
     return tables_data
 
 
@@ -315,7 +346,8 @@ def collect_object_specific_data(table_name, object_ids, package_ids):
         'record_type_relationships': ('record_type_id', RecordType),
         'record_type_views': ('record_type_id', RecordType),
         'record_type_actions': ('record_type_id', RecordType),
-        'cdt_fields': ('cdt_id', CDT)
+        'cdt_fields': ('cdt_id', CDT),
+        'data_store_entities': ('data_store_id', DataStore)
     }
 
     if table_name in child_tables:
@@ -387,4 +419,34 @@ def collect_object_specific_data(table_name, object_ids, package_ids):
                 model.object_id.in_(object_ids)
             ).all()
 
+    return [model_to_dict(r) for r in records]
+
+
+def collect_comparison_data(model_class, session_id, object_ids):
+    """Collect comparison result data for a specific model"""
+    if not object_ids:
+        return []
+    
+    # Check if this is a change-based comparison (has change_id FK)
+    if hasattr(model_class, 'change_id'):
+        # Get change IDs for the filtered objects
+        changes = Change.query.filter(
+            Change.session_id == session_id,
+            Change.object_id.in_(object_ids)
+        ).all()
+        change_ids = [c.id for c in changes]
+        
+        if not change_ids:
+            return []
+        
+        records = model_class.query.filter(
+            model_class.change_id.in_(change_ids)
+        ).all()
+    else:
+        # Session-based comparison (has session_id and object_id)
+        records = model_class.query.filter(
+            model_class.session_id == session_id,
+            model_class.object_id.in_(object_ids)
+        ).all()
+    
     return [model_to_dict(r) for r in records]

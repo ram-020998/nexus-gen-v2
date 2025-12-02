@@ -14,7 +14,7 @@ from werkzeug.utils import secure_filename
 
 from controllers.base_controller import BaseController
 from services.three_way_merge_orchestrator import ThreeWayMergeOrchestrator
-from models import db, MergeSession, Change
+from models import db, MergeSession, Change, Package
 from core.exceptions import ThreeWayMergeException
 from core.logger import get_merge_logger, LoggerConfig
 
@@ -44,7 +44,7 @@ def create_merge_session():
             "success": true,
             "message": "Merge session created successfully",
             "data": {
-                "reference_id": "MS_A1B2C3",
+                "reference_id": "MRG_001",
                 "status": "ready",
                 "total_changes": 42,
                 "session_id": 1
@@ -242,7 +242,7 @@ def get_merge_summary(reference_id):
     broken down by classification and object type.
     
     Args:
-        reference_id: Session reference ID (e.g., MS_A1B2C3)
+        reference_id: Session reference ID (e.g., MRG_001)
         
     Returns:
         JSON response with summary information:
@@ -250,7 +250,7 @@ def get_merge_summary(reference_id):
             "success": true,
             "data": {
                 "session": {
-                    "reference_id": "MS_A1B2C3",
+                    "reference_id": "MRG_001",
                     "status": "ready",
                     "total_changes": 42,
                     "created_at": "2024-01-15T10:30:00"
@@ -286,7 +286,7 @@ def get_merge_summary(reference_id):
         
     Example:
         >>> response = requests.get(
-        ...     'http://localhost:5002/merge/api/MS_A1B2C3/summary'
+        ...     'http://localhost:5002/merge/api/MRG_001/summary'
         ... )
         >>> summary = response.json()['data']
         >>> print(f"Status: {summary['session']['status']}")
@@ -327,7 +327,7 @@ def get_working_set(reference_id):
     classification. Changes are ordered by display_order.
     
     Args:
-        reference_id: Session reference ID (e.g., MS_A1B2C3)
+        reference_id: Session reference ID (e.g., MRG_001)
         
     Query Parameters:
         classification: Optional comma-separated list of classifications
@@ -368,12 +368,12 @@ def get_working_set(reference_id):
     Example:
         >>> # Get all changes
         >>> response = requests.get(
-        ...     'http://localhost:5002/merge/MS_A1B2C3/changes'
+        ...     'http://localhost:5002/merge/MRG_001/changes'
         ... )
         
         >>> # Get only conflicts
         >>> response = requests.get(
-        ...     'http://localhost:5002/merge/MS_A1B2C3/changes',
+        ...     'http://localhost:5002/merge/MRG_001/changes',
         ...     params={'classification': 'CONFLICT'}
         ... )
     """
@@ -435,9 +435,10 @@ def get_change_detail(reference_id, change_id):
     
     Uses ChangeNavigationService to get comprehensive change details
     including navigation, position, progress, and object versions.
+    Also retrieves detailed comparison data for the object.
     
     Args:
-        reference_id: Session reference ID (e.g., MS_A1B2C3)
+        reference_id: Session reference ID (e.g., MRG_001)
         change_id: Change ID
         
     Returns:
@@ -449,10 +450,11 @@ def get_change_detail(reference_id, change_id):
         500: Server error
         
     Example:
-        Navigate to: http://localhost:5002/merge/MS_A1B2C3/changes/1
+        Navigate to: http://localhost:5002/merge/MRG_001/changes/1
     """
     from flask import render_template
     from services.change_navigation_service import ChangeNavigationService
+    from services.comparison_retrieval_service import ComparisonRetrievalService
     
     try:
         # Get navigation service
@@ -468,6 +470,35 @@ def get_change_detail(reference_id, change_id):
                 message=str(e),
                 back_url=f'/merge/{reference_id}/workflow'
             ), 404
+        
+        # Get comparison retrieval service
+        comparison_service = controller.get_service(ComparisonRetrievalService)
+        
+        # Get package IDs for this session
+        session_dict = detail['session']
+        packages = db.session.query(Package).filter_by(
+            session_id=session_dict['id']
+        ).all()
+        
+        package_map = {p.package_type: p.id for p in packages}
+        base_package_id = package_map.get('base')
+        customer_package_id = package_map.get('customized')
+        new_vendor_package_id = package_map.get('new_vendor')
+        
+        # Get the actual Change object for comparison service
+        change = db.session.query(Change).filter_by(
+            id=detail['change']['id']
+        ).first()
+        
+        # Get detailed comparison data
+        comparison_details = None
+        if change and base_package_id and customer_package_id and new_vendor_package_id:
+            comparison_details = comparison_service.get_comparison_details(
+                change,
+                base_package_id,
+                customer_package_id,
+                new_vendor_package_id
+            )
         
         # Helper function for object icons
         def get_object_icon(object_type):
@@ -490,6 +521,7 @@ def get_change_detail(reference_id, change_id):
         return render_template(
             'merge/change_detail.html',
             detail=detail,
+            comparison=comparison_details,
             get_object_icon=get_object_icon
         )
         
@@ -514,7 +546,7 @@ def mark_change_reviewed(reference_id, change_id):
     reviewed_count.
     
     Args:
-        reference_id: Session reference ID (e.g., MS_A1B2C3)
+        reference_id: Session reference ID (e.g., MRG_001)
         change_id: Change ID
         
     Returns:
@@ -527,7 +559,7 @@ def mark_change_reviewed(reference_id, change_id):
         
     Example:
         >>> response = requests.post(
-        ...     'http://localhost:5002/merge/MS_A1B2C3/changes/1/review'
+        ...     'http://localhost:5002/merge/MRG_001/changes/1/review'
         ... )
     """
     from services.change_action_service import ChangeActionService
@@ -582,7 +614,7 @@ def skip_change_route(reference_id, change_id):
     and increment the session's skipped_count.
     
     Args:
-        reference_id: Session reference ID (e.g., MS_A1B2C3)
+        reference_id: Session reference ID (e.g., MRG_001)
         change_id: Change ID
         
     Returns:
@@ -595,7 +627,7 @@ def skip_change_route(reference_id, change_id):
         
     Example:
         >>> response = requests.post(
-        ...     'http://localhost:5002/merge/MS_A1B2C3/changes/1/skip'
+        ...     'http://localhost:5002/merge/MRG_001/changes/1/skip'
         ... )
     """
     from services.change_action_service import ChangeActionService
@@ -641,7 +673,7 @@ def save_change_notes(reference_id, change_id):
     Uses ChangeActionService to update the change's notes field.
     
     Args:
-        reference_id: Session reference ID (e.g., MS_A1B2C3)
+        reference_id: Session reference ID (e.g., MRG_001)
         change_id: Change ID
         
     Request Body:
@@ -658,7 +690,7 @@ def save_change_notes(reference_id, change_id):
         
     Example:
         >>> response = requests.post(
-        ...     'http://localhost:5002/merge/MS_A1B2C3/changes/1/notes',
+        ...     'http://localhost:5002/merge/MRG_001/changes/1/notes',
         ...     json={'notes': 'This requires manual merge'}
         ... )
     """
@@ -727,7 +759,7 @@ def undo_change_action(reference_id, change_id):
     session counter.
     
     Args:
-        reference_id: Session reference ID (e.g., MS_A1B2C3)
+        reference_id: Session reference ID (e.g., MRG_001)
         change_id: Change ID
         
     Returns:
@@ -740,7 +772,7 @@ def undo_change_action(reference_id, change_id):
         
     Example:
         >>> response = requests.post(
-        ...     'http://localhost:5002/merge/MS_A1B2C3/changes/1/undo'
+        ...     'http://localhost:5002/merge/MRG_001/changes/1/undo'
         ... )
     """
     from services.change_action_service import ChangeActionService
@@ -784,7 +816,7 @@ def generate_report(reference_id):
     containing session information, statistics, and change details.
     
     Args:
-        reference_id: Session reference ID (e.g., MS_A1B2C3)
+        reference_id: Session reference ID (e.g., MRG_001)
         
     Query Parameters:
         format: Report format ('xlsx', default: 'xlsx')
@@ -800,7 +832,7 @@ def generate_report(reference_id):
         
     Example:
         >>> response = requests.post(
-        ...     'http://localhost:5002/merge/MS_A1B2C3/report',
+        ...     'http://localhost:5002/merge/MRG_001/report',
         ...     params={'format': 'xlsx'}
         ... )
     """
@@ -861,7 +893,7 @@ def get_objects_by_type(reference_id, object_type):
     in the merge session, including their classification and complexity.
     
     Args:
-        reference_id: Session reference ID (e.g., MS_A1B2C3)
+        reference_id: Session reference ID (e.g., MRG_001)
         object_type: Object type to filter by (e.g., 'Interface')
         
     Returns:
@@ -893,7 +925,7 @@ def get_objects_by_type(reference_id, object_type):
         
     Example:
         >>> response = requests.get(
-        ...     'http://localhost:5002/merge/MS_A1B2C3/objects/Interface'
+        ...     'http://localhost:5002/merge/MRG_001/objects/Interface'
         ... )
     """
     from sqlalchemy.orm import joinedload

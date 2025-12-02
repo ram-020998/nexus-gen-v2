@@ -28,7 +28,7 @@ class TestChangeNavigationService(BaseTestCase):
         
         # Create test session
         self.session = MergeSession(
-            reference_id='MS_TEST01',
+            reference_id='MRG_001',
             status='ready',
             total_changes=3
         )
@@ -131,7 +131,7 @@ class TestChangeNavigationService(BaseTestCase):
     def test_get_change_detail_returns_complete_information(self):
         """Test that get_change_detail returns all required information."""
         detail = self.service.get_change_detail(
-            'MS_TEST01',
+            'MRG_001',
             self.change1.id
         )
         
@@ -147,7 +147,7 @@ class TestChangeNavigationService(BaseTestCase):
         assert detail['object']['object_type'] == 'Interface'
         
         # Verify session information
-        assert detail['session']['reference_id'] == 'MS_TEST01'
+        assert detail['session']['reference_id'] == 'MRG_001'
         assert detail['session']['status'] == 'ready'
         assert detail['session']['total_changes'] == 3
         
@@ -173,13 +173,13 @@ class TestChangeNavigationService(BaseTestCase):
     def test_get_next_change_returns_correct_id(self):
         """Test that get_next_change returns the next change ID."""
         next_id = self.service.get_next_change(
-            'MS_TEST01',
+            'MRG_001',
             self.change1.id
         )
         assert next_id == self.change2.id
         
         next_id = self.service.get_next_change(
-            'MS_TEST01',
+            'MRG_001',
             self.change2.id
         )
         assert next_id == self.change3.id
@@ -187,7 +187,7 @@ class TestChangeNavigationService(BaseTestCase):
     def test_get_next_change_returns_none_at_end(self):
         """Test that get_next_change returns None for last change."""
         next_id = self.service.get_next_change(
-            'MS_TEST01',
+            'MRG_001',
             self.change3.id
         )
         assert next_id is None
@@ -195,13 +195,13 @@ class TestChangeNavigationService(BaseTestCase):
     def test_get_previous_change_returns_correct_id(self):
         """Test that get_previous_change returns the previous change ID."""
         prev_id = self.service.get_previous_change(
-            'MS_TEST01',
+            'MRG_001',
             self.change3.id
         )
         assert prev_id == self.change2.id
         
         prev_id = self.service.get_previous_change(
-            'MS_TEST01',
+            'MRG_001',
             self.change2.id
         )
         assert prev_id == self.change1.id
@@ -209,7 +209,7 @@ class TestChangeNavigationService(BaseTestCase):
     def test_get_previous_change_returns_none_at_beginning(self):
         """Test that get_previous_change returns None for first change."""
         prev_id = self.service.get_previous_change(
-            'MS_TEST01',
+            'MRG_001',
             self.change1.id
         )
         assert prev_id is None
@@ -217,21 +217,21 @@ class TestChangeNavigationService(BaseTestCase):
     def test_get_change_position_returns_correct_position(self):
         """Test that get_change_position returns correct position."""
         position, total = self.service.get_change_position(
-            'MS_TEST01',
+            'MRG_001',
             self.change1.id
         )
         assert position == 1
         assert total == 3
         
         position, total = self.service.get_change_position(
-            'MS_TEST01',
+            'MRG_001',
             self.change2.id
         )
         assert position == 2
         assert total == 3
         
         position, total = self.service.get_change_position(
-            'MS_TEST01',
+            'MRG_001',
             self.change3.id
         )
         assert position == 3
@@ -265,12 +265,12 @@ class TestChangeNavigationService(BaseTestCase):
     def test_get_change_detail_raises_error_for_invalid_change(self):
         """Test that get_change_detail raises error for invalid change."""
         with pytest.raises(ValueError, match="Change .* not found"):
-            self.service.get_change_detail('MS_TEST01', 99999)
+            self.service.get_change_detail('MRG_001', 99999)
     
     def test_navigation_with_middle_change(self):
         """Test navigation from middle change has both next and previous."""
         detail = self.service.get_change_detail(
-            'MS_TEST01',
+            'MRG_001',
             self.change2.id
         )
         

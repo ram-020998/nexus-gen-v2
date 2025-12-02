@@ -30,7 +30,7 @@ class ChangeActionService(BaseService):
 
     Example:
         >>> service = ChangeActionService()
-        >>> change = service.mark_as_reviewed("MS_A1B2C3", 42, "user123")
+        >>> change = service.mark_as_reviewed("MRG_001", 42, "user123")
         >>> print(f"Change {change.id} marked as reviewed")
     """
 
@@ -69,7 +69,7 @@ class ChangeActionService(BaseService):
         session's reviewed_count.
 
         Args:
-            reference_id: Session reference ID (e.g., MS_A1B2C3)
+            reference_id: Session reference ID (e.g., MRG_001)
             change_id: Change ID
             user_id: Optional user ID who reviewed the change
 
@@ -80,7 +80,7 @@ class ChangeActionService(BaseService):
             ValueError: If session or change not found
 
         Example:
-            >>> change = service.mark_as_reviewed("MS_A1B2C3", 42, "user123")
+            >>> change = service.mark_as_reviewed("MRG_001", 42, "user123")
             >>> assert change.status == 'reviewed'
             >>> assert change.reviewed_at is not None
         """
@@ -140,7 +140,7 @@ class ChangeActionService(BaseService):
         session's skipped_count.
 
         Args:
-            reference_id: Session reference ID (e.g., MS_A1B2C3)
+            reference_id: Session reference ID (e.g., MRG_001)
             change_id: Change ID
 
         Returns:
@@ -150,7 +150,7 @@ class ChangeActionService(BaseService):
             ValueError: If session or change not found
 
         Example:
-            >>> change = service.skip_change("MS_A1B2C3", 42)
+            >>> change = service.skip_change("MRG_001", 42)
             >>> assert change.status == 'skipped'
         """
         # Find session
@@ -206,7 +206,7 @@ class ChangeActionService(BaseService):
         Updates the change's notes field with the provided text.
 
         Args:
-            reference_id: Session reference ID (e.g., MS_A1B2C3)
+            reference_id: Session reference ID (e.g., MRG_001)
             change_id: Change ID
             notes: Notes text to save
 
@@ -218,7 +218,7 @@ class ChangeActionService(BaseService):
 
         Example:
             >>> change = service.save_notes(
-            ...     "MS_A1B2C3",
+            ...     "MRG_001",
             ...     42,
             ...     "This change requires manual merge"
             ... )
@@ -270,7 +270,7 @@ class ChangeActionService(BaseService):
         and decrements the appropriate session counter.
 
         Args:
-            reference_id: Session reference ID (e.g., MS_A1B2C3)
+            reference_id: Session reference ID (e.g., MRG_001)
             change_id: Change ID
 
         Returns:
@@ -280,7 +280,7 @@ class ChangeActionService(BaseService):
             ValueError: If session or change not found
 
         Example:
-            >>> change = service.undo_action("MS_A1B2C3", 42)
+            >>> change = service.undo_action("MRG_001", 42)
             >>> assert change.status == 'pending'
             >>> assert change.reviewed_at is None
         """

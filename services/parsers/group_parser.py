@@ -51,50 +51,57 @@ class GroupParser(BaseParser):
         }
 
         # Extract parent group
-        data['parent_group_uuid'] = self._get_text(group_elem, 'parentGroupUuid')
+        data['parent_group_uuid'] = self._get_text(
+            group_elem, 'parentGroupUuid'
+        )
 
         # Extract group type
         data['group_type'] = self._get_text(group_elem, 'groupType')
 
-        # Extract members
-        data['members'] = self._extract_members(group_elem)
+        # Extract members (from root, not group_elem)
+        data['members'] = self._extract_members(root)
 
         return data
 
-    def _extract_members(self, group_elem: ET.Element) -> List[Dict[str, Any]]:
+    def _extract_members(self, root: ET.Element) -> List[Dict[str, Any]]:
         """
-        Extract group members from group element.
+        Extract group members from root element.
 
         Args:
-            group_elem: Group XML element
+            root: Root XML element (groupHaul)
 
         Returns:
             List of member dictionaries with user/group UUIDs
         """
         members = []
 
-        members_elem = group_elem.find('members')
+        # Members is at root level, not inside group element
+        members_elem = root.find('.//members')
         if members_elem is None:
             return members
 
-        # Extract user members
-        for user_elem in members_elem.findall('.//user'):
-            user_uuid = user_elem.get('uuid') or user_elem.text
-            if user_uuid:
-                members.append({
-                    'member_type': 'USER',
-                    'member_uuid': user_uuid,
-                    'display_order': len(members)
-                })
+        # Extract user members from <users> section
+        users_elem = members_elem.find('users')
+        if users_elem is not None:
+            for user_elem in users_elem.findall('userUuid'):
+                user_uuid = user_elem.text
+                if user_uuid:
+                    members.append({
+                        'member_type': 'USER',
+                        'member_uuid': user_uuid.strip(),
+                        'display_order': len(members)
+                    })
 
-        # Extract group members (nested groups)
-        for nested_group_elem in members_elem.findall('.//group'):
-            group_uuid = nested_group_elem.get('uuid') or nested_group_elem.text
-            if group_uuid:
-                members.append({
-                    'member_type': 'GROUP',
-                    'member_uuid': group_uuid,
-                    'display_order': len(members)
-                })
+        # Extract group members from <groups> section
+        groups_elem = members_elem.find('groups')
+        if groups_elem is not None:
+            for group_elem in groups_elem.findall('groupUuid'):
+                group_uuid = group_elem.text
+                if group_uuid:
+                    members.append({
+                        'member_type': 'GROUP',
+                        'member_uuid': group_uuid.strip(),
+                        'display_order': len(members)
+                    })
 
         return members

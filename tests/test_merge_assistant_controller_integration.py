@@ -197,7 +197,7 @@ class TestMergeAssistantControllerIntegration:
         # Create a session first
         with self.app.app_context():
             session = MergeSession(
-                reference_id='MS_TEST02',
+                reference_id='MRG_002',
                 status='ready',
                 total_changes=0
             )

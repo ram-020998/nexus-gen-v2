@@ -1,0 +1,123 @@
+<!-- Expression Rule Comparison Component -->
+{% if comparison and comparison.object_type == 'Expression Rule' %}
+<div class="comparison-section">
+    <div class="comparison-header">
+        <h5><i class="fas fa-function"></i> Expression Rule Details</h5>
+    </div>
+    
+    <div class="comparison-body">
+        <!-- Rule Inputs Section -->
+        <div class="subsection">
+            <h6><i class="fas fa-arrow-right"></i> Rule Inputs</h6>
+            <div class="comparison-grid">
+                <!-- Vendor Inputs -->
+                <div class="version-column vendor-column">
+                    <div class="version-header">
+                        <span class="badge bg-info">Vendor Inputs</span>
+                    </div>
+                    <div class="version-content">
+                        {% if comparison.vendor.inputs %}
+                        <table class="inputs-table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Type</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for input in comparison.vendor.inputs %}
+                                <tr>
+                                    <td>{{ input.name }}</td>
+                                    <td>{{ input.type }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        {% else %}
+                        <p class="text-muted">No inputs</p>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <!-- Customer Inputs -->
+                <div class="version-column customer-column">
+                    <div class="version-header">
+                        <span class="badge bg-success">Customer Inputs</span>
+                    </div>
+                    <div class="version-content">
+                        {% if comparison.customer.inputs %}
+                        <table class="inputs-table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Type</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for input in comparison.customer.inputs %}
+                                {% set vendor_input = comparison.vendor.inputs | selectattr('name', 'equalto', input.name) | first %}
+                                <tr class="{% if not vendor_input %}highlight-added{% elif vendor_input.type != input.type %}highlight-diff{% endif %}">
+                                    <td>{{ input.name }}</td>
+                                    <td>{{ input.type }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        {% else %}
+                        <p class="text-muted">No inputs</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- SAIL Code Section -->
+        <div class="subsection">
+            <h6><i class="fas fa-code"></i> SAIL Code Differences</h6>
+            <div class="code-diff-container">
+                <!-- Vendor Code -->
+                <div class="code-diff-column vendor-version">
+                    <div class="code-diff-header">
+                        <div class="code-diff-label">
+                            <i class="fas fa-cube"></i>
+                            <span>Vendor Code</span>
+                        </div>
+                        <span class="code-diff-badge vendor">New Version</span>
+                    </div>
+                    <div class="code-diff-body">
+                        {% if comparison.vendor.sail_code %}
+                        <pre><code class="language-sail">{{ comparison.vendor.sail_code | e }}</code></pre>
+                        {% else %}
+                        <div class="code-empty-state">
+                            <i class="fas fa-code"></i>
+                            <p>No code available</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <!-- Customer Code -->
+                <div class="code-diff-column customer-version">
+                    <div class="code-diff-header">
+                        <div class="code-diff-label">
+                            <i class="fas fa-user"></i>
+                            <span>Customer Code</span>
+                        </div>
+                        <span class="code-diff-badge customer">Current</span>
+                    </div>
+                    <div class="code-diff-body">
+                        {% if comparison.customer.sail_code %}
+                        <pre><code class="language-sail">{{ comparison.customer.sail_code | e }}</code></pre>
+                        {% else %}
+                        <div class="code-empty-state">
+                            <i class="fas fa-code"></i>
+                            <p>No code available</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}

@@ -1,0 +1,298 @@
+<!-- Group Comparison Component -->
+{% if comparison and comparison.object_type == 'Group' %}
+<div class="comparison-section">
+    <div class="comparison-header">
+        <h5><i class="fas fa-users"></i> Group Details</h5>
+    </div>
+    
+    <div class="comparison-body">
+        <div class="comparison-grid">
+            <div class="version-column vendor-column">
+                <div class="version-header">
+                    <span class="badge bg-info">Vendor Version</span>
+                </div>
+                <div class="version-content">
+                    <div class="detail-item">
+                        <label>Description</label>
+                        <p class="value-display">{{ comparison.vendor.description or 'N/A' }}</p>
+                    </div>
+                    <div class="detail-item">
+                        <label>Parent Group</label>
+                        <p class="value-display">{{ comparison.vendor.parent_group or 'N/A' }}</p>
+                    </div>
+                    <div class="detail-item">
+                        <label>Members</label>
+                        <p class="value-display">{{ comparison.vendor.members or 'N/A' }}</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="version-column customer-column">
+                <div class="version-header">
+                    <span class="badge bg-success">Customer Version</span>
+                </div>
+                <div class="version-content">
+                    <div class="detail-item">
+                        <label>Description</label>
+                        <p class="value-display {% if comparison.vendor.description != comparison.customer.description %}highlight-diff{% endif %}">
+                            {{ comparison.customer.description or 'N/A' }}
+                        </p>
+                    </div>
+                    <div class="detail-item">
+                        <label>Parent Group</label>
+                        <p class="value-display {% if comparison.vendor.parent_group != comparison.customer.parent_group %}highlight-diff{% endif %}">
+                            {{ comparison.customer.parent_group or 'N/A' }}
+                        </p>
+                    </div>
+                    <div class="detail-item">
+                        <label>Members</label>
+                        <p class="value-display {% if comparison.vendor.members != comparison.customer.members %}highlight-diff{% endif %}">
+                            {{ comparison.customer.members or 'N/A' }}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Connected System Comparison Component -->
+{% if comparison and comparison.object_type == 'Connected System' %}
+<div class="comparison-section">
+    <div class="comparison-header">
+        <h5><i class="fas fa-server"></i> Connected System Details</h5>
+    </div>
+    
+    <div class="comparison-body">
+        <div class="comparison-grid">
+            <div class="version-column vendor-column">
+                <div class="version-header">
+                    <span class="badge bg-info">Vendor Version</span>
+                </div>
+                <div class="version-content">
+                    <div class="detail-item">
+                        <label>Description</label>
+                        <p class="value-display">{{ comparison.vendor.description or 'N/A' }}</p>
+                    </div>
+                    <div class="detail-item">
+                        <label>Base URL</label>
+                        <p class="value-display"><code>{{ comparison.vendor.base_url or 'N/A' }}</code></p>
+                    </div>
+                    <div class="detail-item">
+                        <label>Authentication</label>
+                        <p class="value-display">{{ comparison.vendor.authentication or 'N/A' }}</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="version-column customer-column">
+                <div class="version-header">
+                    <span class="badge bg-success">Customer Version</span>
+                </div>
+                <div class="version-content">
+                    <div class="detail-item">
+                        <label>Description</label>
+                        <p class="value-display {% if comparison.vendor.description != comparison.customer.description %}highlight-diff{% endif %}">
+                            {{ comparison.customer.description or 'N/A' }}
+                        </p>
+                    </div>
+                    <div class="detail-item">
+                        <label>Base URL</label>
+                        <p class="value-display {% if comparison.vendor.base_url != comparison.customer.base_url %}highlight-diff{% endif %}">
+                            <code>{{ comparison.customer.base_url or 'N/A' }}</code>
+                        </p>
+                    </div>
+                    <div class="detail-item">
+                        <label>Authentication</label>
+                        <p class="value-display {% if comparison.vendor.authentication != comparison.customer.authentication %}highlight-diff{% endif %}">
+                            {{ comparison.customer.authentication or 'N/A' }}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Integration Comparison Component -->
+{% if comparison and comparison.object_type == 'Integration' %}
+<div class="comparison-section">
+    <div class="comparison-header">
+        <h5><i class="fas fa-plug"></i> Integration Details</h5>
+    </div>
+    
+    <div class="comparison-body">
+        <div class="comparison-grid">
+            <div class="version-column vendor-column">
+                <div class="version-header">
+                    <span class="badge bg-info">Vendor Version</span>
+                </div>
+                <div class="version-content">
+                    <div class="detail-item">
+                        <label>Description</label>
+                        <p class="value-display">{{ comparison.vendor.description or 'N/A' }}</p>
+                    </div>
+                    <div class="detail-item">
+                        <label>Endpoint</label>
+                        <p class="value-display"><code>{{ comparison.vendor.endpoint or 'N/A' }}</code></p>
+                    </div>
+                    <div class="detail-item">
+                        <label>HTTP Method</label>
+                        <p class="value-display"><span class="badge bg-secondary">{{ comparison.vendor.method or 'N/A' }}</span></p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="version-column customer-column">
+                <div class="version-header">
+                    <span class="badge bg-success">Customer Version</span>
+                </div>
+                <div class="version-content">
+                    <div class="detail-item">
+                        <label>Description</label>
+                        <p class="value-display {% if comparison.vendor.description != comparison.customer.description %}highlight-diff{% endif %}">
+                            {{ comparison.customer.description or 'N/A' }}
+                        </p>
+                    </div>
+                    <div class="detail-item">
+                        <label>Endpoint</label>
+                        <p class="value-display {% if comparison.vendor.endpoint != comparison.customer.endpoint %}highlight-diff{% endif %}">
+                            <code>{{ comparison.customer.endpoint or 'N/A' }}</code>
+                        </p>
+                    </div>
+                    <div class="detail-item">
+                        <label>HTTP Method</label>
+                        <p class="value-display {% if comparison.vendor.method != comparison.customer.method %}highlight-diff{% endif %}">
+                            <span class="badge bg-secondary">{{ comparison.customer.method or 'N/A' }}</span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Web API Comparison Component -->
+{% if comparison and comparison.object_type == 'Web API' %}
+<div class="comparison-section">
+    <div class="comparison-header">
+        <h5><i class="fas fa-globe"></i> Web API Details</h5>
+    </div>
+    
+    <div class="comparison-body">
+        <!-- Endpoint and Method -->
+        <div class="subsection">
+            <h6><i class="fas fa-info-circle"></i> API Configuration</h6>
+            <div class="comparison-grid">
+                <div class="version-column vendor-column">
+                    <div class="version-header">
+                        <span class="badge bg-info">Vendor Version</span>
+                    </div>
+                    <div class="version-content">
+                        <div class="detail-item">
+                            <label>Endpoint</label>
+                            <p class="value-display"><code>{{ comparison.vendor.endpoint or 'N/A' }}</code></p>
+                        </div>
+                        <div class="detail-item">
+                            <label>HTTP Method</label>
+                            <p class="value-display"><span class="badge bg-secondary">{{ comparison.vendor.method or 'N/A' }}</span></p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="version-column customer-column">
+                    <div class="version-header">
+                        <span class="badge bg-success">Customer Version</span>
+                    </div>
+                    <div class="version-content">
+                        <div class="detail-item">
+                            <label>Endpoint</label>
+                            <p class="value-display {% if comparison.vendor.endpoint != comparison.customer.endpoint %}highlight-diff{% endif %}">
+                                <code>{{ comparison.customer.endpoint or 'N/A' }}</code>
+                            </p>
+                        </div>
+                        <div class="detail-item">
+                            <label>HTTP Method</label>
+                            <p class="value-display {% if comparison.vendor.method != comparison.customer.method %}highlight-diff{% endif %}">
+                                <span class="badge bg-secondary">{{ comparison.customer.method or 'N/A' }}</span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- SAIL Code -->
+        <div class="subsection">
+            <h6><i class="fas fa-code"></i> SAIL Code Differences</h6>
+            <div class="code-comparison">
+                <div class="code-column vendor-code">
+                    <div class="code-header">
+                        <span class="badge bg-info">Vendor Code</span>
+                    </div>
+                    <pre class="code-display"><code class="language-sail">{{ comparison.vendor.sail_code or 'No code available' }}</code></pre>
+                </div>
+                
+                <div class="code-column customer-code">
+                    <div class="code-header">
+                        <span class="badge bg-success">Customer Code</span>
+                    </div>
+                    <pre class="code-display"><code class="language-sail">{{ comparison.customer.sail_code or 'No code available' }}</code></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Site Comparison Component -->
+{% if comparison and comparison.object_type == 'Site' %}
+<div class="comparison-section">
+    <div class="comparison-header">
+        <h5><i class="fas fa-sitemap"></i> Site Details</h5>
+    </div>
+    
+    <div class="comparison-body">
+        <div class="comparison-grid">
+            <div class="version-column vendor-column">
+                <div class="version-header">
+                    <span class="badge bg-info">Vendor Version</span>
+                </div>
+                <div class="version-content">
+                    <div class="detail-item">
+                        <label>Description</label>
+                        <p class="value-display">{{ comparison.vendor.description or 'N/A' }}</p>
+                    </div>
+                    <div class="detail-item">
+                        <label>URL Stub</label>
+                        <p class="value-display"><code>{{ comparison.vendor.url_stub or 'N/A' }}</code></p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="version-column customer-column">
+                <div class="version-header">
+                    <span class="badge bg-success">Customer Version</span>
+                </div>
+                <div class="version-content">
+                    <div class="detail-item">
+                        <label>Description</label>
+                        <p class="value-display {% if comparison.vendor.description != comparison.customer.description %}highlight-diff{% endif %}">
+                            {{ comparison.customer.description or 'N/A' }}
+                        </p>
+                    </div>
+                    <div class="detail-item">
+                        <label>URL Stub</label>
+                        <p class="value-display {% if comparison.vendor.url_stub != comparison.customer.url_stub %}highlight-diff{% endif %}">
+                            <code>{{ comparison.customer.url_stub or 'N/A' }}</code>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}

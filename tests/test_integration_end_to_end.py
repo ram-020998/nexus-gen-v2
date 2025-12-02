@@ -111,8 +111,8 @@ class TestIntegrationEndToEnd(BaseTestCase):
         self.assertIsNotNone(session, "Session should be created")
         self.assertIsNotNone(session.reference_id, "Session should have reference_id")
         self.assertTrue(
-            session.reference_id.startswith('MS_'),
-            f"Reference ID should start with 'MS_', got: {session.reference_id}"
+            session.reference_id.startswith('MRG_'),
+            f"Reference ID should start with 'MRG_', got: {session.reference_id}"
         )
         
         print(f"✓ Session created: {session.reference_id}")

@@ -1,0 +1,71 @@
+<!-- CDT Comparison Component -->
+{% if comparison and comparison.object_type == 'CDT' %}
+<div class="comparison-section">
+    <div class="comparison-header">
+        <h5><i class="fas fa-cube"></i> CDT (Custom Data Type) Details</h5>
+    </div>
+    
+    <div class="comparison-body">
+        <div class="comparison-grid">
+            <!-- Vendor Fields -->
+            <div class="version-column vendor-column">
+                <div class="version-header">
+                    <span class="badge bg-info">Vendor Fields</span>
+                </div>
+                <div class="version-content">
+                    {% if comparison.vendor.fields %}
+                    <table class="fields-table">
+                        <thead>
+                            <tr>
+                                <th>Field Name</th>
+                                <th>Type</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for field in comparison.vendor.fields %}
+                            <tr>
+                                <td>{{ field.name }}</td>
+                                <td>{{ field.type }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <p class="text-muted">No fields</p>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Customer Fields -->
+            <div class="version-column customer-column">
+                <div class="version-header">
+                    <span class="badge bg-success">Customer Fields</span>
+                </div>
+                <div class="version-content">
+                    {% if comparison.customer.fields %}
+                    <table class="fields-table">
+                        <thead>
+                            <tr>
+                                <th>Field Name</th>
+                                <th>Type</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for field in comparison.customer.fields %}
+                            {% set vendor_field = comparison.vendor.fields | selectattr('name', 'equalto', field.name) | first %}
+                            <tr class="{% if not vendor_field %}highlight-added{% elif vendor_field.type != field.type %}highlight-diff{% endif %}">
+                                <td>{{ field.name }}</td>
+                                <td>{{ field.type }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <p class="text-muted">No fields</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}

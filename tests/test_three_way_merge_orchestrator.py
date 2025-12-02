@@ -62,7 +62,7 @@ class TestThreeWayMergeOrchestrator(BaseTestCase):
         # Verify session created
         self.assertIsNotNone(session)
         self.assertIsNotNone(session.reference_id)
-        self.assertTrue(session.reference_id.startswith('MS_'))
+        self.assertTrue(session.reference_id.startswith('MRG_'))
         self.assertEqual(session.status, 'ready')
         self.assertGreater(session.total_changes, 0)
         
@@ -234,7 +234,7 @@ class TestThreeWayMergeOrchestrator(BaseTestCase):
         - Error message is correct
         """
         with self.assertRaises(ValueError) as context:
-            self.orchestrator.get_session_status("MS_NOTFOUND")
+            self.orchestrator.get_session_status("MRG_NOTFOUND")
         
         self.assertIn("Session not found", str(context.exception))
         

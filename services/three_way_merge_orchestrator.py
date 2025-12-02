@@ -6,7 +6,6 @@ sub-services (extraction, delta, customer, classification, guidance).
 """
 
 import logging
-import uuid
 import time
 from typing import Dict, Any, List, Optional
 
@@ -419,15 +418,15 @@ class ThreeWayMergeOrchestrator(BaseService):
         """
         Create a new merge session record.
         
-        Generates a unique reference_id in format: MS_XXXXXX
-        where XXXXXX is a random 6-character alphanumeric string.
+        Generates a unique reference_id in format: MRG_XXX
+        where XXX is a sequential 3-digit number (001, 002, etc.).
         
         Returns:
             MergeSession: Created session with status='PROCESSING'
             
         Example:
             >>> session = orchestrator._create_session()
-            >>> print(session.reference_id)  # MS_A1B2C3
+            >>> print(session.reference_id)  # MRG_001
         """
         # Generate unique reference_id
         reference_id = self._generate_reference_id()
@@ -448,18 +447,31 @@ class ThreeWayMergeOrchestrator(BaseService):
         """
         Generate unique reference ID for merge session.
         
-        Format: MS_XXXXXX where XXXXXX is a random 6-character string.
+        Format: MRG_XXX where XXX is a sequential 3-digit number (001, 002, etc.).
         
         Returns:
             str: Unique reference ID
             
         Example:
             >>> ref_id = orchestrator._generate_reference_id()
-            >>> print(ref_id)  # MS_A1B2C3
+            >>> print(ref_id)  # MRG_001
         """
-        # Generate random 6-character string
-        random_str = str(uuid.uuid4()).replace('-', '').upper()[:6]
-        return f"MS_{random_str}"
+        # Get the last session to determine next sequence number
+        last_session = MergeSession.query.order_by(MergeSession.id.desc()).first()
+        
+        if last_session and last_session.reference_id.startswith('MRG_'):
+            # Extract sequence number from last reference_id
+            try:
+                last_seq = int(last_session.reference_id.split('_')[1])
+                next_seq = last_seq + 1
+            except (IndexError, ValueError):
+                # If parsing fails, start from 1
+                next_seq = 1
+        else:
+            # First session or migrating from old format
+            next_seq = 1
+        
+        return f"MRG_{next_seq:03d}"
     
     def get_session_status(self, reference_id: str) -> Dict[str, Any]:
         """
@@ -472,7 +484,7 @@ class ThreeWayMergeOrchestrator(BaseService):
         - Progress information
         
         Args:
-            reference_id: Session reference ID (e.g., MS_A1B2C3)
+            reference_id: Session reference ID (e.g., MRG_001)
             
         Returns:
             Dict with session status information
@@ -481,7 +493,7 @@ class ThreeWayMergeOrchestrator(BaseService):
             ValueError: If session not found
             
         Example:
-            >>> status = orchestrator.get_session_status("MS_A1B2C3")
+            >>> status = orchestrator.get_session_status("MRG_001")
             >>> print(f"Status: {status['status']}")
             >>> print(f"Total changes: {status['total_changes']}")
             >>> print(f"Conflicts: {status['statistics']['CONFLICT']}")
@@ -613,12 +625,12 @@ class ThreeWayMergeOrchestrator(BaseService):
             
         Example:
             >>> # Get all changes
-            >>> changes = orchestrator.get_working_set("MS_A1B2C3")
+            >>> changes = orchestrator.get_working_set("MRG_001")
             >>> print(f"Total changes: {len(changes)}")
             
             >>> # Get only conflicts
             >>> conflicts = orchestrator.get_working_set(
-            ...     "MS_A1B2C3",
+            ...     "MRG_001",
             ...     classification_filter=['CONFLICT']
             ... )
             >>> print(f"Conflicts: {len(conflicts)}")
@@ -695,7 +707,7 @@ class ThreeWayMergeOrchestrator(BaseService):
             ValueError: If session not found
             
         Example:
-            >>> orchestrator.delete_session("MS_A1B2C3")
+            >>> orchestrator.delete_session("MRG_001")
         """
         # Find session
         session = db.session.query(MergeSession).filter_by(
@@ -737,7 +749,7 @@ class ThreeWayMergeOrchestrator(BaseService):
             
         Example:
             >>> session = orchestrator.retry_failed_session(
-            ...     reference_id="MS_A1B2C3",
+            ...     reference_id="MRG_001",
             ...     base_zip_path="/path/to/base.zip",
             ...     customized_zip_path="/path/to/customized.zip",
             ...     new_vendor_zip_path="/path/to/new_vendor.zip"

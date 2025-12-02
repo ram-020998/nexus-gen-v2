@@ -181,7 +181,10 @@ class CustomerComparisonService(BaseService):
         This method:
         1. Fetches object_versions for both packages
         2. Compares version UUIDs using version comparison strategy
-        3. If versions are same, compares content using content strategy
+        3. ALWAYS compares content to detect actual modifications
+
+        IMPORTANT: Version UUID can change without content changes (re-export, metadata).
+        We must always check content to determine if customer truly modified the object.
 
         Args:
             obj_lookup: ObjectLookup entity
@@ -199,10 +202,10 @@ class CustomerComparisonService(BaseService):
             ...         customer_package_id=2
             ...     )
             ... )
-            >>> if version_changed:
-            ...     print("Customer changed version UUID")
-            >>> elif content_changed:
-            ...     print("Customer changed content but not version")
+            >>> if content_changed:
+            ...     print("Customer truly modified the object")
+            >>> elif version_changed:
+            ...     print("Version UUID changed but content is same")
         """
         # Fetch object versions for both packages
         base_version = self._get_object_version(
@@ -230,11 +233,8 @@ class CustomerComparisonService(BaseService):
             customer_version.version_uuid
         )
 
-        if version_changed:
-            # Version changed, no need to check content
-            return True, False
-
-        # Version is same, compare content
+        # ALWAYS compare content to detect actual modifications
+        # Version UUID can change without content changes (re-export, metadata updates)
         base_content = self._extract_content(base_version)
         customer_content = self._extract_content(customer_version)
 
@@ -243,7 +243,7 @@ class CustomerComparisonService(BaseService):
             customer_content
         )
 
-        return False, content_changed
+        return version_changed, content_changed
 
     def _get_object_version(
         self,

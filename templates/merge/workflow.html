@@ -13,419 +13,1343 @@
 </nav>
 {% endblock %}
 
-{% block page_title %}Merge Workflow{% endblock %}
-{% block page_subtitle %}{{ session.reference_id }} - {{ session.total_changes }} changes to review{% endblock %}
+<!-- {% block page_title %}Merge Workflow{% endblock %} -->
+{% block page_subtitle %}{{ session.reference_id }} - Review and resolve {{ session.total_changes }} changes{% endblock %}
 
 {% block content %}
-<div class="row">
-    <div class="col-12">
-        <div class="changes-panel">
-            <div class="panel-header">
-                <div class="header-content">
-                    <div>
-                        <h4><i class="fas fa-tasks"></i> Changes to Review</h4>
-                        <p class="text-muted mb-0">Review each change and decide how to handle conflicts</p>
+<!-- Workflow Controls -->
+<div class="workflow-controls-sticky">
+    <div class="workflow-controls-container">
+        <!-- Search and View Controls -->
+        <div class="workflow-search-row">
+            <div class="search-box">
+                <i class="fas fa-search"></i>
+                <input type="text" id="searchInput" placeholder="Search by name, type, or UUID..." class="search-input-modern">
+                <button id="clearSearch" class="clear-search-btn" style="display: none;">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <!-- Object Type Filter -->
+            <div class="object-type-filter">
+                <button id="objectTypeFilterBtn" class="filter-dropdown-btn">
+                    <i class="fas fa-filter"></i>
+                    <span id="objectTypeFilterLabel">All Types</span>
+                    <span id="objectTypeFilterCount" class="filter-count" style="display: none;"></span>
+                    <i class="fas fa-chevron-down"></i>
+                </button>
+                <div id="objectTypeDropdown" class="filter-dropdown" style="display: none;">
+                    <div class="filter-dropdown-header">
+                        <span>Filter by Object Type</span>
+                        <button id="clearObjectTypeFilter" class="clear-filter-btn">Clear</button>
                     </div>
-                    <div class="header-actions">
-                        <!-- Jump to Change Dropdown -->
-                        <div class="jump-navigation">
-                            <label for="jumpToChange" class="form-label mb-1">Jump to Change:</label>
-                            <select id="jumpToChange" class="form-select">
-                                <option value="">Select a change...</option>
-                                {% for change in changes %}
-                                <option value="{{ change.change_id }}" 
-                                        data-classification="{{ change.classification }}">
-                                    {{ change.display_order }}. {{ change.object.name }} 
-                                    ({{ change.classification }})
-                                </option>
-                                {% endfor %}
-                            </select>
-                        </div>
+                    <div class="filter-dropdown-search">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="objectTypeSearch" placeholder="Search types...">
                     </div>
-                </div>
-                
-                <!-- Classification Filter Buttons -->
-                <div class="classification-filters mt-3">
-                    <button class="filter-btn active" data-classification="all">
-                        <i class="fas fa-list"></i> All ({{ changes|length }})
-                    </button>
-                    <button class="filter-btn filter-conflict" data-classification="CONFLICT">
-                        <i class="fas fa-exclamation-triangle"></i> Conflicts 
-                        ({{ changes|selectattr('classification', 'equalto', 'CONFLICT')|list|length }})
-                    </button>
-                    <button class="filter-btn filter-no-conflict" data-classification="NO_CONFLICT">
-                        <i class="fas fa-check"></i> No Conflicts 
-                        ({{ changes|selectattr('classification', 'equalto', 'NO_CONFLICT')|list|length }})
-                    </button>
-                    <button class="filter-btn filter-new" data-classification="NEW">
-                        <i class="fas fa-plus"></i> New 
-                        ({{ changes|selectattr('classification', 'equalto', 'NEW')|list|length }})
-                    </button>
-                    <button class="filter-btn filter-deleted" data-classification="DELETED">
-                        <i class="fas fa-trash"></i> Deleted 
-                        ({{ changes|selectattr('classification', 'equalto', 'DELETED')|list|length }})
-                    </button>
+                    <div id="objectTypeList" class="filter-dropdown-list">
+                        <!-- Will be populated dynamically -->
+                    </div>
                 </div>
             </div>
             
-            <div class="changes-list">
-                {% set classifications = ['CONFLICT', 'NO_CONFLICT', 'NEW', 'DELETED'] %}
-                {% for classification in classifications %}
-                    {% set classification_changes = changes|selectattr('classification', 'equalto', classification)|list %}
-                    {% if classification_changes|length > 0 %}
-                    <div class="classification-group" data-classification="{{ classification }}">
-                        <div class="classification-group-header">
-                            {% if classification == 'CONFLICT' %}
-                                <i class="fas fa-exclamation-triangle text-danger"></i>
-                                <h5>Conflicts ({{ classification_changes|length }})</h5>
-                            {% elif classification == 'NO_CONFLICT' %}
-                                <i class="fas fa-check text-success"></i>
-                                <h5>No Conflicts ({{ classification_changes|length }})</h5>
-                            {% elif classification == 'NEW' %}
-                                <i class="fas fa-plus text-info"></i>
-                                <h5>New Objects ({{ classification_changes|length }})</h5>
-                            {% elif classification == 'DELETED' %}
-                                <i class="fas fa-trash text-warning"></i>
-                                <h5>Deleted Objects ({{ classification_changes|length }})</h5>
-                            {% endif %}
-                        </div>
-                        
-                        {% for change in classification_changes %}
-                        <div class="change-item change-{{ change.classification|lower }}" 
-                             data-classification="{{ change.classification }}"
-                             data-change-id="{{ change.change_id }}">
-                            <div class="change-header">
-                                <div class="change-icon">
-                                    <i class="fas fa-{{ get_object_icon(change.object.object_type) }}"></i>
-                                </div>
-                                <div class="change-info">
-                                    <h5>{{ change.object.name }}</h5>
-                                    <p class="text-muted mb-0">{{ change.object.object_type }}</p>
-                                </div>
-                                <div class="change-badges">
-                                    {% if change.classification == 'CONFLICT' %}
-                                        <span class="badge bg-danger">
-                                            <i class="fas fa-exclamation-triangle"></i> Conflict
-                                        </span>
-                                    {% elif change.classification == 'NO_CONFLICT' %}
-                                        <span class="badge bg-success">
-                                            <i class="fas fa-check"></i> No Conflict
-                                        </span>
-                                    {% elif change.classification == 'NEW' %}
-                                        <span class="badge bg-info">
-                                            <i class="fas fa-plus"></i> New
-                                        </span>
-                                    {% elif change.classification == 'DELETED' %}
-                                        <span class="badge bg-warning">
-                                            <i class="fas fa-trash"></i> Deleted
-                                        </span>
-                                    {% endif %}
-                                    
-                                    {% if change.vendor_change_type %}
-                                        <span class="badge bg-secondary">
-                                            Vendor: {{ change.vendor_change_type }}
-                                        </span>
-                                    {% endif %}
-                                    
-                                    {% if change.customer_change_type %}
-                                        <span class="badge bg-secondary">
-                                            Customer: {{ change.customer_change_type }}
-                                        </span>
-                                    {% endif %}
-                                </div>
-                            </div>
-                            
-                            <div class="change-description">
-                                <p>{{ change.object.description or 'No description available' }}</p>
-                                <p class="text-muted mb-0"><small>UUID: {{ change.object.uuid }}</small></p>
-                            </div>
-                            
-                            <div class="change-actions">
-                                <a href="{{ url_for('merge.get_change_detail', reference_id=session.reference_id, change_id=change.change_id) }}" 
-                                   class="btn btn-sm btn-outline-primary">
-                                    <i class="fas fa-eye"></i> View Details
-                                </a>
-                            </div>
-                        </div>
-                        {% endfor %}
-                    </div>
-                    {% endif %}
-                {% endfor %}
+            <div class="view-controls">
+                <select id="sortSelect" class="sort-select-modern">
+                    <option value="order">Sort by Order</option>
+                    <option value="name">Sort by Name</option>
+                    <option value="type">Sort by Type</option>
+                    <option value="classification">Sort by Classification</option>
+                </select>
+                
+                <select id="itemsPerPage" class="items-per-page-select">
+                    <option value="20">20 per page</option>
+                    <option value="50">50 per page</option>
+                    <option value="100">100 per page</option>
+                    <option value="all">Show all</option>
+                </select>
             </div>
+        </div>
+        
+        <!-- Filter Pills with Counts -->
+        <div class="filter-pills">
+            <button class="filter-pill active" data-filter="all">
+                <i class="fas fa-list"></i> 
+                <span>All</span>
+                <span class="pill-count">{{ changes|length }}</span>
+            </button>
+            <button class="filter-pill" data-filter="CONFLICT">
+                <i class="fas fa-exclamation-triangle"></i> 
+                <span>Conflicts</span>
+                <span class="pill-count">{{ changes|selectattr('classification', 'equalto', 'CONFLICT')|list|length }}</span>
+            </button>
+            <button class="filter-pill" data-filter="NEW">
+                <i class="fas fa-plus"></i> 
+                <span>New</span>
+                <span class="pill-count">{{ changes|selectattr('classification', 'equalto', 'NEW')|list|length }}</span>
+            </button>
+            <button class="filter-pill" data-filter="DELETED">
+                <i class="fas fa-trash"></i> 
+                <span>Deleted</span>
+                <span class="pill-count">{{ changes|selectattr('classification', 'equalto', 'DELETED')|list|length }}</span>
+            </button>
+            <button class="filter-pill" data-filter="NO_CONFLICT">
+                <i class="fas fa-check"></i> 
+                <span>Safe</span>
+                <span class="pill-count">{{ changes|selectattr('classification', 'equalto', 'NO_CONFLICT')|list|length }}</span>
+            </button>
         </div>
     </div>
 </div>
 
+<!-- Changes Grid -->
+<div class="changes-grid-container">
+    <div id="changesGrid" class="changes-grid">
+        {% for change in changes %}
+        <div class="change-card" 
+             data-classification="{{ change.classification }}"
+             data-change-id="{{ change.change_id }}"
+             data-name="{{ change.object.name|lower }}"
+             data-type="{{ change.object.object_type|lower }}"
+             data-uuid="{{ change.object.uuid|lower }}"
+             data-order="{{ change.display_order }}">
+            
+            <!-- Classification Badge -->
+            <div class="change-card-badge change-badge-{{ change.classification|lower }}">
+                {% if change.classification == 'CONFLICT' %}
+                    <i class="fas fa-exclamation-triangle"></i> Conflict
+                {% elif change.classification == 'NO_CONFLICT' %}
+                    <i class="fas fa-check"></i> Safe
+                {% elif change.classification == 'NEW' %}
+                    <i class="fas fa-plus"></i> New
+                {% elif change.classification == 'DELETED' %}
+                    <i class="fas fa-trash"></i> Deleted
+                {% endif %}
+            </div>
+
+            <!-- Card Header -->
+            <div class="change-card-header">
+                <div class="change-card-icon change-icon-{{ change.classification|lower }}">
+                    <i class="fas fa-{{ get_object_icon(change.object.object_type) }}"></i>
+                </div>
+                <div class="change-card-title">
+                    <h3>{{ change.object.name }}</h3>
+                    <span class="change-card-type">{{ change.object.object_type }}</span>
+                </div>
+            </div>
+
+            <!-- Card Body -->
+            <div class="change-card-body">
+                {% if change.object.description %}
+                <p class="change-card-description">{{ change.object.description[:120] }}{% if change.object.description|length > 120 %}...{% endif %}</p>
+                {% else %}
+                <p class="change-card-description text-muted">No description available</p>
+                {% endif %}
+
+                <!-- Change Details -->
+                <div class="change-card-details">
+                    {% if change.vendor_change_type %}
+                    <div class="detail-item">
+                        <span class="detail-label">Vendor:</span>
+                        <span class="detail-value detail-{{ change.vendor_change_type|lower }}">{{ change.vendor_change_type }}</span>
+                    </div>
+                    {% endif %}
+                    
+                    {% if change.customer_change_type %}
+                    <div class="detail-item">
+                        <span class="detail-label">Customer:</span>
+                        <span class="detail-value detail-{{ change.customer_change_type|lower }}">{{ change.customer_change_type }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Card Footer -->
+            <div class="change-card-footer">
+                <span class="change-card-order">#{{ change.display_order }}</span>
+                <a href="{{ url_for('merge.get_change_detail', reference_id=session.reference_id, change_id=change.change_id) }}" 
+                   class="btn-view-details">
+                    <span>View Details</span>
+                    <i class="fas fa-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Pagination -->
+    <div id="paginationContainer" class="pagination-container" style="display: none;">
+        <button id="prevPage" class="pagination-btn" disabled>
+            <i class="fas fa-chevron-left"></i> Previous
+        </button>
+        <div id="pageInfo" class="page-info">
+            Page <span id="currentPage">1</span> of <span id="totalPages">1</span>
+        </div>
+        <button id="nextPage" class="pagination-btn">
+            Next <i class="fas fa-chevron-right"></i>
+        </button>
+    </div>
+
+    <!-- Empty State -->
+    <div id="emptyState" class="empty-state-modern" style="display: none;">
+        <div class="empty-state-icon">
+            <i class="fas fa-search"></i>
+        </div>
+        <h3>No changes found</h3>
+        <p>Try adjusting your search or filter criteria</p>
+        <button id="resetFilters" class="btn-reset-filters">
+            <i class="fas fa-redo"></i> Reset Filters
+        </button>
+    </div>
+</div>
+
 <style>
-.changes-panel {
-    background: var(--bg-card);
-    border-radius: 12px;
-    padding: 2rem;
-    border: 1px solid #374151;
+/* Workflow Controls - Sticky Header */
+.workflow-controls-sticky {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: var(--bg-primary);
+    padding: 1rem 0;
+    margin: -2rem -2rem 2rem -2rem;
+    padding-left: 2rem;
+    padding-right: 2rem;
+    border-bottom: 1px solid var(--border-color);
+    backdrop-filter: blur(10px);
+    background: rgba(15, 20, 25, 0.95);
 }
 
-.panel-header {
-    margin-bottom: 2rem;
-    padding-bottom: 1.5rem;
-    border-bottom: 1px solid #374151;
+[data-theme="light"] .workflow-controls-sticky {
+    background: rgba(250, 250, 252, 0.95);
 }
 
-.header-content {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 2rem;
-    margin-bottom: 1rem;
+.workflow-controls-container {
+    max-width: 100%;
 }
 
-.header-actions {
-    min-width: 300px;
-}
-
-.jump-navigation {
-    display: flex;
-    flex-direction: column;
-}
-
-.jump-navigation label {
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: var(--text-secondary);
-}
-
-.jump-navigation select {
-    background: rgba(139, 92, 246, 0.1);
-    border: 1px solid #374151;
-    color: var(--text-primary);
-    padding: 0.5rem;
-    border-radius: 6px;
-    cursor: pointer;
-}
-
-.jump-navigation select:focus {
-    outline: none;
-    border-color: var(--purple);
-    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
-}
-
-.classification-filters {
+/* Search Row */
+.workflow-search-row {
     display: flex;
     gap: 0.75rem;
+    margin-bottom: 1rem;
+    align-items: center;
     flex-wrap: wrap;
 }
 
-.filter-btn {
-    background: rgba(139, 92, 246, 0.1);
-    border: 1px solid #374151;
+/* Search Box */
+.search-box {
+    position: relative;
+    flex: 1;
+    max-width: 500px;
+}
+
+.search-box i {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
     color: var(--text-secondary);
-    padding: 0.5rem 1rem;
-    border-radius: 6px;
-    cursor: pointer;
-    transition: all 0.2s ease;
+    pointer-events: none;
+}
+
+.search-input-modern {
+    width: 100%;
+    padding: 0.75rem 3rem 0.75rem 2.75rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--text-primary);
     font-size: 0.875rem;
+    transition: all 0.2s ease;
+}
+
+.search-input-modern:focus {
+    outline: none;
+    border-color: var(--blue-3);
+    box-shadow: 0 0 0 3px rgba(107, 107, 247, 0.1);
+}
+
+.search-input-modern::placeholder {
+    color: var(--text-secondary);
+}
+
+.clear-search-btn {
+    position: absolute;
+    right: 0.5rem;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 28px;
+    height: 28px;
+    background: rgba(107, 107, 247, 0.1);
+    border: none;
+    border-radius: 6px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.clear-search-btn:hover {
+    background: var(--red-1);
+    color: var(--red-3);
+}
+
+/* Object Type Filter */
+.object-type-filter {
+    position: relative;
+}
+
+.filter-dropdown-btn {
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
 }
 
-.filter-btn:hover {
-    background: rgba(139, 92, 246, 0.2);
-    border-color: var(--purple);
+.filter-dropdown-btn:hover {
+    border-color: var(--blue-3);
+    background: rgba(107, 107, 247, 0.05);
 }
 
-.filter-btn.active {
-    background: var(--purple);
+.filter-dropdown-btn.active {
+    border-color: var(--blue-3);
+    background: var(--blue-3);
     color: white;
-    border-color: var(--purple);
 }
 
-.filter-btn.filter-conflict.active {
-    background: #ef4444;
-    border-color: #ef4444;
+.filter-dropdown-btn .fa-chevron-down {
+    font-size: 0.75rem;
+    transition: transform 0.2s ease;
 }
 
-.filter-btn.filter-no-conflict.active {
-    background: #10b981;
-    border-color: #10b981;
+.filter-dropdown-btn.active .fa-chevron-down {
+    transform: rotate(180deg);
 }
 
-.filter-btn.filter-new.active {
-    background: #3b82f6;
-    border-color: #3b82f6;
+.filter-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 0.375rem;
+    background: var(--blue-3);
+    border-radius: 10px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: white;
 }
 
-.filter-btn.filter-deleted.active {
-    background: #f59e0b;
-    border-color: #f59e0b;
+.filter-dropdown-btn.active .filter-count {
+    background: rgba(255, 255, 255, 0.3);
 }
 
-.panel-header h4 {
-    margin: 0 0 0.5rem 0;
+.filter-dropdown {
+    position: absolute;
+    top: calc(100% + 0.5rem);
+    left: 0;
+    min-width: 280px;
+    max-width: 320px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+    z-index: 1000;
+    overflow: hidden;
+}
+
+[data-theme="light"] .filter-dropdown {
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+}
+
+.filter-dropdown-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--border-color);
+    background: rgba(107, 107, 247, 0.05);
+}
+
+.filter-dropdown-header span {
+    font-size: 0.875rem;
+    font-weight: 600;
     color: var(--text-primary);
 }
 
-.classification-group {
-    margin-bottom: 2rem;
+.clear-filter-btn {
+    padding: 0.25rem 0.5rem;
+    background: transparent;
+    border: none;
+    color: var(--blue-3);
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.2s ease;
 }
 
-.classification-group-header {
+.clear-filter-btn:hover {
+    background: rgba(107, 107, 247, 0.1);
+}
+
+.filter-dropdown-search {
+    position: relative;
+    padding: 0.75rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.filter-dropdown-search i {
+    position: absolute;
+    left: 1.25rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    pointer-events: none;
+}
+
+.filter-dropdown-search input {
+    width: 100%;
+    padding: 0.5rem 0.75rem 0.5rem 2rem;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    color: var(--text-primary);
+    font-size: 0.875rem;
+}
+
+.filter-dropdown-search input:focus {
+    outline: none;
+    border-color: var(--blue-3);
+}
+
+.filter-dropdown-list {
+    max-height: 300px;
+    overflow-y: auto;
+    padding: 0.5rem;
+}
+
+.filter-dropdown-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.filter-dropdown-list::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.filter-dropdown-list::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 3px;
+}
+
+.filter-dropdown-list::-webkit-scrollbar-thumb:hover {
+    background: var(--text-secondary);
+}
+
+.filter-option {
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    margin-bottom: 1rem;
-    padding: 0.75rem 1rem;
-    background: rgba(139, 92, 246, 0.05);
-    border-radius: 8px;
-    border-left: 4px solid var(--purple);
+    padding: 0.625rem 0.75rem;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
 }
 
-.classification-group-header i {
-    font-size: 1.25rem;
+.filter-option:hover {
+    background: rgba(107, 107, 247, 0.05);
 }
 
-.classification-group-header h5 {
-    margin: 0;
-    color: var(--text-primary);
-    font-size: 1rem;
-    font-weight: 600;
-}
-
-.classification-group.hidden {
+.filter-option.hidden {
     display: none;
 }
 
-.changes-list {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
+.filter-option input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    accent-color: var(--blue-3);
 }
 
-.change-item {
-    background: rgba(139, 92, 246, 0.05);
-    border: 1px solid #374151;
-    border-radius: 8px;
-    padding: 1.5rem;
-    transition: all 0.3s ease;
-}
-
-.change-item:hover {
-    border-color: var(--purple);
-    transform: translateX(4px);
-}
-
-.change-item.change-conflict {
-    border-left: 4px solid #ef4444;
-}
-
-.change-item.change-no_conflict {
-    border-left: 4px solid #10b981;
-}
-
-.change-item.change-new {
-    border-left: 4px solid #3b82f6;
-}
-
-.change-item.change-deleted {
-    border-left: 4px solid #f59e0b;
-}
-
-.change-header {
+.filter-option-label {
+    flex: 1;
     display: flex;
     align-items: center;
-    gap: 1rem;
-    margin-bottom: 1rem;
+    justify-content: space-between;
+    font-size: 0.875rem;
+    color: var(--text-primary);
+    cursor: pointer;
 }
 
-.change-icon {
+.filter-option-count {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    font-weight: 600;
+}
+
+/* Filter Pills */
+.filter-pills {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.filter-pill {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 1rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.filter-pill i {
+    font-size: 0.875rem;
+}
+
+.filter-pill .pill-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    height: 24px;
+    padding: 0 0.5rem;
+    background: rgba(107, 107, 247, 0.1);
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-left: 0.25rem;
+}
+
+.filter-pill:hover {
+    background: rgba(107, 107, 247, 0.1);
+    border-color: var(--blue-3);
+    color: var(--blue-3);
+}
+
+.filter-pill.active {
+    background: var(--blue-3);
+    border-color: var(--blue-3);
+    color: white;
+}
+
+.filter-pill.active .pill-count {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+}
+
+.filter-pill[data-filter="CONFLICT"].active {
+    background: var(--red-3);
+    border-color: var(--red-3);
+}
+
+.filter-pill[data-filter="NEW"].active {
+    background: var(--teal-3);
+    border-color: var(--teal-3);
+}
+
+.filter-pill[data-filter="DELETED"].active {
+    background: var(--orange-3);
+    border-color: var(--orange-3);
+}
+
+.filter-pill[data-filter="NO_CONFLICT"].active {
+    background: var(--green-3);
+    border-color: var(--green-3);
+}
+
+/* View Controls */
+.view-controls {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-left: auto;
+}
+
+.sort-select-modern,
+.items-per-page-select {
+    padding: 0.5rem 0.75rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.sort-select-modern:focus,
+.items-per-page-select:focus {
+    outline: none;
+    border-color: var(--blue-3);
+    box-shadow: 0 0 0 3px rgba(107, 107, 247, 0.1);
+}
+
+/* Changes Grid */
+.changes-grid-container {
+    position: relative;
+}
+
+.changes-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+    gap: 1.25rem;
+    margin-bottom: 2rem;
+}
+
+/* Change Card */
+.change-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+.change-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+    border-color: var(--blue-3);
+}
+
+[data-theme="light"] .change-card:hover {
+    box-shadow: 0 8px 25px rgba(107, 107, 247, 0.12);
+}
+
+.change-card.hidden {
+    display: none;
+}
+
+/* Classification Badge */
+.change-card-badge {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    padding: 0.375rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    z-index: 10;
+}
+
+.change-badge-conflict {
+    background: var(--red-1);
+    color: var(--red-4);
+    border: 1px solid var(--red-2);
+}
+
+.change-badge-no_conflict {
+    background: var(--green-1);
+    color: var(--green-4);
+    border: 1px solid var(--green-2);
+}
+
+.change-badge-new {
+    background: var(--teal-1);
+    color: var(--teal-4);
+    border: 1px solid var(--teal-2);
+}
+
+.change-badge-deleted {
+    background: var(--orange-1);
+    color: var(--orange-4);
+    border: 1px solid var(--orange-2);
+}
+
+/* Card Header */
+.change-card-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 1.5rem;
+    padding-right: 7rem;
+}
+
+.change-card-icon {
     width: 48px;
     height: 48px;
-    background: rgba(139, 92, 246, 0.2);
-    color: var(--purple);
-    border-radius: 8px;
+    border-radius: 10px;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 1.25rem;
+    flex-shrink: 0;
 }
 
-.change-info {
+.change-icon-conflict {
+    background: var(--red-1);
+    color: var(--red-3);
+}
+
+.change-icon-no_conflict {
+    background: var(--green-1);
+    color: var(--green-3);
+}
+
+.change-icon-new {
+    background: var(--teal-1);
+    color: var(--teal-3);
+}
+
+.change-icon-deleted {
+    background: var(--orange-1);
+    color: var(--orange-3);
+}
+
+.change-card-title {
+    flex: 1;
+    min-width: 0;
+}
+
+.change-card-title h3 {
+    margin: 0 0 0.25rem 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.change-card-type {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 500;
+}
+
+/* Card Body */
+.change-card-body {
+    padding: 0 1.5rem 1.5rem;
     flex: 1;
 }
 
-.change-info h5 {
-    margin: 0;
-    color: var(--text-primary);
-    font-size: 1.1rem;
+.change-card-description {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    margin-bottom: 1rem;
 }
 
-.change-info p {
-    margin: 0.25rem 0 0 0;
+.change-card-details {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.detail-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
     font-size: 0.875rem;
 }
 
-.change-badges {
+.detail-label {
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.detail-value {
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.detail-modified {
+    background: var(--yellow-1);
+    color: var(--yellow-4);
+}
+
+.detail-new {
+    background: var(--teal-1);
+    color: var(--teal-4);
+}
+
+.detail-deprecated {
+    background: var(--red-1);
+    color: var(--red-4);
+}
+
+/* Card Footer */
+.change-card-footer {
     display: flex;
-    gap: 0.5rem;
-    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.5rem;
+    border-top: 1px solid var(--border-color);
+    background: rgba(107, 107, 247, 0.02);
 }
 
-.change-description {
-    margin-bottom: 1rem;
-    padding-left: 64px;
-}
-
-.change-description p {
-    margin: 0.5rem 0;
+.change-card-order {
+    font-size: 0.875rem;
+    font-weight: 600;
     color: var(--text-secondary);
 }
 
-.change-actions {
-    padding-left: 64px;
+.btn-view-details {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: var(--blue-3);
+    color: white;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    text-decoration: none;
+    transition: all 0.2s ease;
+}
+
+.btn-view-details:hover {
+    background: var(--blue-4);
+    transform: translateX(2px);
+    color: white;
+}
+
+.btn-view-details i {
+    font-size: 0.75rem;
+}
+
+/* Pagination */
+.pagination-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    padding: 2rem 0;
+}
+
+.pagination-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.pagination-btn:hover:not(:disabled) {
+    background: var(--blue-3);
+    border-color: var(--blue-3);
+    color: white;
+}
+
+.pagination-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.page-info {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.page-info span {
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+/* Empty State */
+.empty-state-modern {
+    text-align: center;
+    padding: 4rem 2rem;
+}
+
+.empty-state-modern .empty-state-icon {
+    font-size: 4rem;
+    color: var(--text-secondary);
+    opacity: 0.3;
+    margin-bottom: 1.5rem;
+}
+
+.empty-state-modern h3 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+}
+
+.empty-state-modern p {
+    font-size: 1rem;
+    color: var(--text-secondary);
+    margin-bottom: 1.5rem;
+}
+
+.btn-reset-filters {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    background: var(--blue-3);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-reset-filters:hover {
+    background: var(--blue-4);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(107, 107, 247, 0.3);
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+    .changes-grid {
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    }
+}
+
+@media (max-width: 768px) {
+    .workflow-controls-sticky {
+        margin: -1rem -1rem 1rem -1rem;
+        padding: 1rem;
+    }
+    
+    .workflow-search-row {
+        flex-direction: column;
+    }
+    
+    .search-box {
+        max-width: 100%;
+        width: 100%;
+    }
+    
+    .object-type-filter {
+        width: 100%;
+    }
+    
+    .filter-dropdown-btn {
+        width: 100%;
+        justify-content: space-between;
+    }
+    
+    .filter-dropdown {
+        left: 0;
+        right: 0;
+        min-width: auto;
+        max-width: none;
+    }
+    
+    .view-controls {
+        width: 100%;
+        margin-left: 0;
+    }
+    
+    .sort-select-modern,
+    .items-per-page-select {
+        flex: 1;
+    }
+    
+    .filter-pills {
+        overflow-x: auto;
+        flex-wrap: nowrap;
+        padding-bottom: 0.5rem;
+    }
+    
+    .filter-pill {
+        flex-shrink: 0;
+    }
+    
+    .changes-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    
+    .pagination-container {
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+    
+    .pagination-btn {
+        width: 100%;
+        justify-content: center;
+    }
 }
 </style>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Jump to Change functionality
-    const jumpSelect = document.getElementById('jumpToChange');
-    if (jumpSelect) {
-        jumpSelect.addEventListener('change', function() {
-            const changeId = this.value;
-            if (changeId) {
-                // Navigate to the change detail page
-                const referenceId = '{{ session.reference_id }}';
-                window.location.href = `/merge/${referenceId}/changes/${changeId}`;
+    // State management
+    let currentFilter = 'all';
+    let currentSort = 'order';
+    let currentPage = 1;
+    let itemsPerPage = 20;
+    let searchQuery = '';
+    let selectedObjectTypes = new Set();
+    
+    // DOM elements
+    const changesGrid = document.getElementById('changesGrid');
+    const allCards = Array.from(document.querySelectorAll('.change-card'));
+    const searchInput = document.getElementById('searchInput');
+    const clearSearchBtn = document.getElementById('clearSearch');
+    const filterPills = document.querySelectorAll('.filter-pill');
+    const sortSelect = document.getElementById('sortSelect');
+    const itemsPerPageSelect = document.getElementById('itemsPerPage');
+    const paginationContainer = document.getElementById('paginationContainer');
+    const prevPageBtn = document.getElementById('prevPage');
+    const nextPageBtn = document.getElementById('nextPage');
+    const currentPageSpan = document.getElementById('currentPage');
+    const totalPagesSpan = document.getElementById('totalPages');
+    const emptyState = document.getElementById('emptyState');
+    const resetFiltersBtn = document.getElementById('resetFilters');
+    
+    // Object type filter elements
+    const objectTypeFilterBtn = document.getElementById('objectTypeFilterBtn');
+    const objectTypeDropdown = document.getElementById('objectTypeDropdown');
+    const objectTypeFilterLabel = document.getElementById('objectTypeFilterLabel');
+    const objectTypeFilterCount = document.getElementById('objectTypeFilterCount');
+    const clearObjectTypeFilter = document.getElementById('clearObjectTypeFilter');
+    const objectTypeSearch = document.getElementById('objectTypeSearch');
+    const objectTypeList = document.getElementById('objectTypeList');
+    
+    // Initialize object type filter
+    function initObjectTypeFilter() {
+        // Get all unique object types with counts
+        const objectTypeCounts = {};
+        allCards.forEach(card => {
+            const type = card.dataset.type;
+            objectTypeCounts[type] = (objectTypeCounts[type] || 0) + 1;
+        });
+        
+        // Sort by count (descending) then by name
+        const sortedTypes = Object.entries(objectTypeCounts)
+            .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+        
+        // Populate dropdown
+        objectTypeList.innerHTML = sortedTypes.map(([type, count]) => `
+            <label class="filter-option" data-type="${type}">
+                <input type="checkbox" value="${type}">
+                <span class="filter-option-label">
+                    <span>${type.charAt(0).toUpperCase() + type.slice(1)}</span>
+                    <span class="filter-option-count">${count}</span>
+                </span>
+            </label>
+        `).join('');
+        
+        // Add event listeners to checkboxes
+        objectTypeList.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                if (this.checked) {
+                    selectedObjectTypes.add(this.value);
+                } else {
+                    selectedObjectTypes.delete(this.value);
+                }
+                updateObjectTypeFilterUI();
+                currentPage = 1;
+                filterCards();
+            });
+        });
+    }
+    
+    // Update object type filter UI
+    function updateObjectTypeFilterUI() {
+        const count = selectedObjectTypes.size;
+        
+        if (count === 0) {
+            objectTypeFilterLabel.textContent = 'All Types';
+            objectTypeFilterCount.style.display = 'none';
+            objectTypeFilterBtn.classList.remove('active');
+        } else {
+            objectTypeFilterLabel.textContent = count === 1 
+                ? Array.from(selectedObjectTypes)[0].charAt(0).toUpperCase() + Array.from(selectedObjectTypes)[0].slice(1)
+                : `${count} Types`;
+            objectTypeFilterCount.textContent = count;
+            objectTypeFilterCount.style.display = 'inline-flex';
+            objectTypeFilterBtn.classList.add('active');
+        }
+    }
+    
+    // Toggle object type dropdown
+    objectTypeFilterBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        const isVisible = objectTypeDropdown.style.display === 'block';
+        objectTypeDropdown.style.display = isVisible ? 'none' : 'block';
+        objectTypeFilterBtn.classList.toggle('active', !isVisible);
+    });
+    
+    // Close dropdown when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!objectTypeFilterBtn.contains(e.target) && !objectTypeDropdown.contains(e.target)) {
+            objectTypeDropdown.style.display = 'none';
+            if (selectedObjectTypes.size === 0) {
+                objectTypeFilterBtn.classList.remove('active');
+            }
+        }
+    });
+    
+    // Clear object type filter
+    clearObjectTypeFilter.addEventListener('click', function() {
+        selectedObjectTypes.clear();
+        objectTypeList.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
+        updateObjectTypeFilterUI();
+        currentPage = 1;
+        filterCards();
+    });
+    
+    // Object type search
+    objectTypeSearch.addEventListener('input', function(e) {
+        const query = e.target.value.toLowerCase();
+        objectTypeList.querySelectorAll('.filter-option').forEach(option => {
+            const type = option.dataset.type.toLowerCase();
+            option.classList.toggle('hidden', !type.includes(query));
+        });
+    });
+    
+    // Filter cards based on current state
+    function filterCards() {
+        let filteredCards = allCards;
+        
+        // Apply classification filter
+        if (currentFilter !== 'all') {
+            filteredCards = filteredCards.filter(card => 
+                card.dataset.classification === currentFilter
+            );
+        }
+        
+        // Apply object type filter
+        if (selectedObjectTypes.size > 0) {
+            filteredCards = filteredCards.filter(card => 
+                selectedObjectTypes.has(card.dataset.type)
+            );
+        }
+        
+        // Apply search filter
+        if (searchQuery) {
+            const query = searchQuery.toLowerCase();
+            filteredCards = filteredCards.filter(card => {
+                const name = card.dataset.name || '';
+                const type = card.dataset.type || '';
+                const uuid = card.dataset.uuid || '';
+                return name.includes(query) || type.includes(query) || uuid.includes(query);
+            });
+        }
+        
+        // Sort cards
+        filteredCards = sortCards(filteredCards);
+        
+        // Show/hide empty state
+        if (filteredCards.length === 0) {
+            emptyState.style.display = 'block';
+            paginationContainer.style.display = 'none';
+        } else {
+            emptyState.style.display = 'none';
+        }
+        
+        // Apply pagination
+        paginateCards(filteredCards);
+    }
+    
+    // Sort cards
+    function sortCards(cards) {
+        return cards.sort((a, b) => {
+            switch (currentSort) {
+                case 'name':
+                    return a.dataset.name.localeCompare(b.dataset.name);
+                case 'type':
+                    return a.dataset.type.localeCompare(b.dataset.type);
+                case 'classification':
+                    return a.dataset.classification.localeCompare(b.dataset.classification);
+                case 'order':
+                default:
+                    return parseInt(a.dataset.order) - parseInt(b.dataset.order);
             }
         });
     }
     
-    // Classification filter functionality
-    const filterButtons = document.querySelectorAll('.filter-btn');
-    const classificationGroups = document.querySelectorAll('.classification-group');
+    // Paginate cards
+    function paginateCards(cards) {
+        // Hide all cards first
+        allCards.forEach(card => card.classList.add('hidden'));
+        
+        // Calculate pagination
+        const totalItems = cards.length;
+        const totalPages = itemsPerPage === 'all' ? 1 : Math.ceil(totalItems / itemsPerPage);
+        
+        // Update pagination display
+        if (itemsPerPage === 'all' || totalPages <= 1) {
+            paginationContainer.style.display = 'none';
+            // Show all filtered cards
+            cards.forEach(card => card.classList.remove('hidden'));
+        } else {
+            paginationContainer.style.display = 'flex';
+            
+            // Ensure current page is valid
+            if (currentPage > totalPages) {
+                currentPage = totalPages;
+            }
+            if (currentPage < 1) {
+                currentPage = 1;
+            }
+            
+            // Calculate start and end indices
+            const startIndex = (currentPage - 1) * itemsPerPage;
+            const endIndex = Math.min(startIndex + itemsPerPage, totalItems);
+            
+            // Show cards for current page
+            for (let i = startIndex; i < endIndex; i++) {
+                cards[i].classList.remove('hidden');
+            }
+            
+            // Update pagination controls
+            currentPageSpan.textContent = currentPage;
+            totalPagesSpan.textContent = totalPages;
+            prevPageBtn.disabled = currentPage === 1;
+            nextPageBtn.disabled = currentPage === totalPages;
+        }
+    }
     
-    filterButtons.forEach(button => {
-        button.addEventListener('click', function() {
-            const classification = this.dataset.classification;
-            
-            // Update active state
-            filterButtons.forEach(btn => btn.classList.remove('active'));
+    // Search functionality
+    searchInput.addEventListener('input', function(e) {
+        searchQuery = e.target.value.trim();
+        clearSearchBtn.style.display = searchQuery ? 'flex' : 'none';
+        currentPage = 1; // Reset to first page
+        filterCards();
+    });
+    
+    clearSearchBtn.addEventListener('click', function() {
+        searchInput.value = '';
+        searchQuery = '';
+        clearSearchBtn.style.display = 'none';
+        currentPage = 1;
+        filterCards();
+    });
+    
+    // Filter pills
+    filterPills.forEach(pill => {
+        pill.addEventListener('click', function() {
+            currentFilter = this.dataset.filter;
+            filterPills.forEach(p => p.classList.remove('active'));
             this.classList.add('active');
-            
-            // Filter groups
-            if (classification === 'all') {
-                // Show all groups
-                classificationGroups.forEach(group => {
-                    group.classList.remove('hidden');
-                });
-            } else {
-                // Show only selected classification
-                classificationGroups.forEach(group => {
-                    if (group.dataset.classification === classification) {
-                        group.classList.remove('hidden');
-                    } else {
-                        group.classList.add('hidden');
-                    }
-                });
+            currentPage = 1; // Reset to first page
+            filterCards();
+        });
+    });
+    
+    // Sort select
+    sortSelect.addEventListener('change', function() {
+        currentSort = this.value;
+        filterCards();
+    });
+    
+    // Items per page select
+    itemsPerPageSelect.addEventListener('change', function() {
+        itemsPerPage = this.value === 'all' ? 'all' : parseInt(this.value);
+        currentPage = 1; // Reset to first page
+        filterCards();
+    });
+    
+    // Pagination buttons
+    prevPageBtn.addEventListener('click', function() {
+        if (currentPage > 1) {
+            currentPage--;
+            filterCards();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    });
+    
+    nextPageBtn.addEventListener('click', function() {
+        const totalPages = parseInt(totalPagesSpan.textContent);
+        if (currentPage < totalPages) {
+            currentPage++;
+            filterCards();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    });
+    
+    // Reset filters
+    resetFiltersBtn.addEventListener('click', function() {
+        // Reset all filters
+        searchInput.value = '';
+        searchQuery = '';
+        clearSearchBtn.style.display = 'none';
+        currentFilter = 'all';
+        currentSort = 'order';
+        currentPage = 1;
+        itemsPerPage = 20;
+        selectedObjectTypes.clear();
+        objectTypeList.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
+        objectTypeSearch.value = '';
+        objectTypeList.querySelectorAll('.filter-option').forEach(opt => opt.classList.remove('hidden'));
+        
+        // Reset UI
+        filterPills.forEach(p => p.classList.remove('active'));
+        filterPills[0].classList.add('active'); // Activate "All" filter
+        sortSelect.value = 'order';
+        itemsPerPageSelect.value = '20';
+        updateObjectTypeFilterUI();
+        
+        // Refilter
+        filterCards();
+    });
+    
+    // Keyboard shortcuts
+    document.addEventListener('keydown', function(e) {
+        // Ctrl/Cmd + F to focus search
+        if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+            e.preventDefault();
+            searchInput.focus();
+        }
+        
+        // Arrow keys for pagination
+        if (e.key === 'ArrowLeft' && !prevPageBtn.disabled) {
+            prevPageBtn.click();
+        }
+        if (e.key === 'ArrowRight' && !nextPageBtn.disabled) {
+            nextPageBtn.click();
+        }
+    });
+    
+    // Initial render
+    initObjectTypeFilter();
+    filterCards();
+    
+    // Add smooth scroll behavior
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', function (e) {
+            e.preventDefault();
+            const target = document.querySelector(this.getAttribute('href'));
+            if (target) {
+                target.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }
         });
     });
