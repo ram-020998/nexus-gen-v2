@@ -9,7 +9,7 @@
     </h5>
     
     {% if diff_hunks is defined %}
-        {{ render_sail_diff(diff_hunks, old_label='Customer' if customer_object else 'Base', new_label='Vendor', stats=diff_stats) }}
+        {{ render_sail_diff(diff_hunks, old_label='Vendor', new_label='Customer' if customer_object else 'Base', stats=diff_stats) }}
     {% else %}
         <div class="sail-diff-container">
             <div class="diff-side">

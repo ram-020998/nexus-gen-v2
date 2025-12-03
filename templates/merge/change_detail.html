@@ -165,7 +165,7 @@
                 <div id="aiSummaryContent" class="ai-summary-content" style="display: {% if detail.change.ai_summary_status == 'completed' %}block{% else %}none{% endif %};">
                     {% if detail.change.ai_summary %}
                     <div class="summary-text">
-                        {{ detail.change.ai_summary|safe|replace('\n', '<br>')|replace('**', '<strong>')|replace('**', '</strong>') }}
+                        {{ detail.change.ai_summary|safe }}
                     </div>
                     <div class="summary-meta">
                         <small class="text-muted">

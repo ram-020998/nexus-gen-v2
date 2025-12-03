@@ -109,6 +109,20 @@ class ReportGenerationService(BaseService):
         if not session:
             raise ValueError(f"Session not found: {reference_id}")
 
+        # Ensure estimated time is calculated
+        if not session.estimated_time_hours:
+            from services.session_statistics_service import (
+                SessionStatisticsService
+            )
+            stats_service = SessionStatisticsService()
+            time_hours = stats_service.estimate_review_time(session.id)
+            session.estimated_time_hours = time_hours
+            db.session.commit()
+            self.logger.info(
+                f"Calculated estimated time for {reference_id}: "
+                f"{session.estimated_time_hours} hours"
+            )
+
         # Gather report data
         data = self._gather_report_data(session)
 
@@ -925,7 +939,7 @@ class ReportGenerationService(BaseService):
             cell.border = thin_border
 
             # Estimated Time
-            estimated_time = self._calculate_change_time(complexity)
+            estimated_time = self._calculate_change_time(change)
             cell = ws.cell(row=idx, column=9)
             cell.value = estimated_time
             cell.font = Font(size=10)
@@ -1017,23 +1031,37 @@ class ReportGenerationService(BaseService):
         
         return 'Low'
     
-    def _calculate_change_time(self, complexity: str) -> str:
+    def _calculate_change_time(self, change: dict) -> str:
         """
-        Calculate estimated time based on complexity.
-        
+        Calculate estimated time for a single change.
+
+        Uses the same logic as SessionStatisticsService:
+        - Base: 5 minutes per change
+        - Conflict: +10 minutes
+        - Process Model: +5 minutes
+        - Record Type: +3 minutes
+
         Args:
-            complexity: Complexity level
-            
+            change: Change dictionary
+
         Returns:
-            Estimated time string
+            Estimated time string (e.g., "5 min", "15 min")
         """
-        time_mapping = {
-            'Low': '15-30 min',
-            'Medium': '30-60 min',
-            'High': '1-2 hours',
-            'Critical': '2-4 hours'
-        }
-        return time_mapping.get(complexity, '30 min')
+        # Base time
+        time_minutes = 5
+
+        # Add time for conflicts
+        if change['classification'] == 'CONFLICT':
+            time_minutes += 10
+
+        # Add time for complex object types
+        object_type = change.get('object_type', '')
+        if object_type == 'process_model':
+            time_minutes += 5
+        elif object_type == 'record_type':
+            time_minutes += 3
+
+        return f"{time_minutes} min"
 
     def clear_cache(self, reference_id: Optional[str] = None) -> None:
         """

@@ -6,7 +6,7 @@
     </div>
     
     <div class="comparison-body">
-        <!-- Tabs for Node Changes and Flow Changes -->
+        <!-- Tabs for Node Changes, Flow Changes, and Variables -->
         <ul class="nav nav-tabs comparison-tabs" role="tablist">
             <li class="nav-item" role="presentation">
                 <button class="nav-link active" id="nodes-tab" data-bs-toggle="tab" data-bs-target="#nodes-content" type="button" role="tab">
@@ -16,6 +16,11 @@
             <li class="nav-item" role="presentation">
                 <button class="nav-link" id="flows-tab" data-bs-toggle="tab" data-bs-target="#flows-content" type="button" role="tab">
                     <i class="fas fa-arrow-right"></i> Flow Changes
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="variables-tab" data-bs-toggle="tab" data-bs-target="#variables-content" type="button" role="tab">
+                    <i class="fas fa-dollar-sign"></i> Variables
                 </button>
             </li>
         </ul>
@@ -112,6 +117,86 @@
                             <pre class="mermaid">{{ comparison.customer.mermaid_diagram }}</pre>
                             {% else %}
                             <p class="text-muted">No flow diagram available</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Variables Tab -->
+            <div class="tab-pane fade" id="variables-content" role="tabpanel">
+                <div class="comparison-grid">
+                    <!-- Vendor Variables -->
+                    <div class="version-column vendor-column">
+                        <div class="version-header">
+                            <span class="badge bg-info">Vendor Variables</span>
+                        </div>
+                        <div class="version-content">
+                            {% if comparison.vendor.variables %}
+                            <table class="variables-table">
+                                <thead>
+                                    <tr>
+                                        <th>Variable Name</th>
+                                        <th>Type</th>
+                                        <th>Parameter</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for variable in comparison.vendor.variables %}
+                                    <tr>
+                                        <td><code>{{ variable.variable_name }}</code></td>
+                                        <td><span class="badge bg-secondary">{{ variable.variable_type }}</span></td>
+                                        <td>
+                                            {% if variable.is_parameter %}
+                                            <span class="badge bg-primary"><i class="fas fa-check"></i> Yes</span>
+                                            {% else %}
+                                            <span class="badge bg-dark">No</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                            {% else %}
+                            <p class="text-muted">No variables</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <!-- Customer Variables -->
+                    <div class="version-column customer-column">
+                        <div class="version-header">
+                            <span class="badge bg-success">Customer Variables</span>
+                        </div>
+                        <div class="version-content">
+                            {% if comparison.customer.variables %}
+                            <table class="variables-table">
+                                <thead>
+                                    <tr>
+                                        <th>Variable Name</th>
+                                        <th>Type</th>
+                                        <th>Parameter</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for variable in comparison.customer.variables %}
+                                    {% set vendor_var = comparison.vendor.variables | selectattr('variable_name', 'equalto', variable.variable_name) | first %}
+                                    <tr class="{% if not vendor_var %}highlight-added{% elif vendor_var.variable_type != variable.variable_type or vendor_var.is_parameter != variable.is_parameter %}highlight-diff{% endif %}">
+                                        <td><code>{{ variable.variable_name }}</code></td>
+                                        <td><span class="badge bg-secondary">{{ variable.variable_type }}</span></td>
+                                        <td>
+                                            {% if variable.is_parameter %}
+                                            <span class="badge bg-primary"><i class="fas fa-check"></i> Yes</span>
+                                            {% else %}
+                                            <span class="badge bg-dark">No</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                            {% else %}
+                            <p class="text-muted">No variables</p>
                             {% endif %}
                         </div>
                     </div>

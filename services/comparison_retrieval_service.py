@@ -13,7 +13,7 @@ from core.base_service import BaseService
 from models import (
     db, ObjectVersion, Change,
     Interface, InterfaceParameter,
-    ProcessModel, ProcessModelNode, ProcessModelFlow,
+    ProcessModel, ProcessModelNode, ProcessModelFlow, ProcessModelVariable,
     ExpressionRule, ExpressionRuleInput,
     RecordType, RecordTypeField, RecordTypeRelationship,
     RecordTypeView, RecordTypeAction,
@@ -259,6 +259,10 @@ class ComparisonRetrievalService(BaseService):
         vendor_flows = self._get_process_model_flows(vendor_pm.id) if vendor_pm else []
         customer_flows = self._get_process_model_flows(customer_pm.id) if customer_pm else []
         
+        # Get variables
+        vendor_variables = self._get_process_model_variables(vendor_pm.id) if vendor_pm else []
+        customer_variables = self._get_process_model_variables(customer_pm.id) if customer_pm else []
+        
         # Generate Mermaid diagrams with color coding
         vendor_mermaid = self._generate_mermaid_diagram_with_diff(
             vendor_nodes, vendor_flows, customer_nodes, is_vendor=True
@@ -272,14 +276,16 @@ class ComparisonRetrievalService(BaseService):
             'vendor': {
                 'nodes': vendor_nodes,
                 'flows': vendor_flows,
+                'variables': vendor_variables,
                 'mermaid_diagram': vendor_mermaid
             },
             'customer': {
                 'nodes': customer_nodes,
                 'flows': customer_flows,
+                'variables': customer_variables,
                 'mermaid_diagram': customer_mermaid
             },
-            'has_changes': vendor_nodes != customer_nodes or vendor_flows != customer_flows
+            'has_changes': vendor_nodes != customer_nodes or vendor_flows != customer_flows or vendor_variables != customer_variables
         }
     
     def _get_cdt_comparison(
@@ -638,6 +644,22 @@ class ComparisonRetrievalService(BaseService):
                 'label': f.flow_label
             }
             for f in flows
+        ]
+    
+    def _get_process_model_variables(self, process_model_id: int) -> List[Dict[str, Any]]:
+        """Get process model variables."""
+        from models import ProcessModelVariable
+        variables = db.session.query(ProcessModelVariable).filter_by(
+            process_model_id=process_model_id
+        ).all()
+        return [
+            {
+                'variable_name': v.variable_name,
+                'variable_type': v.variable_type,
+                'is_parameter': v.is_parameter,
+                'default_value': v.default_value
+            }
+            for v in variables
         ]
     
     def _generate_mermaid_diagram(

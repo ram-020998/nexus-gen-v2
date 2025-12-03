@@ -139,12 +139,36 @@
 </div>
 {% endif %}
 
-<!-- Nodes Comparison -->
+<!-- Detailed Comparison Tabs -->
 {% if process_model_comparison %}
 <div class="comparison-section mb-4">
     <h5 class="section-title">
-        <i class="fas fa-circle"></i> Nodes
+        <i class="fas fa-list"></i> Detailed Changes
     </h5>
+    
+    <div class="detail-tabs">
+        <ul class="nav nav-tabs" role="tablist">
+            <li class="nav-item">
+                <a class="nav-link active" id="nodes-tab" data-toggle="tab" href="#nodes-content" role="tab">
+                    <i class="fas fa-circle"></i> Nodes
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" id="flows-tab" data-toggle="tab" href="#flows-content" role="tab">
+                    <i class="fas fa-arrow-right"></i> Flows
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" id="variables-tab" data-toggle="tab" href="#variables-content" role="tab">
+                    <i class="fas fa-dollar-sign"></i> Variables
+                </a>
+            </li>
+        </ul>
+        
+        <div class="tab-content">
+            <!-- Nodes Tab -->
+            <div class="tab-pane fade show active" id="nodes-content" role="tabpanel">
+                <div class="tab-inner-content">
     
     {% if process_model_comparison.nodes_added %}
     <div class="change-group added">
@@ -204,13 +228,12 @@
         <i class="fas fa-check-circle"></i> No node changes
     </div>
     {% endif %}
-</div>
-
-<!-- Flows Comparison -->
-<div class="comparison-section mb-4">
-    <h5 class="section-title">
-        <i class="fas fa-arrow-right"></i> Flows
-    </h5>
+                </div>
+            </div>
+            
+            <!-- Flows Tab -->
+            <div class="tab-pane fade" id="flows-content" role="tabpanel">
+                <div class="tab-inner-content">
     
     {% if process_model_comparison.flows_added %}
     <div class="change-group added">
@@ -256,14 +279,12 @@
         <i class="fas fa-check-circle"></i> No flow changes
     </div>
     {% endif %}
-</div>
-
-<!-- Variables Comparison -->
-<div class="comparison-section mb-4">
-    <h5 class="section-title">
-        <i class="fas fa-dollar-sign"></i> Variables
-    </h5>
-    
+                </div>
+            </div>
+            
+            <!-- Variables Tab -->
+            <div class="tab-pane fade" id="variables-content" role="tabpanel">
+                <div class="tab-inner-content">
     {% if process_model_comparison.variables_changed %}
     <div class="change-group modified">
         <h6 class="change-group-title">
@@ -286,6 +307,10 @@
         <i class="fas fa-check-circle"></i> No variable changes
     </div>
     {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 {% endif %}
 
@@ -370,7 +395,7 @@
     color: #fbbf24;
 }
 
-.diagram-tabs {
+.diagram-tabs, .detail-tabs {
     margin-top: 1rem;
 }
 
@@ -384,6 +409,9 @@
     border: none;
     padding: 0.75rem 1.5rem;
     background: transparent;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
 }
 
 .nav-tabs .nav-link:hover {
@@ -396,6 +424,10 @@
     background: rgba(139, 92, 246, 0.1);
     border: none;
     border-bottom: 2px solid var(--purple);
+}
+
+.tab-inner-content {
+    padding: 1rem 0;
 }
 
 .mermaid-container {
