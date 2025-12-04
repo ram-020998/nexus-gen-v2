@@ -78,30 +78,6 @@
         </div>
         {% else %}
         <div class="split-container">
-            <div class="split-side old-side">
-                <div class="split-header">
-                    <i class="fas fa-minus-circle"></i> {{ old_label }}
-                </div>
-                <div class="split-content">
-                    {% for hunk in diff_hunks %}
-                    <div class="split-hunk">
-                        <div class="hunk-header-split">
-                            @@ -{{ hunk.old_start }},{{ hunk.old_count }} @@
-                        </div>
-                        <table class="split-table">
-                            {% for line in hunk.lines %}
-                            {% if line.line_type.value != 'added' %}
-                            <tr class="split-line {% if line.line_type.value == 'removed' %}removed-line{% endif %}">
-                                <td class="split-line-num">{{ line.old_line_num if line.old_line_num else '' }}</td>
-                                <td class="split-line-content"><pre>{{ line.content }}</pre></td>
-                            </tr>
-                            {% endif %}
-                            {% endfor %}
-                        </table>
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
             <div class="split-side new-side">
                 <div class="split-header">
                     <i class="fas fa-plus-circle"></i> {{ new_label }}
@@ -117,6 +93,30 @@
                             {% if line.line_type.value != 'removed' %}
                             <tr class="split-line {% if line.line_type.value == 'added' %}added-line{% endif %}">
                                 <td class="split-line-num">{{ line.new_line_num if line.new_line_num else '' }}</td>
+                                <td class="split-line-content"><pre>{{ line.content }}</pre></td>
+                            </tr>
+                            {% endif %}
+                            {% endfor %}
+                        </table>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="split-side old-side">
+                <div class="split-header">
+                    <i class="fas fa-minus-circle"></i> {{ old_label }}
+                </div>
+                <div class="split-content">
+                    {% for hunk in diff_hunks %}
+                    <div class="split-hunk">
+                        <div class="hunk-header-split">
+                            @@ -{{ hunk.old_start }},{{ hunk.old_count }} @@
+                        </div>
+                        <table class="split-table">
+                            {% for line in hunk.lines %}
+                            {% if line.line_type.value != 'added' %}
+                            <tr class="split-line {% if line.line_type.value == 'removed' %}removed-line{% endif %}">
+                                <td class="split-line-num">{{ line.old_line_num if line.old_line_num else '' }}</td>
                                 <td class="split-line-content"><pre>{{ line.content }}</pre></td>
                             </tr>
                             {% endif %}

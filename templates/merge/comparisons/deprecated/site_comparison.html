@@ -4,42 +4,64 @@
 <!-- Page Hierarchy Comparison -->
 <div class="comparison-section mb-4">
     <h5 class="section-title">
-        <i class="fas fa-sitemap"></i> Page Hierarchy
+        <i class="fas fa-sitemap"></i> Page Hierarchy {% if change.classification == 'NO_CONFLICT' %}(Vendor){% endif %}
     </h5>
     
-    <div class="hierarchy-comparison">
-        <div class="hierarchy-side">
-            <div class="hierarchy-header before">
-                <i class="fas fa-minus-circle"></i> Before ({{ 'Customer' if customer_object else 'Base' }})
-            </div>
-            <div class="hierarchy-content">
-                {% set before_hierarchy = (customer_object.page_hierarchy if customer_object else base_object.page_hierarchy) %}
-                {% if before_hierarchy %}
-                    {% set hierarchy_data = before_hierarchy | from_json if before_hierarchy is string else before_hierarchy %}
-                    <div class="tree-view">
-                        {{ render_tree(hierarchy_data) }}
-                    </div>
-                {% else %}
-                    <div class="no-hierarchy">No page hierarchy available</div>
-                {% endif %}
-            </div>
-        </div>
-        <div class="hierarchy-side">
-            <div class="hierarchy-header after">
-                <i class="fas fa-plus-circle"></i> After (Vendor)
-            </div>
-            <div class="hierarchy-content">
-                {% if vendor_object.page_hierarchy %}
-                    {% set hierarchy_data = vendor_object.page_hierarchy | from_json if vendor_object.page_hierarchy is string else vendor_object.page_hierarchy %}
-                    <div class="tree-view">
-                        {{ render_tree(hierarchy_data) }}
-                    </div>
-                {% else %}
-                    <div class="no-hierarchy">No page hierarchy available</div>
-                {% endif %}
+    {% if change.classification == 'NO_CONFLICT' %}
+        <!-- NO_CONFLICT: Show only vendor hierarchy -->
+        <div class="hierarchy-comparison single-view">
+            <div class="hierarchy-side">
+                <div class="hierarchy-header vendor">
+                    <i class="fas fa-sitemap"></i> Vendor Hierarchy
+                </div>
+                <div class="hierarchy-content">
+                    {% if vendor_object.page_hierarchy %}
+                        {% set hierarchy_data = vendor_object.page_hierarchy | from_json if vendor_object.page_hierarchy is string else vendor_object.page_hierarchy %}
+                        <div class="tree-view">
+                            {{ render_tree(hierarchy_data) }}
+                        </div>
+                    {% else %}
+                        <div class="no-hierarchy">No page hierarchy available</div>
+                    {% endif %}
+                </div>
             </div>
         </div>
-    </div>
+    {% else %}
+        <!-- CONFLICT/NEW/DELETED: Show comparison -->
+        <div class="hierarchy-comparison">
+            <div class="hierarchy-side">
+                <div class="hierarchy-header before">
+                    <i class="fas fa-minus-circle"></i> Before ({{ 'Customer' if customer_object else 'Base' }})
+                </div>
+                <div class="hierarchy-content">
+                    {% set before_hierarchy = (customer_object.page_hierarchy if customer_object else base_object.page_hierarchy) %}
+                    {% if before_hierarchy %}
+                        {% set hierarchy_data = before_hierarchy | from_json if before_hierarchy is string else before_hierarchy %}
+                        <div class="tree-view">
+                            {{ render_tree(hierarchy_data) }}
+                        </div>
+                    {% else %}
+                        <div class="no-hierarchy">No page hierarchy available</div>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="hierarchy-side">
+                <div class="hierarchy-header after">
+                    <i class="fas fa-plus-circle"></i> After (Vendor)
+                </div>
+                <div class="hierarchy-content">
+                    {% if vendor_object.page_hierarchy %}
+                        {% set hierarchy_data = vendor_object.page_hierarchy | from_json if vendor_object.page_hierarchy is string else vendor_object.page_hierarchy %}
+                        <div class="tree-view">
+                            {{ render_tree(hierarchy_data) }}
+                        </div>
+                    {% else %}
+                        <div class="no-hierarchy">No page hierarchy available</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    {% endif %}
 </div>
 
 <!-- Macro for rendering tree structure -->
@@ -97,6 +119,10 @@
     margin-top: 1rem;
 }
 
+.hierarchy-comparison.single-view {
+    grid-template-columns: 1fr;
+}
+
 .hierarchy-side {
     background: var(--bg-card);
     border-radius: 8px;
@@ -120,6 +146,11 @@
 .hierarchy-header.after {
     background: rgba(16, 185, 129, 0.2);
     color: var(--green);
+}
+
+.hierarchy-header.vendor {
+    background: rgba(139, 92, 246, 0.2);
+    color: var(--purple);
 }
 
 .hierarchy-content {

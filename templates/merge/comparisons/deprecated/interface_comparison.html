@@ -5,30 +5,45 @@
 <!-- SAIL Code Comparison -->
 <div class="comparison-section mb-4">
     <h5 class="section-title">
-        <i class="fas fa-code"></i> SAIL Code Comparison
+        <i class="fas fa-code"></i> SAIL Code {% if change.classification == 'NO_CONFLICT' %}(Vendor Changes){% else %}Comparison{% endif %}
     </h5>
     
-    {% if diff_hunks is defined %}
-        {{ render_sail_diff(diff_hunks, old_label='Vendor', new_label='Customer' if customer_object else 'Base', stats=diff_stats) }}
-    {% else %}
-        <div class="sail-diff-container">
+    {% if change.classification == 'NO_CONFLICT' %}
+        <!-- NO_CONFLICT: Show only vendor changes -->
+        <div class="sail-diff-container single-view">
             <div class="diff-side">
-                <div class="diff-side-header before">
-                    <i class="fas fa-minus-circle"></i> Before ({{ 'Customer' if customer_object else 'Base' }})
-                </div>
-                <div class="diff-code-content">
-                    <pre><code class="language-sail">{{ (customer_object.sail_code if customer_object else base_object.sail_code) or 'No SAIL code available' }}</code></pre>
-                </div>
-            </div>
-            <div class="diff-side">
-                <div class="diff-side-header after">
-                    <i class="fas fa-plus-circle"></i> After (Vendor)
+                <div class="diff-side-header vendor">
+                    <i class="fas fa-code"></i> Vendor Version
                 </div>
                 <div class="diff-code-content">
                     <pre><code class="language-sail">{{ vendor_object.sail_code or 'No SAIL code available' }}</code></pre>
                 </div>
             </div>
         </div>
+    {% else %}
+        <!-- CONFLICT/NEW/DELETED: Show comparison -->
+        {% if diff_hunks is defined %}
+            {{ render_sail_diff(diff_hunks, old_label='Customer' if customer_object else 'Base', new_label='Vendor', stats=diff_stats) }}
+        {% else %}
+            <div class="sail-diff-container">
+                <div class="diff-side">
+                    <div class="diff-side-header before">
+                        <i class="fas fa-minus-circle"></i> Before ({{ 'Customer' if customer_object else 'Base' }})
+                    </div>
+                    <div class="diff-code-content">
+                        <pre><code class="language-sail">{{ (customer_object.sail_code if customer_object else base_object.sail_code) or 'No SAIL code available' }}</code></pre>
+                    </div>
+                </div>
+                <div class="diff-side">
+                    <div class="diff-side-header after">
+                        <i class="fas fa-plus-circle"></i> After (Vendor)
+                    </div>
+                    <div class="diff-code-content">
+                        <pre><code class="language-sail">{{ vendor_object.sail_code or 'No SAIL code available' }}</code></pre>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
     {% endif %}
 </div>
 
@@ -197,6 +212,10 @@
     margin-top: 1rem;
 }
 
+.sail-diff-container.single-view {
+    grid-template-columns: 1fr;
+}
+
 .diff-side {
     background: var(--bg-card);
     border-radius: 8px;
@@ -220,6 +239,11 @@
 .diff-side-header.after {
     background: rgba(16, 185, 129, 0.2);
     color: var(--green);
+}
+
+.diff-side-header.vendor {
+    background: rgba(139, 92, 246, 0.2);
+    color: var(--purple);
 }
 
 .diff-code-content {

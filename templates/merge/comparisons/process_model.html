@@ -29,177 +29,339 @@
             <!-- Node Changes Tab -->
             <div class="tab-pane fade show active" id="nodes-content" role="tabpanel">
                 <div class="comparison-grid">
-                    <!-- Vendor Nodes -->
-                    <div class="version-column vendor-column">
-                        <div class="version-header">
-                            <span class="badge bg-info">Vendor Nodes</span>
+                    {% if detail.change.classification == 'CONFLICT' %}
+                        <!-- CONFLICT: Vendor Latest (left) vs Customer (right) -->
+                        <div class="version-column vendor-column">
+                            <div class="version-header">
+                                <span class="badge bg-info">Vendor Latest</span>
+                            </div>
+                            <div class="version-content">
+                                {% if comparison.vendor.nodes %}
+                                <table class="nodes-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Node Name</th>
+                                            <th>Type</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for node in comparison.vendor.nodes %}
+                                        <tr>
+                                            <td>{{ node.name }}</td>
+                                            <td><span class="badge bg-secondary">{{ node.type }}</span></td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                                {% else %}
+                                <p class="text-muted">No nodes</p>
+                                {% endif %}
+                            </div>
                         </div>
-                        <div class="version-content">
-                            {% if comparison.vendor.nodes %}
-                            <table class="nodes-table">
-                                <thead>
-                                    <tr>
-                                        <th>Node Name</th>
-                                        <th>Type</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for node in comparison.vendor.nodes %}
-                                    <tr>
-                                        <td>{{ node.name }}</td>
-                                        <td><span class="badge bg-secondary">{{ node.type }}</span></td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                            {% else %}
-                            <p class="text-muted">No nodes</p>
-                            {% endif %}
+                        
+                        <div class="version-column customer-column">
+                            <div class="version-header">
+                                <span class="badge bg-success">Customer</span>
+                            </div>
+                            <div class="version-content">
+                                {% if comparison.customer.nodes %}
+                                <table class="nodes-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Node Name</th>
+                                            <th>Type</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for node in comparison.customer.nodes %}
+                                        {% set vendor_node = comparison.vendor.nodes | selectattr('node_id', 'equalto', node.node_id) | first %}
+                                        <tr class="{% if not vendor_node %}highlight-added{% elif vendor_node.name != node.name or vendor_node.type != node.type %}highlight-diff{% endif %}">
+                                            <td>{{ node.name }}</td>
+                                            <td><span class="badge bg-secondary">{{ node.type }}</span></td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                                {% else %}
+                                <p class="text-muted">No nodes</p>
+                                {% endif %}
+                            </div>
                         </div>
-                    </div>
-                    
-                    <!-- Customer Nodes -->
-                    <div class="version-column customer-column">
-                        <div class="version-header">
-                            <span class="badge bg-success">Customer Nodes</span>
+                    {% else %}
+                        <!-- NO_CONFLICT: Vendor Base (left) vs Vendor Latest (right) -->
+                        <div class="version-column vendor-column">
+                            <div class="version-header">
+                                <span class="badge bg-secondary">Vendor Base</span>
+                            </div>
+                            <div class="version-content">
+                                {% if comparison.customer.nodes %}
+                                <table class="nodes-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Node Name</th>
+                                            <th>Type</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for node in comparison.customer.nodes %}
+                                        <tr>
+                                            <td>{{ node.name }}</td>
+                                            <td><span class="badge bg-secondary">{{ node.type }}</span></td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                                {% else %}
+                                <p class="text-muted">No nodes</p>
+                                {% endif %}
+                            </div>
                         </div>
-                        <div class="version-content">
-                            {% if comparison.customer.nodes %}
-                            <table class="nodes-table">
-                                <thead>
-                                    <tr>
-                                        <th>Node Name</th>
-                                        <th>Type</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for node in comparison.customer.nodes %}
-                                    {% set vendor_node = comparison.vendor.nodes | selectattr('node_id', 'equalto', node.node_id) | first %}
-                                    <tr class="{% if not vendor_node %}highlight-added{% elif vendor_node.name != node.name or vendor_node.type != node.type %}highlight-diff{% endif %}">
-                                        <td>{{ node.name }}</td>
-                                        <td><span class="badge bg-secondary">{{ node.type }}</span></td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                            {% else %}
-                            <p class="text-muted">No nodes</p>
-                            {% endif %}
+                        
+                        <div class="version-column customer-column">
+                            <div class="version-header">
+                                <span class="badge bg-info">Vendor Latest</span>
+                            </div>
+                            <div class="version-content">
+                                {% if comparison.vendor.nodes %}
+                                <table class="nodes-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Node Name</th>
+                                            <th>Type</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for node in comparison.vendor.nodes %}
+                                        {% set base_node = comparison.customer.nodes | selectattr('node_id', 'equalto', node.node_id) | first %}
+                                        <tr class="{% if not base_node %}highlight-added{% elif base_node.name != node.name or base_node.type != node.type %}highlight-diff{% endif %}">
+                                            <td>{{ node.name }}</td>
+                                            <td><span class="badge bg-secondary">{{ node.type }}</span></td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                                {% else %}
+                                <p class="text-muted">No nodes</p>
+                                {% endif %}
+                            </div>
                         </div>
-                    </div>
+                    {% endif %}
                 </div>
             </div>
             
             <!-- Flow Changes Tab -->
             <div class="tab-pane fade" id="flows-content" role="tabpanel">
                 <div class="flow-diagrams">
-                    <!-- Vendor Flow Diagram -->
-                    <div class="diagram-section">
-                        <div class="diagram-header">
-                            <span class="badge bg-info">Vendor Flow</span>
+                    {% if detail.change.classification == 'CONFLICT' %}
+                        <!-- CONFLICT: Vendor Latest (left) vs Customer (right) -->
+                        <div class="diagram-section">
+                            <div class="diagram-header">
+                                <span class="badge bg-info">Vendor Latest</span>
+                            </div>
+                            <div class="mermaid-container">
+                                {% if comparison.vendor.mermaid_diagram %}
+                                <pre class="mermaid">{{ comparison.vendor.mermaid_diagram }}</pre>
+                                {% else %}
+                                <p class="text-muted">No flow diagram available</p>
+                                {% endif %}
+                            </div>
                         </div>
-                        <div class="mermaid-container">
-                            {% if comparison.vendor.mermaid_diagram %}
-                            <pre class="mermaid">{{ comparison.vendor.mermaid_diagram }}</pre>
-                            {% else %}
-                            <p class="text-muted">No flow diagram available</p>
-                            {% endif %}
+                        
+                        <div class="diagram-section">
+                            <div class="diagram-header">
+                                <span class="badge bg-success">Customer</span>
+                            </div>
+                            <div class="mermaid-container">
+                                {% if comparison.customer.mermaid_diagram %}
+                                <pre class="mermaid">{{ comparison.customer.mermaid_diagram }}</pre>
+                                {% else %}
+                                <p class="text-muted">No flow diagram available</p>
+                                {% endif %}
+                            </div>
                         </div>
-                    </div>
-                    
-                    <!-- Customer Flow Diagram -->
-                    <div class="diagram-section">
-                        <div class="diagram-header">
-                            <span class="badge bg-success">Customer Flow</span>
+                    {% else %}
+                        <!-- NO_CONFLICT: Vendor Base (left) vs Vendor Latest (right) -->
+                        <div class="diagram-section">
+                            <div class="diagram-header">
+                                <span class="badge bg-secondary">Vendor Base</span>
+                            </div>
+                            <div class="mermaid-container">
+                                {% if comparison.customer.mermaid_diagram %}
+                                <pre class="mermaid">{{ comparison.customer.mermaid_diagram }}</pre>
+                                {% else %}
+                                <p class="text-muted">No flow diagram available</p>
+                                {% endif %}
+                            </div>
                         </div>
-                        <div class="mermaid-container">
-                            {% if comparison.customer.mermaid_diagram %}
-                            <pre class="mermaid">{{ comparison.customer.mermaid_diagram }}</pre>
-                            {% else %}
-                            <p class="text-muted">No flow diagram available</p>
-                            {% endif %}
+                        
+                        <div class="diagram-section">
+                            <div class="diagram-header">
+                                <span class="badge bg-info">Vendor Latest</span>
+                            </div>
+                            <div class="mermaid-container">
+                                {% if comparison.vendor.mermaid_diagram %}
+                                <pre class="mermaid">{{ comparison.vendor.mermaid_diagram }}</pre>
+                                {% else %}
+                                <p class="text-muted">No flow diagram available</p>
+                                {% endif %}
+                            </div>
                         </div>
-                    </div>
+                    {% endif %}
                 </div>
             </div>
             
             <!-- Variables Tab -->
             <div class="tab-pane fade" id="variables-content" role="tabpanel">
                 <div class="comparison-grid">
-                    <!-- Vendor Variables -->
-                    <div class="version-column vendor-column">
-                        <div class="version-header">
-                            <span class="badge bg-info">Vendor Variables</span>
+                    {% if detail.change.classification == 'CONFLICT' %}
+                        <!-- CONFLICT: Vendor Latest (left) vs Customer (right) -->
+                        <div class="version-column vendor-column">
+                            <div class="version-header">
+                                <span class="badge bg-info">Vendor Latest</span>
+                            </div>
+                            <div class="version-content">
+                                {% if comparison.vendor.variables %}
+                                <table class="variables-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Variable Name</th>
+                                            <th>Type</th>
+                                            <th>Parameter</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for variable in comparison.vendor.variables %}
+                                        <tr>
+                                            <td><code>{{ variable.variable_name }}</code></td>
+                                            <td><span class="badge bg-secondary">{{ variable.variable_type }}</span></td>
+                                            <td>
+                                                {% if variable.is_parameter %}
+                                                <span class="badge bg-primary"><i class="fas fa-check"></i> Yes</span>
+                                                {% else %}
+                                                <span class="badge bg-dark">No</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                                {% else %}
+                                <p class="text-muted">No variables</p>
+                                {% endif %}
+                            </div>
                         </div>
-                        <div class="version-content">
-                            {% if comparison.vendor.variables %}
-                            <table class="variables-table">
-                                <thead>
-                                    <tr>
-                                        <th>Variable Name</th>
-                                        <th>Type</th>
-                                        <th>Parameter</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for variable in comparison.vendor.variables %}
-                                    <tr>
-                                        <td><code>{{ variable.variable_name }}</code></td>
-                                        <td><span class="badge bg-secondary">{{ variable.variable_type }}</span></td>
-                                        <td>
-                                            {% if variable.is_parameter %}
-                                            <span class="badge bg-primary"><i class="fas fa-check"></i> Yes</span>
-                                            {% else %}
-                                            <span class="badge bg-dark">No</span>
-                                            {% endif %}
-                                        </td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                            {% else %}
-                            <p class="text-muted">No variables</p>
-                            {% endif %}
+                        
+                        <div class="version-column customer-column">
+                            <div class="version-header">
+                                <span class="badge bg-success">Customer</span>
+                            </div>
+                            <div class="version-content">
+                                {% if comparison.customer.variables %}
+                                <table class="variables-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Variable Name</th>
+                                            <th>Type</th>
+                                            <th>Parameter</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for variable in comparison.customer.variables %}
+                                        {% set vendor_var = comparison.vendor.variables | selectattr('variable_name', 'equalto', variable.variable_name) | first %}
+                                        <tr class="{% if not vendor_var %}highlight-added{% elif vendor_var.variable_type != variable.variable_type or vendor_var.is_parameter != variable.is_parameter %}highlight-diff{% endif %}">
+                                            <td><code>{{ variable.variable_name }}</code></td>
+                                            <td><span class="badge bg-secondary">{{ variable.variable_type }}</span></td>
+                                            <td>
+                                                {% if variable.is_parameter %}
+                                                <span class="badge bg-primary"><i class="fas fa-check"></i> Yes</span>
+                                                {% else %}
+                                                <span class="badge bg-dark">No</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                                {% else %}
+                                <p class="text-muted">No variables</p>
+                                {% endif %}
+                            </div>
                         </div>
-                    </div>
-                    
-                    <!-- Customer Variables -->
-                    <div class="version-column customer-column">
-                        <div class="version-header">
-                            <span class="badge bg-success">Customer Variables</span>
+                    {% else %}
+                        <!-- NO_CONFLICT: Vendor Base (left) vs Vendor Latest (right) -->
+                        <div class="version-column vendor-column">
+                            <div class="version-header">
+                                <span class="badge bg-secondary">Vendor Base</span>
+                            </div>
+                            <div class="version-content">
+                                {% if comparison.customer.variables %}
+                                <table class="variables-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Variable Name</th>
+                                            <th>Type</th>
+                                            <th>Parameter</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for variable in comparison.customer.variables %}
+                                        <tr>
+                                            <td><code>{{ variable.variable_name }}</code></td>
+                                            <td><span class="badge bg-secondary">{{ variable.variable_type }}</span></td>
+                                            <td>
+                                                {% if variable.is_parameter %}
+                                                <span class="badge bg-primary"><i class="fas fa-check"></i> Yes</span>
+                                                {% else %}
+                                                <span class="badge bg-dark">No</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                                {% else %}
+                                <p class="text-muted">No variables</p>
+                                {% endif %}
+                            </div>
                         </div>
-                        <div class="version-content">
-                            {% if comparison.customer.variables %}
-                            <table class="variables-table">
-                                <thead>
-                                    <tr>
-                                        <th>Variable Name</th>
-                                        <th>Type</th>
-                                        <th>Parameter</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for variable in comparison.customer.variables %}
-                                    {% set vendor_var = comparison.vendor.variables | selectattr('variable_name', 'equalto', variable.variable_name) | first %}
-                                    <tr class="{% if not vendor_var %}highlight-added{% elif vendor_var.variable_type != variable.variable_type or vendor_var.is_parameter != variable.is_parameter %}highlight-diff{% endif %}">
-                                        <td><code>{{ variable.variable_name }}</code></td>
-                                        <td><span class="badge bg-secondary">{{ variable.variable_type }}</span></td>
-                                        <td>
-                                            {% if variable.is_parameter %}
-                                            <span class="badge bg-primary"><i class="fas fa-check"></i> Yes</span>
-                                            {% else %}
-                                            <span class="badge bg-dark">No</span>
-                                            {% endif %}
-                                        </td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                            {% else %}
-                            <p class="text-muted">No variables</p>
-                            {% endif %}
+                        
+                        <div class="version-column customer-column">
+                            <div class="version-header">
+                                <span class="badge bg-info">Vendor Latest</span>
+                            </div>
+                            <div class="version-content">
+                                {% if comparison.vendor.variables %}
+                                <table class="variables-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Variable Name</th>
+                                            <th>Type</th>
+                                            <th>Parameter</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for variable in comparison.vendor.variables %}
+                                        {% set base_var = comparison.customer.variables | selectattr('variable_name', 'equalto', variable.variable_name) | first %}
+                                        <tr class="{% if not base_var %}highlight-added{% elif base_var.variable_type != variable.variable_type or base_var.is_parameter != variable.is_parameter %}highlight-diff{% endif %}">
+                                            <td><code>{{ variable.variable_name }}</code></td>
+                                            <td><span class="badge bg-secondary">{{ variable.variable_type }}</span></td>
+                                            <td>
+                                                {% if variable.is_parameter %}
+                                                <span class="badge bg-primary"><i class="fas fa-check"></i> Yes</span>
+                                                {% else %}
+                                                <span class="badge bg-dark">No</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                                {% else %}
+                                <p class="text-muted">No variables</p>
+                                {% endif %}
+                            </div>
                         </div>
-                    </div>
+                    {% endif %}
                 </div>
             </div>
         </div>

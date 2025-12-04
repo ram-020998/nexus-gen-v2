@@ -7,41 +7,77 @@
     
     <div class="comparison-body">
         <div class="comparison-grid">
-            <!-- Vendor Version -->
-            <div class="version-column vendor-column">
-                <div class="version-header">
-                    <span class="badge bg-info">Vendor Version</span>
-                </div>
-                <div class="version-content">
-                    <div class="detail-item">
-                        <label>Type</label>
-                        <p class="value-display">{{ comparison.vendor.type or 'N/A' }}</p>
+            {% if detail.change.classification == 'CONFLICT' %}
+                <!-- CONFLICT: Vendor Latest (left) vs Customer (right) -->
+                <div class="version-column vendor-column">
+                    <div class="version-header">
+                        <span class="badge bg-info">Vendor Latest</span>
                     </div>
-                    <div class="detail-item">
-                        <label>Value</label>
-                        <pre class="value-display">{{ comparison.vendor.value or 'N/A' }}</pre>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Customer Version -->
-            <div class="version-column customer-column">
-                <div class="version-header">
-                    <span class="badge bg-success">Customer Version</span>
-                </div>
-                <div class="version-content">
-                    <div class="detail-item">
-                        <label>Type</label>
-                        <p class="value-display {% if comparison.vendor.type != comparison.customer.type %}highlight-diff{% endif %}">
-                            {{ comparison.customer.type or 'N/A' }}
-                        </p>
-                    </div>
-                    <div class="detail-item">
-                        <label>Value</label>
-                        <pre class="value-display {% if comparison.vendor.value != comparison.customer.value %}highlight-diff{% endif %}">{{ comparison.customer.value or 'N/A' }}</pre>
+                    <div class="version-content">
+                        <div class="detail-item">
+                            <label>Type</label>
+                            <p class="value-display">{{ comparison.vendor.type or 'N/A' }}</p>
+                        </div>
+                        <div class="detail-item">
+                            <label>Value</label>
+                            <pre class="value-display">{{ comparison.vendor.value or 'N/A' }}</pre>
+                        </div>
                     </div>
                 </div>
-            </div>
+                
+                <div class="version-column customer-column">
+                    <div class="version-header">
+                        <span class="badge bg-success">Customer</span>
+                    </div>
+                    <div class="version-content">
+                        <div class="detail-item">
+                            <label>Type</label>
+                            <p class="value-display {% if comparison.vendor.type != comparison.customer.type %}highlight-diff{% endif %}">
+                                {{ comparison.customer.type or 'N/A' }}
+                            </p>
+                        </div>
+                        <div class="detail-item">
+                            <label>Value</label>
+                            <pre class="value-display {% if comparison.vendor.value != comparison.customer.value %}highlight-diff{% endif %}">{{ comparison.customer.value or 'N/A' }}</pre>
+                        </div>
+                    </div>
+                </div>
+            {% else %}
+                <!-- NO_CONFLICT: Vendor Base (left) vs Vendor Latest (right) -->
+                <div class="version-column vendor-column">
+                    <div class="version-header">
+                        <span class="badge bg-secondary">Vendor Base</span>
+                    </div>
+                    <div class="version-content">
+                        <div class="detail-item">
+                            <label>Type</label>
+                            <p class="value-display">{{ comparison.customer.type or 'N/A' }}</p>
+                        </div>
+                        <div class="detail-item">
+                            <label>Value</label>
+                            <pre class="value-display">{{ comparison.customer.value or 'N/A' }}</pre>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="version-column customer-column">
+                    <div class="version-header">
+                        <span class="badge bg-info">Vendor Latest</span>
+                    </div>
+                    <div class="version-content">
+                        <div class="detail-item">
+                            <label>Type</label>
+                            <p class="value-display {% if comparison.vendor.type != comparison.customer.type %}highlight-diff{% endif %}">
+                                {{ comparison.vendor.type or 'N/A' }}
+                            </p>
+                        </div>
+                        <div class="detail-item">
+                            <label>Value</label>
+                            <pre class="value-display {% if comparison.vendor.value != comparison.customer.value %}highlight-diff{% endif %}">{{ comparison.vendor.value or 'N/A' }}</pre>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
         </div>
     </div>
 </div>

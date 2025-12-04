@@ -1,10 +1,7 @@
 """
 Cleanup corrupted data from failed merge sessions.
 
-This script removes:
-1. Orphaned customer_comparison_results with NULL session_id
-2. Orphaned delta_comparison_results with NULL session_id
-3. Any other orphaned data
+This script removes records with NULL foreign keys across all tables.
 """
 
 from app import create_app
@@ -16,106 +13,105 @@ def cleanup_corrupted_data():
     app = create_app()
     
     with app.app_context():
-        print("Starting database cleanup...")
+        print("Starting database cleanup for corrupted data...")
+        print("="*70)
         
-        # 1. Check for corrupted customer_comparison_results
-        result = db.session.execute(text("""
-            SELECT COUNT(*) FROM customer_comparison_results 
-            WHERE session_id IS NULL
-        """))
-        count = result.scalar()
-        print(f"Found {count} customer_comparison_results with NULL session_id")
+        total_deleted = 0
         
-        if count > 0:
-            print("Deleting corrupted customer_comparison_results...")
-            db.session.execute(text("""
-                DELETE FROM customer_comparison_results 
-                WHERE session_id IS NULL
-            """))
-            db.session.commit()
-            print(f"✓ Deleted {count} corrupted customer_comparison_results")
+        # Define tables and their NULL checks
+        corruption_checks = [
+            # Core tables
+            ('customer_comparison_results', 'session_id IS NULL OR object_id IS NULL'),
+            ('delta_comparison_results', 'session_id IS NULL OR object_id IS NULL'),
+            ('changes', 'session_id IS NULL OR object_id IS NULL'),
+            ('packages', 'session_id IS NULL'),
+            ('package_object_mappings', 'package_id IS NULL OR object_id IS NULL'),
+            ('object_versions', 'object_id IS NULL OR package_id IS NULL'),
+            
+            # Object-specific tables
+            ('interfaces', 'object_id IS NULL OR package_id IS NULL'),
+            ('interface_parameters', 'interface_id IS NULL'),
+            ('interface_security', 'interface_id IS NULL'),
+            ('expression_rules', 'object_id IS NULL OR package_id IS NULL'),
+            ('expression_rule_inputs', 'rule_id IS NULL'),
+            ('process_models', 'object_id IS NULL OR package_id IS NULL'),
+            ('process_model_nodes', 'process_model_id IS NULL'),
+            ('process_model_flows', 'process_model_id IS NULL OR from_node_id IS NULL OR to_node_id IS NULL'),
+            ('process_model_variables', 'process_model_id IS NULL'),
+            ('record_types', 'object_id IS NULL OR package_id IS NULL'),
+            ('record_type_fields', 'record_type_id IS NULL'),
+            ('record_type_relationships', 'record_type_id IS NULL'),
+            ('record_type_views', 'record_type_id IS NULL'),
+            ('record_type_actions', 'record_type_id IS NULL'),
+            ('cdts', 'object_id IS NULL OR package_id IS NULL'),
+            ('cdt_fields', 'cdt_id IS NULL'),
+            ('integrations', 'object_id IS NULL OR package_id IS NULL'),
+            ('web_apis', 'object_id IS NULL OR package_id IS NULL'),
+            ('sites', 'object_id IS NULL OR package_id IS NULL'),
+            ('groups', 'object_id IS NULL OR package_id IS NULL'),
+            ('constants', 'object_id IS NULL OR package_id IS NULL'),
+            ('connected_systems', 'object_id IS NULL OR package_id IS NULL'),
+            ('unknown_objects', 'object_id IS NULL OR package_id IS NULL'),
+            ('data_stores', 'object_id IS NULL OR package_id IS NULL'),
+            ('data_store_entities', 'data_store_id IS NULL'),
+            
+            # Comparison tables
+            ('interface_comparisons', 'change_id IS NULL'),
+            ('process_model_comparisons', 'change_id IS NULL'),
+            ('record_type_comparisons', 'change_id IS NULL'),
+            ('expression_rule_comparisons', 'session_id IS NULL OR object_id IS NULL'),
+            ('cdt_comparisons', 'session_id IS NULL OR object_id IS NULL'),
+            ('constant_comparisons', 'session_id IS NULL OR object_id IS NULL'),
+        ]
         
-        # 2. Check for corrupted delta_comparison_results
-        result = db.session.execute(text("""
-            SELECT COUNT(*) FROM delta_comparison_results 
-            WHERE session_id IS NULL
-        """))
-        count = result.scalar()
-        print(f"Found {count} delta_comparison_results with NULL session_id")
+        for table_name, condition in corruption_checks:
+            try:
+                # Check for corrupted records
+                result = db.session.execute(text(f"""
+                    SELECT COUNT(*) FROM {table_name} 
+                    WHERE {condition}
+                """))
+                count = result.scalar()
+                
+                if count > 0:
+                    print(f"  Found {count:,} corrupted records in {table_name}")
+                    
+                    # Delete corrupted records
+                    db.session.execute(text(f"""
+                        DELETE FROM {table_name} 
+                        WHERE {condition}
+                    """))
+                    db.session.commit()
+                    print(f"  ✓ Deleted {count:,} corrupted records from {table_name}")
+                    total_deleted += count
+                    
+            except Exception as e:
+                print(f"  ⚠️  Error checking {table_name}: {str(e)}")
         
-        if count > 0:
-            print("Deleting corrupted delta_comparison_results...")
-            db.session.execute(text("""
-                DELETE FROM delta_comparison_results 
-                WHERE session_id IS NULL
-            """))
-            db.session.commit()
-            print(f"✓ Deleted {count} corrupted delta_comparison_results")
+        print("="*70)
         
-        # 3. Check for corrupted changes
-        result = db.session.execute(text("""
-            SELECT COUNT(*) FROM changes 
-            WHERE session_id IS NULL OR object_id IS NULL
-        """))
-        count = result.scalar()
-        print(f"Found {count} changes with NULL session_id or object_id")
-        
-        if count > 0:
-            print("Deleting corrupted changes...")
-            db.session.execute(text("""
-                DELETE FROM changes 
-                WHERE session_id IS NULL OR object_id IS NULL
-            """))
-            db.session.commit()
-            print(f"✓ Deleted {count} corrupted changes")
-        
-        # 4. Check for orphaned package_object_mappings
-        result = db.session.execute(text("""
-            SELECT COUNT(*) FROM package_object_mappings 
-            WHERE package_id IS NULL OR object_id IS NULL
-        """))
-        count = result.scalar()
-        print(f"Found {count} package_object_mappings with NULL package_id or object_id")
-        
-        if count > 0:
-            print("Deleting corrupted package_object_mappings...")
-            db.session.execute(text("""
-                DELETE FROM package_object_mappings 
-                WHERE package_id IS NULL OR object_id IS NULL
-            """))
-            db.session.commit()
-            print(f"✓ Deleted {count} corrupted package_object_mappings")
-        
-        # 5. Summary
-        print("\n" + "="*60)
-        print("Database cleanup completed!")
-        print("="*60)
+        if total_deleted > 0:
+            print(f"\n✅ Deleted {total_deleted:,} total corrupted records")
+        else:
+            print("\n✅ No corrupted data found - database is clean!")
         
         # Show current state
-        result = db.session.execute(text("""
-            SELECT COUNT(*) FROM merge_sessions
-        """))
-        print(f"Merge sessions: {result.scalar()}")
+        print("\n" + "="*70)
+        print("Current Database State:")
+        print("="*70)
         
-        result = db.session.execute(text("""
-            SELECT COUNT(*) FROM object_lookup
-        """))
-        print(f"Objects in lookup: {result.scalar()}")
+        key_tables = [
+            'merge_sessions',
+            'packages',
+            'object_lookup',
+            'customer_comparison_results',
+            'delta_comparison_results',
+            'changes',
+        ]
         
-        result = db.session.execute(text("""
-            SELECT COUNT(*) FROM customer_comparison_results
-        """))
-        print(f"Customer comparison results: {result.scalar()}")
-        
-        result = db.session.execute(text("""
-            SELECT COUNT(*) FROM delta_comparison_results
-        """))
-        print(f"Delta comparison results: {result.scalar()}")
-        
-        result = db.session.execute(text("""
-            SELECT COUNT(*) FROM changes
-        """))
-        print(f"Changes: {result.scalar()}")
+        for table in key_tables:
+            result = db.session.execute(text(f"SELECT COUNT(*) FROM {table}"))
+            print(f"  {table}: {result.scalar():,}")
 
 if __name__ == '__main__':
     cleanup_corrupted_data()

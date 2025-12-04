@@ -79,63 +79,71 @@
 {% if process_model_comparison and process_model_comparison.mermaid_diagram %}
 <div class="comparison-section mb-4">
     <h5 class="section-title">
-        <i class="fas fa-project-diagram"></i> Process Flow Diagram
+        <i class="fas fa-project-diagram"></i> Process Flow Diagram {% if change.classification == 'NO_CONFLICT' %}(Vendor){% endif %}
     </h5>
     
-    <div class="diagram-tabs">
-        <ul class="nav nav-tabs" role="tablist">
-            <li class="nav-item">
-                <a class="nav-link" id="base-tab" data-toggle="tab" href="#base-diagram" role="tab">
-                    Base
-                </a>
-            </li>
-            {% if customer_object %}
-            <li class="nav-item">
-                <a class="nav-link" id="customer-tab" data-toggle="tab" href="#customer-diagram" role="tab">
-                    Customer
-                </a>
-            </li>
-            {% endif %}
-            <li class="nav-item">
-                <a class="nav-link active" id="vendor-tab" data-toggle="tab" href="#vendor-diagram" role="tab">
-                    Vendor
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" id="diff-tab" data-toggle="tab" href="#diff-diagram" role="tab">
-                    Diff
-                </a>
-            </li>
-        </ul>
-        
-        <div class="tab-content">
-            <div class="tab-pane fade" id="base-diagram" role="tabpanel">
-                <div class="mermaid-container">
-                    <pre class="mermaid">{{ process_model_comparison.base_mermaid or 'graph TD\n  Start[Start]\n  End[End]\n  Start --> End' }}</pre>
-                </div>
-            </div>
+    {% if change.classification == 'NO_CONFLICT' %}
+        <!-- NO_CONFLICT: Show only vendor diagram -->
+        <div class="mermaid-container">
+            <pre class="mermaid">{{ process_model_comparison.mermaid_diagram }}</pre>
+        </div>
+    {% else %}
+        <!-- CONFLICT/NEW/DELETED: Show all diagrams with tabs -->
+        <div class="diagram-tabs">
+            <ul class="nav nav-tabs" role="tablist">
+                <li class="nav-item">
+                    <a class="nav-link" id="base-tab" data-toggle="tab" href="#base-diagram" role="tab">
+                        Base
+                    </a>
+                </li>
+                {% if customer_object %}
+                <li class="nav-item">
+                    <a class="nav-link" id="customer-tab" data-toggle="tab" href="#customer-diagram" role="tab">
+                        Customer
+                    </a>
+                </li>
+                {% endif %}
+                <li class="nav-item">
+                    <a class="nav-link active" id="vendor-tab" data-toggle="tab" href="#vendor-diagram" role="tab">
+                        Vendor
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" id="diff-tab" data-toggle="tab" href="#diff-diagram" role="tab">
+                        Diff
+                    </a>
+                </li>
+            </ul>
             
-            {% if customer_object %}
-            <div class="tab-pane fade" id="customer-diagram" role="tabpanel">
-                <div class="mermaid-container">
-                    <pre class="mermaid">{{ process_model_comparison.customer_mermaid or 'graph TD\n  Start[Start]\n  End[End]\n  Start --> End' }}</pre>
+            <div class="tab-content">
+                <div class="tab-pane fade" id="base-diagram" role="tabpanel">
+                    <div class="mermaid-container">
+                        <pre class="mermaid">{{ process_model_comparison.base_mermaid or 'graph TD\n  Start[Start]\n  End[End]\n  Start --> End' }}</pre>
+                    </div>
                 </div>
-            </div>
-            {% endif %}
-            
-            <div class="tab-pane fade show active" id="vendor-diagram" role="tabpanel">
-                <div class="mermaid-container">
-                    <pre class="mermaid">{{ process_model_comparison.mermaid_diagram }}</pre>
+                
+                {% if customer_object %}
+                <div class="tab-pane fade" id="customer-diagram" role="tabpanel">
+                    <div class="mermaid-container">
+                        <pre class="mermaid">{{ process_model_comparison.customer_mermaid or 'graph TD\n  Start[Start]\n  End[End]\n  Start --> End' }}</pre>
+                    </div>
                 </div>
-            </div>
-            
-            <div class="tab-pane fade" id="diff-diagram" role="tabpanel">
-                <div class="mermaid-container">
-                    <pre class="mermaid">{{ process_model_comparison.diff_mermaid or process_model_comparison.mermaid_diagram }}</pre>
+                {% endif %}
+                
+                <div class="tab-pane fade show active" id="vendor-diagram" role="tabpanel">
+                    <div class="mermaid-container">
+                        <pre class="mermaid">{{ process_model_comparison.mermaid_diagram }}</pre>
+                    </div>
+                </div>
+                
+                <div class="tab-pane fade" id="diff-diagram" role="tabpanel">
+                    <div class="mermaid-container">
+                        <pre class="mermaid">{{ process_model_comparison.diff_mermaid or process_model_comparison.mermaid_diagram }}</pre>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
+    {% endif %}
 </div>
 {% endif %}
 
