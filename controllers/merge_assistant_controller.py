@@ -490,21 +490,31 @@ def get_change_detail(reference_id, change_id):
             id=detail['change']['id']
         ).first()
         
+        # Get comparison mode from query params (for page reload after mode change)
+        from flask import request
+        comparison_mode = request.args.get('mode', 'auto')
+        
+        logger.info(f"Change detail page: mode={comparison_mode}, change_id={change.id}, object_type={change.object.object_type}")
+        
         # Get detailed comparison data
         comparison_details = None
         if change and base_package_id and customer_package_id and new_vendor_package_id:
-            comparison_details = comparison_service.get_comparison_details(
+            comparison_details = comparison_service.get_comparison_details_with_mode(
                 change,
                 base_package_id,
                 customer_package_id,
-                new_vendor_package_id
+                new_vendor_package_id,
+                comparison_mode
             )
+            
+            if comparison_details:
+                logger.info(f"Comparison details: old_label={comparison_details.get('old_label')}, new_label={comparison_details.get('new_label')}, type={comparison_details.get('comparison_type')}")
         
         # Helper function for object icons
         def get_object_icon(object_type):
             icons = {
                 'Interface': 'window-maximize',
-                'Expression Rule': 'function',
+                'Expression Rule': 'code',
                 'Process Model': 'project-diagram',
                 'Record Type': 'database',
                 'CDT': 'cube',
@@ -531,6 +541,84 @@ def get_change_detail(reference_id, change_id):
             f"Failed to get change detail: {str(e)}",
             status_code=500
         )
+
+
+@merge_bp.route('/<reference_id>/changes/<int:change_id>/comparison', methods=['GET'])
+def get_change_comparison(reference_id, change_id):
+    """
+    Get comparison data for a specific change with a selected comparison mode.
+    
+    Query Parameters:
+        mode: Comparison mode ('vendor_vs_customer', 'base_vs_vendor', 'base_vs_customer')
+        
+    Returns:
+        JSON with comparison details for the selected mode
+        
+    Status Codes:
+        200: Success
+        400: Invalid mode
+        404: Session or change not found
+        500: Server error
+    """
+    from flask import request, jsonify
+    from services.comparison_retrieval_service import ComparisonRetrievalService
+    
+    try:
+        # Get comparison mode from query params
+        mode = request.args.get('mode', 'auto')
+        
+        # Validate mode
+        valid_modes = ['auto', 'vendor_vs_customer', 'base_vs_vendor', 'base_vs_customer']
+        if mode not in valid_modes:
+            return jsonify({
+                'error': f'Invalid mode. Must be one of: {", ".join(valid_modes)}'
+            }), 400
+        
+        # Get the change
+        change = db.session.query(Change).join(MergeSession).filter(
+            MergeSession.reference_id == reference_id,
+            Change.id == change_id
+        ).first()
+        
+        if not change:
+            return jsonify({'error': 'Change not found'}), 404
+        
+        # Get package IDs
+        packages = db.session.query(Package).filter_by(
+            session_id=change.session_id
+        ).all()
+        
+        package_map = {p.package_type: p.id for p in packages}
+        base_package_id = package_map.get('base')
+        customer_package_id = package_map.get('customized')
+        new_vendor_package_id = package_map.get('new_vendor')
+        
+        if not all([base_package_id, customer_package_id, new_vendor_package_id]):
+            return jsonify({'error': 'Missing package data'}), 404
+        
+        # Get comparison service
+        comparison_service = controller.get_service(ComparisonRetrievalService)
+        
+        # Get comparison details with specified mode
+        logger.info(f"Getting comparison for change {change_id} with mode: {mode}")
+        comparison_details = comparison_service.get_comparison_details_with_mode(
+            change,
+            base_package_id,
+            customer_package_id,
+            new_vendor_package_id,
+            mode
+        )
+        
+        logger.info(f"Comparison details retrieved successfully for {change.object.object_type}")
+        return jsonify(comparison_details)
+        
+    except Exception as e:
+        logger.error(f"Error getting comparison data for change {change_id} with mode {mode}: {e}", exc_info=True)
+        import traceback
+        return jsonify({
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        }), 500
 
 
 @merge_bp.route(
@@ -1329,7 +1417,7 @@ def summary(reference_id):
         def get_object_icon(object_type):
             icons = {
                 'Interface': 'window-maximize',
-                'Expression Rule': 'function',
+                'Expression Rule': 'code',
                 'Process Model': 'project-diagram',
                 'Record Type': 'database',
                 'CDT': 'cube',
@@ -1406,7 +1494,7 @@ def workflow(reference_id):
         def get_object_icon(object_type):
             icons = {
                 'Interface': 'window-maximize',
-                'Expression Rule': 'function',
+                'Expression Rule': 'code',
                 'Process Model': 'project-diagram',
                 'Record Type': 'database',
                 'CDT': 'cube',

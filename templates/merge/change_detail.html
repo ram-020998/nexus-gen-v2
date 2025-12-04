@@ -108,6 +108,29 @@
             </div>
         </div>
 
+        <!-- Comparison Mode Selector -->
+        {% if comparison %}
+        <div class="comparison-mode-selector mb-4">
+            <div class="mode-selector-header">
+                <div class="mode-selector-icon">
+                    <i class="fas fa-exchange-alt"></i>
+                </div>
+                <div class="mode-selector-title">
+                    <h5>Comparison View</h5>
+                    <small>Select which versions to compare</small>
+                </div>
+            </div>
+            <div class="mode-selector-body">
+                <select id="comparisonModeSelect" class="comparison-mode-dropdown">
+                    <option value="auto" {% if not request.args.get('mode') or request.args.get('mode') == 'auto' %}selected{% endif %}>Auto (Recommended)</option>
+                    <option value="vendor_vs_customer" {% if request.args.get('mode') == 'vendor_vs_customer' %}selected{% endif %}>Vendor Latest vs Customer</option>
+                    <option value="base_vs_vendor" {% if request.args.get('mode') == 'base_vs_vendor' %}selected{% endif %}>Base vs Vendor Latest</option>
+                    <option value="base_vs_customer" {% if request.args.get('mode') == 'base_vs_customer' %}selected{% endif %}>Base vs Customer</option>
+                </select>
+            </div>
+        </div>
+        {% endif %}
+
         <!-- Detailed Comparison Section -->
         {% if comparison %}
         <!-- Include comparison styles -->
@@ -1063,7 +1086,181 @@
     margin: 0;
     font-size: 0.875rem;
 }
+
+/* Comparison Mode Selector */
+.comparison-mode-selector {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.mode-selector-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.25rem 1.5rem;
+    background: rgba(107, 107, 247, 0.05);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.mode-selector-icon {
+    width: 48px;
+    height: 48px;
+    background: var(--blue-1);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--blue-3);
+    font-size: 1.25rem;
+}
+
+.mode-selector-title h5 {
+    margin: 0 0 0.25rem 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.mode-selector-title small {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+}
+
+.mode-selector-body {
+    padding: 1.5rem;
+}
+
+.comparison-mode-dropdown {
+    width: 100%;
+    padding: 0.875rem 1rem;
+    background: var(--bg-primary);
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--text-primary);
+    font-size: 0.9375rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236b6bf7' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 1rem center;
+    padding-right: 3rem;
+}
+
+.comparison-mode-dropdown:hover {
+    border-color: var(--blue-3);
+    background-color: rgba(107, 107, 247, 0.03);
+}
+
+.comparison-mode-dropdown:focus {
+    outline: none;
+    border-color: var(--blue-3);
+    box-shadow: 0 0 0 3px rgba(107, 107, 247, 0.1);
+}
+
+.mode-description {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    margin-top: 1rem;
+    padding: 0.875rem 1rem;
+    background: rgba(107, 107, 247, 0.05);
+    border-radius: 8px;
+    border-left: 3px solid var(--blue-3);
+}
+
+.mode-description i {
+    color: var(--blue-3);
+    font-size: 1rem;
+    margin-top: 0.125rem;
+    flex-shrink: 0;
+}
+
+.mode-description span {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    line-height: 1.5;
+}
+
+/* Loading overlay for comparison refresh */
+.comparison-loading-overlay {
+    position: relative;
+}
+
+.comparison-loading-overlay::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(15, 20, 25, 0.7);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    border-radius: 12px;
+}
+
+[data-theme="light"] .comparison-loading-overlay::after {
+    background: rgba(250, 250, 252, 0.8);
+}
+
+.comparison-loading-spinner {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 11;
+    color: var(--blue-3);
+    font-size: 2rem;
+}
 </style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const comparisonModeSelect = document.getElementById('comparisonModeSelect');
+    const modeDescriptionText = document.getElementById('modeDescriptionText');
+    const comparisonSection = document.querySelector('.comparison-section');
+    
+    if (!comparisonModeSelect) return;
+    
+    // Handle mode change
+    comparisonModeSelect.addEventListener('change', function() {
+        const selectedMode = this.value;
+        console.log('Comparison mode changed to:', selectedMode);
+        
+        // Store the selected mode in sessionStorage
+        sessionStorage.setItem('comparisonMode', selectedMode);
+        
+        // Reload the page with the mode parameter in URL
+        const referenceId = '{{ detail.session.reference_id }}';
+        const changeId = {{ detail.change.id }};
+        const currentUrl = new URL(window.location.href);
+        currentUrl.searchParams.set('mode', selectedMode);
+        
+        console.log('Navigating to:', currentUrl.toString());
+        
+        // Navigate to the new URL (this will reload the page with the mode parameter)
+        window.location.href = currentUrl.toString();
+    });
+    
+    // Restore selected mode from URL parameter or sessionStorage
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlMode = urlParams.get('mode');
+    const savedMode = urlMode || sessionStorage.getItem('comparisonMode') || 'auto';
+    
+    if (savedMode && savedMode !== 'auto') {
+        comparisonModeSelect.value = savedMode;
+        sessionStorage.setItem('comparisonMode', savedMode);
+    }
+});
+</script>
+
 {% endblock %}
 
 {% block scripts %}

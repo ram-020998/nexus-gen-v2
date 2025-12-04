@@ -7,123 +7,64 @@
     
     <div class="comparison-body">
         <div class="comparison-grid">
-            {% if detail.change.classification == 'CONFLICT' %}
-                <!-- CONFLICT: Vendor Latest (left) vs Customer (right) -->
-                <div class="version-column vendor-column">
-                    <div class="version-header">
-                        <span class="badge bg-info">{{ comparison.old_label or 'Vendor Latest' }}</span>
-                    </div>
-                    <div class="version-content">
-                        {% if comparison.vendor.fields %}
-                        <table class="fields-table">
-                            <thead>
-                                <tr>
-                                    <th>Field Name</th>
-                                    <th>Type</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for field in comparison.vendor.fields %}
-                                <tr>
-                                    <td>{{ field.name }}</td>
-                                    <td>{{ field.type }}</td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                        {% else %}
-                        <p class="text-muted">No fields</p>
-                        {% endif %}
-                    </div>
+            <!-- Left side: old version -->
+            <div class="version-column vendor-column">
+                <div class="version-header">
+                    <span class="badge bg-secondary">{{ comparison.old_label or 'Base Version' }}</span>
                 </div>
-                
-                <div class="version-column customer-column">
-                    <div class="version-header">
-                        <span class="badge bg-success">{{ comparison.new_label or 'Customer' }}</span>
-                    </div>
-                    <div class="version-content">
-                        {% if comparison.customer.fields %}
-                        <table class="fields-table">
-                            <thead>
-                                <tr>
-                                    <th>Field Name</th>
-                                    <th>Type</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for field in comparison.customer.fields %}
-                                {% set vendor_field = comparison.vendor.fields | selectattr('name', 'equalto', field.name) | first %}
-                                <tr class="{% if not vendor_field %}highlight-added{% elif vendor_field.type != field.type %}highlight-diff{% endif %}">
-                                    <td>{{ field.name }}</td>
-                                    <td>{{ field.type }}</td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                        {% else %}
-                        <p class="text-muted">No fields</p>
-                        {% endif %}
-                    </div>
+                <div class="version-content">
+                    {% if comparison.customer.fields %}
+                    <table class="fields-table">
+                        <thead>
+                            <tr>
+                                <th>Field Name</th>
+                                <th>Type</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for field in comparison.customer.fields %}
+                            <tr>
+                                <td>{{ field.name }}</td>
+                                <td>{{ field.type }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <p class="text-muted">No fields</p>
+                    {% endif %}
                 </div>
-            {% else %}
-                <!-- NO_CONFLICT: Dynamic based on change types -->
-                <div class="version-column vendor-column">
-                    <div class="version-header">
-                        <span class="badge bg-secondary">{{ comparison.old_label or 'Vendor Base' }}</span>
-                    </div>
-                    <div class="version-content">
-                        {% if comparison.customer.fields %}
-                        <table class="fields-table">
-                            <thead>
-                                <tr>
-                                    <th>Field Name</th>
-                                    <th>Type</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for field in comparison.customer.fields %}
-                                <tr>
-                                    <td>{{ field.name }}</td>
-                                    <td>{{ field.type }}</td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                        {% else %}
-                        <p class="text-muted">No fields</p>
-                        {% endif %}
-                    </div>
+            </div>
+            
+            <!-- Right side: new version -->
+            <div class="version-column customer-column">
+                <div class="version-header">
+                    <span class="badge bg-info">{{ comparison.new_label or 'New Version' }}</span>
                 </div>
-                
-                <div class="version-column customer-column">
-                    <div class="version-header">
-                        <span class="badge bg-info">{{ comparison.new_label or 'Vendor Latest' }}</span>
-                    </div>
-                    <div class="version-content">
-                        {% if comparison.vendor.fields %}
-                        <table class="fields-table">
-                            <thead>
-                                <tr>
-                                    <th>Field Name</th>
-                                    <th>Type</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for field in comparison.vendor.fields %}
-                                {% set base_field = comparison.customer.fields | selectattr('name', 'equalto', field.name) | first %}
-                                <tr class="{% if not base_field %}highlight-added{% elif base_field.type != field.type %}highlight-diff{% endif %}">
-                                    <td>{{ field.name }}</td>
-                                    <td>{{ field.type }}</td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                        {% else %}
-                        <p class="text-muted">No fields</p>
-                        {% endif %}
-                    </div>
+                <div class="version-content">
+                    {% if comparison.vendor.fields %}
+                    <table class="fields-table">
+                        <thead>
+                            <tr>
+                                <th>Field Name</th>
+                                <th>Type</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for field in comparison.vendor.fields %}
+                            {% set old_field = comparison.customer.fields | selectattr('name', 'equalto', field.name) | first %}
+                            <tr class="{% if not old_field %}highlight-added{% elif old_field.type != field.type %}highlight-diff{% endif %}">
+                                <td>{{ field.name }}</td>
+                                <td>{{ field.type }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <p class="text-muted">No fields</p>
+                    {% endif %}
                 </div>
-            {% endif %}
+            </div>
         </div>
     </div>
 </div>
