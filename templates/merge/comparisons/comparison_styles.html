@@ -332,4 +332,137 @@
     font-size: 2rem;
     margin-bottom: 1rem;
 }
+
+/* Variables Grid - Modern Card Layout */
+.variables-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1rem;
+    padding: 0.5rem 0;
+}
+
+.variable-card {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1rem;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.variable-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.15);
+    border-color: rgba(139, 92, 246, 0.3);
+}
+
+.variable-card.highlight-added {
+    background: rgba(16, 185, 129, 0.1);
+    border-left: 3px solid #10b981;
+}
+
+.variable-card.highlight-diff {
+    background: rgba(239, 68, 68, 0.1);
+    border-left: 3px solid #ef4444;
+}
+
+.variable-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.variable-name {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--purple);
+    background: rgba(139, 92, 246, 0.1);
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.variable-badge {
+    font-size: 0.7rem;
+    padding: 0.25rem 0.5rem;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.variable-badge i {
+    font-size: 0.65rem;
+}
+
+.variable-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.variable-type {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+}
+
+.variable-type i {
+    color: var(--purple);
+    font-size: 0.75rem;
+    opacity: 0.7;
+}
+
+.variable-type span {
+    background: rgba(139, 92, 246, 0.05);
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.8rem;
+}
+
+/* Variables Table - Keep for backward compatibility */
+.variables-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+}
+
+.variables-table thead {
+    background: rgba(139, 92, 246, 0.1);
+}
+
+.variables-table th {
+    padding: 0.75rem;
+    text-align: left;
+    font-weight: 600;
+    color: var(--text-primary);
+    border-bottom: 2px solid var(--border-color);
+}
+
+.variables-table td {
+    padding: 0.75rem;
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-secondary);
+}
+
+.variables-table tbody tr:hover {
+    background: rgba(139, 92, 246, 0.05);
+}
+
+/* Responsive Variables Grid */
+@media (max-width: 768px) {
+    .variables-grid {
+        grid-template-columns: 1fr;
+    }
+}
 </style>

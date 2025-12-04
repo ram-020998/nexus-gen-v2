@@ -11,7 +11,7 @@
                 <!-- CONFLICT: Vendor Latest (left) vs Customer (right) -->
                 <div class="version-column vendor-column">
                     <div class="version-header">
-                        <span class="badge bg-info">Vendor Latest</span>
+                        <span class="badge bg-info">{{ comparison.new_label or 'Vendor Latest' }}</span>
                     </div>
                     <div class="version-content">
                         <div class="detail-item">
@@ -31,7 +31,7 @@
                 
                 <div class="version-column customer-column">
                     <div class="version-header">
-                        <span class="badge bg-success">Customer</span>
+                        <span class="badge bg-success">{{ comparison.new_label or 'Customer' }}</span>
                     </div>
                     <div class="version-content">
                         <div class="detail-item">
@@ -55,10 +55,10 @@
                     </div>
                 </div>
             {% else %}
-                <!-- NO_CONFLICT: Vendor Base (left) vs Vendor Latest (right) -->
+                <!-- NO_CONFLICT: Dynamic based on change types -->
                 <div class="version-column vendor-column">
                     <div class="version-header">
-                        <span class="badge bg-secondary">Vendor Base</span>
+                        <span class="badge bg-secondary">{{ comparison.old_label or 'Vendor Base' }}</span>
                     </div>
                     <div class="version-content">
                         <div class="detail-item">
@@ -78,7 +78,7 @@
                 
                 <div class="version-column customer-column">
                     <div class="version-header">
-                        <span class="badge bg-info">Vendor Latest</span>
+                        <span class="badge bg-info">{{ comparison.new_label or 'Vendor Latest' }}</span>
                     </div>
                     <div class="version-content">
                         <div class="detail-item">
@@ -120,7 +120,7 @@
                 <!-- CONFLICT: Vendor Latest (left) vs Customer (right) -->
                 <div class="version-column vendor-column">
                     <div class="version-header">
-                        <span class="badge bg-info">Vendor Latest</span>
+                        <span class="badge bg-info">{{ comparison.new_label or 'Vendor Latest' }}</span>
                     </div>
                     <div class="version-content">
                         <div class="detail-item">
@@ -140,7 +140,7 @@
                 
                 <div class="version-column customer-column">
                     <div class="version-header">
-                        <span class="badge bg-success">Customer</span>
+                        <span class="badge bg-success">{{ comparison.new_label or 'Customer' }}</span>
                     </div>
                     <div class="version-content">
                         <div class="detail-item">
@@ -164,10 +164,10 @@
                     </div>
                 </div>
             {% else %}
-                <!-- NO_CONFLICT: Vendor Base (left) vs Vendor Latest (right) -->
+                <!-- NO_CONFLICT: Dynamic based on change types -->
                 <div class="version-column vendor-column">
                     <div class="version-header">
-                        <span class="badge bg-secondary">Vendor Base</span>
+                        <span class="badge bg-secondary">{{ comparison.old_label or 'Vendor Base' }}</span>
                     </div>
                     <div class="version-content">
                         <div class="detail-item">
@@ -187,7 +187,7 @@
                 
                 <div class="version-column customer-column">
                     <div class="version-header">
-                        <span class="badge bg-info">Vendor Latest</span>
+                        <span class="badge bg-info">{{ comparison.new_label or 'Vendor Latest' }}</span>
                     </div>
                     <div class="version-content">
                         <div class="detail-item">
@@ -229,7 +229,7 @@
                 <!-- CONFLICT: Vendor Latest (left) vs Customer (right) -->
                 <div class="version-column vendor-column">
                     <div class="version-header">
-                        <span class="badge bg-info">Vendor Latest</span>
+                        <span class="badge bg-info">{{ comparison.new_label or 'Vendor Latest' }}</span>
                     </div>
                     <div class="version-content">
                         <div class="detail-item">
@@ -249,7 +249,7 @@
                 
                 <div class="version-column customer-column">
                     <div class="version-header">
-                        <span class="badge bg-success">Customer</span>
+                        <span class="badge bg-success">{{ comparison.new_label or 'Customer' }}</span>
                     </div>
                     <div class="version-content">
                         <div class="detail-item">
@@ -273,10 +273,10 @@
                     </div>
                 </div>
             {% else %}
-                <!-- NO_CONFLICT: Vendor Base (left) vs Vendor Latest (right) -->
+                <!-- NO_CONFLICT: Dynamic based on change types -->
                 <div class="version-column vendor-column">
                     <div class="version-header">
-                        <span class="badge bg-secondary">Vendor Base</span>
+                        <span class="badge bg-secondary">{{ comparison.old_label or 'Vendor Base' }}</span>
                     </div>
                     <div class="version-content">
                         <div class="detail-item">
@@ -296,7 +296,7 @@
                 
                 <div class="version-column customer-column">
                     <div class="version-header">
-                        <span class="badge bg-info">Vendor Latest</span>
+                        <span class="badge bg-info">{{ comparison.new_label or 'Vendor Latest' }}</span>
                     </div>
                     <div class="version-content">
                         <div class="detail-item">
@@ -341,7 +341,7 @@
                     <!-- CONFLICT: Vendor Latest (left) vs Customer (right) -->
                     <div class="version-column vendor-column">
                         <div class="version-header">
-                            <span class="badge bg-info">Vendor Latest</span>
+                            <span class="badge bg-info">{{ comparison.new_label or 'Vendor Latest' }}</span>
                         </div>
                         <div class="version-content">
                             <div class="detail-item">
@@ -357,7 +357,7 @@
                     
                     <div class="version-column customer-column">
                         <div class="version-header">
-                            <span class="badge bg-success">Customer</span>
+                            <span class="badge bg-success">{{ comparison.new_label or 'Customer' }}</span>
                         </div>
                         <div class="version-content">
                             <div class="detail-item">
@@ -375,10 +375,10 @@
                         </div>
                     </div>
                 {% else %}
-                    <!-- NO_CONFLICT: Vendor Base (left) vs Vendor Latest (right) -->
+                    <!-- NO_CONFLICT: Dynamic based on change types -->
                     <div class="version-column vendor-column">
                         <div class="version-header">
-                            <span class="badge bg-secondary">Vendor Base</span>
+                            <span class="badge bg-secondary">{{ comparison.old_label or 'Vendor Base' }}</span>
                         </div>
                         <div class="version-content">
                             <div class="detail-item">
@@ -394,7 +394,7 @@
                     
                     <div class="version-column customer-column">
                         <div class="version-header">
-                            <span class="badge bg-info">Vendor Latest</span>
+                            <span class="badge bg-info">{{ comparison.new_label or 'Vendor Latest' }}</span>
                         </div>
                         <div class="version-content">
                             <div class="detail-item">
@@ -423,29 +423,29 @@
                     <!-- CONFLICT: Vendor Latest (left) vs Customer (right) -->
                     <div class="code-column vendor-code">
                         <div class="code-header">
-                            <span class="badge bg-info">Vendor Latest</span>
+                            <span class="badge bg-info">{{ comparison.new_label or 'Vendor Latest' }}</span>
                         </div>
                         <pre class="code-display"><code class="language-sail">{{ comparison.vendor.sail_code or 'No code available' }}</code></pre>
                     </div>
                     
                     <div class="code-column customer-code">
                         <div class="code-header">
-                            <span class="badge bg-success">Customer</span>
+                            <span class="badge bg-success">{{ comparison.new_label or 'Customer' }}</span>
                         </div>
                         <pre class="code-display"><code class="language-sail">{{ comparison.customer.sail_code or 'No code available' }}</code></pre>
                     </div>
                 {% else %}
-                    <!-- NO_CONFLICT: Vendor Base (left) vs Vendor Latest (right) -->
+                    <!-- NO_CONFLICT: Dynamic based on change types -->
                     <div class="code-column vendor-code">
                         <div class="code-header">
-                            <span class="badge bg-secondary">Vendor Base</span>
+                            <span class="badge bg-secondary">{{ comparison.old_label or 'Vendor Base' }}</span>
                         </div>
                         <pre class="code-display"><code class="language-sail">{{ comparison.customer.sail_code or 'No code available' }}</code></pre>
                     </div>
                     
                     <div class="code-column customer-code">
                         <div class="code-header">
-                            <span class="badge bg-info">Vendor Latest</span>
+                            <span class="badge bg-info">{{ comparison.new_label or 'Vendor Latest' }}</span>
                         </div>
                         <pre class="code-display"><code class="language-sail">{{ comparison.vendor.sail_code or 'No code available' }}</code></pre>
                     </div>
@@ -469,7 +469,7 @@
                 <!-- CONFLICT: Vendor Latest (left) vs Customer (right) -->
                 <div class="version-column vendor-column">
                     <div class="version-header">
-                        <span class="badge bg-info">Vendor Latest</span>
+                        <span class="badge bg-info">{{ comparison.new_label or 'Vendor Latest' }}</span>
                     </div>
                     <div class="version-content">
                         <div class="detail-item">
@@ -485,7 +485,7 @@
                 
                 <div class="version-column customer-column">
                     <div class="version-header">
-                        <span class="badge bg-success">Customer</span>
+                        <span class="badge bg-success">{{ comparison.new_label or 'Customer' }}</span>
                     </div>
                     <div class="version-content">
                         <div class="detail-item">
@@ -503,10 +503,10 @@
                     </div>
                 </div>
             {% else %}
-                <!-- NO_CONFLICT: Vendor Base (left) vs Vendor Latest (right) -->
+                <!-- NO_CONFLICT: Dynamic based on change types -->
                 <div class="version-column vendor-column">
                     <div class="version-header">
-                        <span class="badge bg-secondary">Vendor Base</span>
+                        <span class="badge bg-secondary">{{ comparison.old_label or 'Vendor Base' }}</span>
                     </div>
                     <div class="version-content">
                         <div class="detail-item">
@@ -522,7 +522,7 @@
                 
                 <div class="version-column customer-column">
                     <div class="version-header">
-                        <span class="badge bg-info">Vendor Latest</span>
+                        <span class="badge bg-info">{{ comparison.new_label or 'Vendor Latest' }}</span>
                     </div>
                     <div class="version-content">
                         <div class="detail-item">

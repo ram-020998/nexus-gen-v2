@@ -11,7 +11,7 @@
                 <!-- CONFLICT: Vendor Latest (left) vs Customer (right) -->
                 <div class="version-column vendor-column">
                     <div class="version-header">
-                        <span class="badge bg-info">Vendor Latest</span>
+                        <span class="badge bg-info">{{ comparison.old_label or 'Vendor Latest' }}</span>
                     </div>
                     <div class="version-content">
                         {% if comparison.vendor.fields %}
@@ -39,7 +39,7 @@
                 
                 <div class="version-column customer-column">
                     <div class="version-header">
-                        <span class="badge bg-success">Customer</span>
+                        <span class="badge bg-success">{{ comparison.new_label or 'Customer' }}</span>
                     </div>
                     <div class="version-content">
                         {% if comparison.customer.fields %}
@@ -66,10 +66,10 @@
                     </div>
                 </div>
             {% else %}
-                <!-- NO_CONFLICT: Vendor Base (left) vs Vendor Latest (right) -->
+                <!-- NO_CONFLICT: Dynamic based on change types -->
                 <div class="version-column vendor-column">
                     <div class="version-header">
-                        <span class="badge bg-secondary">Vendor Base</span>
+                        <span class="badge bg-secondary">{{ comparison.old_label or 'Vendor Base' }}</span>
                     </div>
                     <div class="version-content">
                         {% if comparison.customer.fields %}
@@ -97,7 +97,7 @@
                 
                 <div class="version-column customer-column">
                     <div class="version-header">
-                        <span class="badge bg-info">Vendor Latest</span>
+                        <span class="badge bg-info">{{ comparison.new_label or 'Vendor Latest' }}</span>
                     </div>
                     <div class="version-content">
                         {% if comparison.vendor.fields %}

@@ -38,6 +38,56 @@ class ComparisonRetrievalService(BaseService):
         super().__init__(container)
         self.logger = logging.getLogger(__name__)
     
+    def _determine_comparison_strategy(
+        self,
+        change: Change,
+        base_package_id: int,
+        customer_package_id: int,
+        new_vendor_package_id: int
+    ) -> Dict[str, Any]:
+        """
+        Determine which packages to compare based on classification and change types.
+        
+        Returns:
+            Dict with keys:
+            - old_package_id: Package ID for left side
+            - new_package_id: Package ID for right side
+            - old_label: Label for left side
+            - new_label: Label for right side
+            - comparison_type: 'customer_only', 'vendor_changes', or 'conflict'
+        """
+        if change.classification == 'NO_CONFLICT':
+            # NO_CONFLICT logic:
+            # 1. If vendor change is None AND customer change is Modified/Added → Show Customer vs Base
+            # 2. If vendor change is Modified/Added → Show Vendor Base vs Vendor Latest
+            if not change.vendor_change_type and change.customer_change_type in ['MODIFIED', 'ADDED']:
+                # Customer-only changes: compare base vs customer
+                return {
+                    'old_package_id': base_package_id,
+                    'new_package_id': customer_package_id,
+                    'old_label': 'Vendor Base',
+                    'new_label': 'Customer',
+                    'comparison_type': 'customer_only'
+                }
+            else:
+                # Vendor changes: compare base vs vendor latest
+                return {
+                    'old_package_id': base_package_id,
+                    'new_package_id': new_vendor_package_id,
+                    'old_label': 'Vendor Base',
+                    'new_label': 'Vendor Latest',
+                    'comparison_type': 'vendor_changes'
+                }
+        else:
+            # CONFLICT: compare vendor vs customer
+            return {
+                'old_package_id': new_vendor_package_id,
+                'new_package_id': customer_package_id,
+                'old_label': 'Vendor Latest',
+                'new_label': 'Customer',
+                'comparison_type': 'conflict'
+            }
+    
     def get_comparison_details(
         self,
         change: Change,
@@ -106,30 +156,32 @@ class ComparisonRetrievalService(BaseService):
         """Get constant comparison details."""
         obj_id = change.object_id
         
-        # For NO_CONFLICT: compare base vs vendor
-        # For CONFLICT: compare vendor vs customer
-        # "vendor" field = new vendor package (C)
-        # "customer" field = base package (A) for NO_CONFLICT, customer package (B) for CONFLICT
-        compare_package_id = base_package_id if change.classification == 'NO_CONFLICT' else customer_package_id
+        # Determine comparison strategy
+        strategy = self._determine_comparison_strategy(
+            change, base_package_id, customer_package_id, new_vendor_package_id
+        )
         
         # Get constants from packages
-        vendor_constant = self._get_constant(obj_id, new_vendor_package_id)
-        compare_constant = self._get_constant(obj_id, compare_package_id)
+        old_constant = self._get_constant(obj_id, strategy['old_package_id'])
+        new_constant = self._get_constant(obj_id, strategy['new_package_id'])
         
         return {
             'object_type': 'Constant',
             'vendor': {
-                'type': vendor_constant.constant_type if vendor_constant else None,
-                'value': vendor_constant.constant_value if vendor_constant else None
+                'type': new_constant.constant_type if new_constant else None,
+                'value': new_constant.constant_value if new_constant else None
             },
             'customer': {
-                'type': compare_constant.constant_type if compare_constant else None,
-                'value': compare_constant.constant_value if compare_constant else None
+                'type': old_constant.constant_type if old_constant else None,
+                'value': old_constant.constant_value if old_constant else None
             },
+            'comparison_type': strategy['comparison_type'],
+            'old_label': strategy['old_label'],
+            'new_label': strategy['new_label'],
             'has_changes': (
-                vendor_constant and compare_constant and
-                (vendor_constant.constant_value != compare_constant.constant_value or
-                 vendor_constant.constant_type != compare_constant.constant_type)
+                old_constant and new_constant and
+                (old_constant.constant_value != new_constant.constant_value or
+                 old_constant.constant_type != new_constant.constant_type)
             )
         }
     
@@ -143,33 +195,31 @@ class ComparisonRetrievalService(BaseService):
         """Get expression rule comparison details."""
         obj_id = change.object_id
         
-        # For NO_CONFLICT: compare base vs vendor
-        # For CONFLICT: compare vendor vs customer
-        compare_package_id = base_package_id if change.classification == 'NO_CONFLICT' else customer_package_id
+        # Determine comparison strategy
+        strategy = self._determine_comparison_strategy(
+            change, base_package_id, customer_package_id, new_vendor_package_id
+        )
         
         # Get expression rules
-        vendor_er = self._get_expression_rule(obj_id, new_vendor_package_id)
-        compare_er = self._get_expression_rule(obj_id, compare_package_id)
+        old_er = self._get_expression_rule(obj_id, strategy['old_package_id'])
+        new_er = self._get_expression_rule(obj_id, strategy['new_package_id'])
         
         # Get inputs
-        vendor_inputs = self._get_expression_rule_inputs(vendor_er.id) if vendor_er else []
-        compare_inputs = self._get_expression_rule_inputs(compare_er.id) if compare_er else []
+        old_inputs = self._get_expression_rule_inputs(old_er.id) if old_er else []
+        new_inputs = self._get_expression_rule_inputs(new_er.id) if new_er else []
         
         # Generate SAIL code diff
         from services.sail_diff_service import SailDiffService
         diff_service = SailDiffService()
         
-        old_code = compare_er.sail_code if compare_er else None
-        new_code = vendor_er.sail_code if vendor_er else None
-        
-        # Use appropriate labels based on classification
-        old_label = 'Vendor Base' if change.classification == 'NO_CONFLICT' else 'Customer'
+        old_code = old_er.sail_code if old_er else None
+        new_code = new_er.sail_code if new_er else None
         
         diff_hunks = diff_service.generate_unified_diff(
             old_code,
             new_code,
-            old_label=old_label,
-            new_label='Vendor Latest'
+            old_label=strategy['old_label'],
+            new_label=strategy['new_label']
         )
         
         diff_stats = diff_service.get_change_stats(old_code, new_code)
@@ -177,20 +227,23 @@ class ComparisonRetrievalService(BaseService):
         return {
             'object_type': 'Expression Rule',
             'vendor': {
-                'sail_code': vendor_er.sail_code if vendor_er else None,
-                'inputs': vendor_inputs,
-                'output_type': vendor_er.output_type if vendor_er else None
+                'sail_code': new_er.sail_code if new_er else None,
+                'inputs': new_inputs,
+                'output_type': new_er.output_type if new_er else None
             },
             'customer': {
-                'sail_code': compare_er.sail_code if compare_er else None,
-                'inputs': compare_inputs,
-                'output_type': compare_er.output_type if compare_er else None
+                'sail_code': old_er.sail_code if old_er else None,
+                'inputs': old_inputs,
+                'output_type': old_er.output_type if old_er else None
             },
             'diff_hunks': diff_hunks,
             'diff_stats': diff_stats,
-            'has_changes': vendor_er and compare_er and (
-                vendor_er.sail_code != compare_er.sail_code or
-                vendor_inputs != compare_inputs
+            'comparison_type': strategy['comparison_type'],
+            'old_label': strategy['old_label'],
+            'new_label': strategy['new_label'],
+            'has_changes': old_er and new_er and (
+                old_er.sail_code != new_er.sail_code or
+                old_inputs != new_inputs
             )
         }
     
@@ -204,37 +257,35 @@ class ComparisonRetrievalService(BaseService):
         """Get interface comparison details."""
         obj_id = change.object_id
         
-        # For NO_CONFLICT: compare base vs vendor
-        # For CONFLICT: compare vendor vs customer
-        compare_package_id = base_package_id if change.classification == 'NO_CONFLICT' else customer_package_id
+        # Determine comparison strategy
+        strategy = self._determine_comparison_strategy(
+            change, base_package_id, customer_package_id, new_vendor_package_id
+        )
         
         # Get interfaces
-        vendor_interface = self._get_interface(obj_id, new_vendor_package_id)
-        compare_interface = self._get_interface(obj_id, compare_package_id)
+        old_interface = self._get_interface(obj_id, strategy['old_package_id'])
+        new_interface = self._get_interface(obj_id, strategy['new_package_id'])
         
         # Get parameters
-        vendor_params = self._get_interface_parameters(vendor_interface.id) if vendor_interface else []
-        compare_params = self._get_interface_parameters(compare_interface.id) if compare_interface else []
+        old_params = self._get_interface_parameters(old_interface.id) if old_interface else []
+        new_params = self._get_interface_parameters(new_interface.id) if new_interface else []
         
         # Get SAIL code from object_versions
-        vendor_version = self._get_object_version(obj_id, new_vendor_package_id)
-        compare_version = self._get_object_version(obj_id, compare_package_id)
+        old_version = self._get_object_version(obj_id, strategy['old_package_id'])
+        new_version = self._get_object_version(obj_id, strategy['new_package_id'])
         
         # Generate SAIL code diff
         from services.sail_diff_service import SailDiffService
         diff_service = SailDiffService()
         
-        old_code = compare_version.sail_code if compare_version else None
-        new_code = vendor_version.sail_code if vendor_version else None
-        
-        # Use appropriate labels based on classification
-        old_label = 'Vendor Base' if change.classification == 'NO_CONFLICT' else 'Customer'
+        old_code = old_version.sail_code if old_version else None
+        new_code = new_version.sail_code if new_version else None
         
         diff_hunks = diff_service.generate_unified_diff(
             old_code,
             new_code,
-            old_label=old_label,
-            new_label='Vendor Latest'
+            old_label=strategy['old_label'],
+            new_label=strategy['new_label']
         )
         
         diff_stats = diff_service.get_change_stats(old_code, new_code)
@@ -242,18 +293,21 @@ class ComparisonRetrievalService(BaseService):
         return {
             'object_type': 'Interface',
             'vendor': {
-                'sail_code': vendor_version.sail_code if vendor_version else None,
-                'parameters': vendor_params
+                'sail_code': new_version.sail_code if new_version else None,
+                'parameters': new_params
             },
             'customer': {
-                'sail_code': compare_version.sail_code if compare_version else None,
-                'parameters': compare_params
+                'sail_code': old_version.sail_code if old_version else None,
+                'parameters': old_params
             },
             'diff_hunks': diff_hunks,
             'diff_stats': diff_stats,
-            'has_changes': vendor_version and compare_version and (
-                vendor_version.sail_code != compare_version.sail_code or
-                vendor_params != compare_params
+            'comparison_type': strategy['comparison_type'],
+            'old_label': strategy['old_label'],
+            'new_label': strategy['new_label'],
+            'has_changes': old_version and new_version and (
+                old_version.sail_code != new_version.sail_code or
+                old_params != new_params
             )
         }
     
@@ -267,49 +321,53 @@ class ComparisonRetrievalService(BaseService):
         """Get process model comparison details."""
         obj_id = change.object_id
         
-        # For NO_CONFLICT: compare base vs vendor
-        # For CONFLICT: compare vendor vs customer
-        compare_package_id = base_package_id if change.classification == 'NO_CONFLICT' else customer_package_id
+        # Determine comparison strategy
+        strategy = self._determine_comparison_strategy(
+            change, base_package_id, customer_package_id, new_vendor_package_id
+        )
         
         # Get process models
-        vendor_pm = self._get_process_model(obj_id, new_vendor_package_id)
-        compare_pm = self._get_process_model(obj_id, compare_package_id)
+        old_pm = self._get_process_model(obj_id, strategy['old_package_id'])
+        new_pm = self._get_process_model(obj_id, strategy['new_package_id'])
         
         # Get nodes
-        vendor_nodes = self._get_process_model_nodes(vendor_pm.id) if vendor_pm else []
-        compare_nodes = self._get_process_model_nodes(compare_pm.id) if compare_pm else []
+        old_nodes = self._get_process_model_nodes(old_pm.id) if old_pm else []
+        new_nodes = self._get_process_model_nodes(new_pm.id) if new_pm else []
         
         # Get flows
-        vendor_flows = self._get_process_model_flows(vendor_pm.id) if vendor_pm else []
-        compare_flows = self._get_process_model_flows(compare_pm.id) if compare_pm else []
+        old_flows = self._get_process_model_flows(old_pm.id) if old_pm else []
+        new_flows = self._get_process_model_flows(new_pm.id) if new_pm else []
         
         # Get variables
-        vendor_variables = self._get_process_model_variables(vendor_pm.id) if vendor_pm else []
-        compare_variables = self._get_process_model_variables(compare_pm.id) if compare_pm else []
+        old_variables = self._get_process_model_variables(old_pm.id) if old_pm else []
+        new_variables = self._get_process_model_variables(new_pm.id) if new_pm else []
         
         # Generate Mermaid diagrams with color coding
-        vendor_mermaid = self._generate_mermaid_diagram_with_diff(
-            vendor_nodes, vendor_flows, compare_nodes, is_vendor=True
+        new_mermaid = self._generate_mermaid_diagram_with_diff(
+            new_nodes, new_flows, old_nodes, is_vendor=True
         )
-        compare_mermaid = self._generate_mermaid_diagram_with_diff(
-            compare_nodes, compare_flows, vendor_nodes, is_vendor=False
+        old_mermaid = self._generate_mermaid_diagram_with_diff(
+            old_nodes, old_flows, new_nodes, is_vendor=False
         )
         
         return {
             'object_type': 'Process Model',
             'vendor': {
-                'nodes': vendor_nodes,
-                'flows': vendor_flows,
-                'variables': vendor_variables,
-                'mermaid_diagram': vendor_mermaid
+                'nodes': new_nodes,
+                'flows': new_flows,
+                'variables': new_variables,
+                'mermaid_diagram': new_mermaid
             },
             'customer': {
-                'nodes': compare_nodes,
-                'flows': compare_flows,
-                'variables': compare_variables,
-                'mermaid_diagram': compare_mermaid
+                'nodes': old_nodes,
+                'flows': old_flows,
+                'variables': old_variables,
+                'mermaid_diagram': old_mermaid
             },
-            'has_changes': vendor_nodes != compare_nodes or vendor_flows != compare_flows or vendor_variables != compare_variables
+            'comparison_type': strategy['comparison_type'],
+            'old_label': strategy['old_label'],
+            'new_label': strategy['new_label'],
+            'has_changes': old_nodes != new_nodes or old_flows != new_flows or old_variables != new_variables
         }
     
     def _get_cdt_comparison(
@@ -322,29 +380,33 @@ class ComparisonRetrievalService(BaseService):
         """Get CDT comparison details."""
         obj_id = change.object_id
         
-        # For NO_CONFLICT: compare base vs vendor
-        # For CONFLICT: compare vendor vs customer
-        compare_package_id = base_package_id if change.classification == 'NO_CONFLICT' else customer_package_id
+        # Determine comparison strategy
+        strategy = self._determine_comparison_strategy(
+            change, base_package_id, customer_package_id, new_vendor_package_id
+        )
         
         # Get CDTs
-        vendor_cdt = self._get_cdt(obj_id, new_vendor_package_id)
-        compare_cdt = self._get_cdt(obj_id, compare_package_id)
+        old_cdt = self._get_cdt(obj_id, strategy['old_package_id'])
+        new_cdt = self._get_cdt(obj_id, strategy['new_package_id'])
         
         # Get fields
-        vendor_fields = self._get_cdt_fields(vendor_cdt.id) if vendor_cdt else []
-        compare_fields = self._get_cdt_fields(compare_cdt.id) if compare_cdt else []
+        old_fields = self._get_cdt_fields(old_cdt.id) if old_cdt else []
+        new_fields = self._get_cdt_fields(new_cdt.id) if new_cdt else []
         
         return {
             'object_type': 'CDT',
             'vendor': {
-                'fields': vendor_fields,
-                'namespace': vendor_cdt.namespace if vendor_cdt else None
+                'fields': new_fields,
+                'namespace': new_cdt.namespace if new_cdt else None
             },
             'customer': {
-                'fields': compare_fields,
-                'namespace': compare_cdt.namespace if compare_cdt else None
+                'fields': old_fields,
+                'namespace': old_cdt.namespace if old_cdt else None
             },
-            'has_changes': vendor_fields != compare_fields
+            'comparison_type': strategy['comparison_type'],
+            'old_label': strategy['old_label'],
+            'new_label': strategy['new_label'],
+            'has_changes': old_fields != new_fields
         }
     
     def _get_record_type_comparison(
@@ -357,49 +419,53 @@ class ComparisonRetrievalService(BaseService):
         """Get record type comparison details."""
         obj_id = change.object_id
         
-        # For NO_CONFLICT: compare base vs vendor
-        # For CONFLICT: compare vendor vs customer
-        compare_package_id = base_package_id if change.classification == 'NO_CONFLICT' else customer_package_id
+        # Determine comparison strategy
+        strategy = self._determine_comparison_strategy(
+            change, base_package_id, customer_package_id, new_vendor_package_id
+        )
         
         # Get record types
-        vendor_rt = self._get_record_type(obj_id, new_vendor_package_id)
-        compare_rt = self._get_record_type(obj_id, compare_package_id)
+        old_rt = self._get_record_type(obj_id, strategy['old_package_id'])
+        new_rt = self._get_record_type(obj_id, strategy['new_package_id'])
         
         # Get fields
-        vendor_fields = self._get_record_type_fields(vendor_rt.id) if vendor_rt else []
-        compare_fields = self._get_record_type_fields(compare_rt.id) if compare_rt else []
+        old_fields = self._get_record_type_fields(old_rt.id) if old_rt else []
+        new_fields = self._get_record_type_fields(new_rt.id) if new_rt else []
         
         # Get relationships
-        vendor_relationships = self._get_record_type_relationships(vendor_rt.id) if vendor_rt else []
-        compare_relationships = self._get_record_type_relationships(compare_rt.id) if compare_rt else []
+        old_relationships = self._get_record_type_relationships(old_rt.id) if old_rt else []
+        new_relationships = self._get_record_type_relationships(new_rt.id) if new_rt else []
         
         # Get views
-        vendor_views = self._get_record_type_views(vendor_rt.id) if vendor_rt else []
-        compare_views = self._get_record_type_views(compare_rt.id) if compare_rt else []
+        old_views = self._get_record_type_views(old_rt.id) if old_rt else []
+        new_views = self._get_record_type_views(new_rt.id) if new_rt else []
         
         # Get actions
-        vendor_actions = self._get_record_type_actions(vendor_rt.id) if vendor_rt else []
-        compare_actions = self._get_record_type_actions(compare_rt.id) if compare_rt else []
+        old_actions = self._get_record_type_actions(old_rt.id) if old_rt else []
+        new_actions = self._get_record_type_actions(new_rt.id) if new_rt else []
         
         return {
             'object_type': 'Record Type',
             'vendor': {
-                'fields': vendor_fields,
-                'relationships': vendor_relationships,
-                'views': vendor_views,
-                'actions': vendor_actions
+                'fields': new_fields,
+                'relationships': new_relationships,
+                'views': new_views,
+                'actions': new_actions
             },
             'customer': {
-                'fields': compare_fields,
-                'relationships': compare_relationships,
-                'views': compare_views,
-                'actions': compare_actions
+                'fields': old_fields,
+                'relationships': old_relationships,
+                'views': old_views,
+                'actions': old_actions
             },
+            'comparison_type': strategy['comparison_type'],
+            'old_label': strategy['old_label'],
+            'new_label': strategy['new_label'],
             'has_changes': (
-                vendor_fields != compare_fields or
-                vendor_relationships != compare_relationships or
-                vendor_views != compare_views or
-                vendor_actions != compare_actions
+                old_fields != new_fields or
+                old_relationships != new_relationships or
+                old_views != new_views or
+                old_actions != new_actions
             )
         }
     
@@ -413,28 +479,32 @@ class ComparisonRetrievalService(BaseService):
         """Get group comparison details."""
         obj_id = change.object_id
         
-        # For NO_CONFLICT: compare base vs vendor
-        # For CONFLICT: compare vendor vs customer
-        compare_package_id = base_package_id if change.classification == 'NO_CONFLICT' else customer_package_id
+        # Determine comparison strategy
+        strategy = self._determine_comparison_strategy(
+            change, base_package_id, customer_package_id, new_vendor_package_id
+        )
         
-        vendor_group = self._get_group(obj_id, new_vendor_package_id)
-        compare_group = self._get_group(obj_id, compare_package_id)
+        old_group = self._get_group(obj_id, strategy['old_package_id'])
+        new_group = self._get_group(obj_id, strategy['new_package_id'])
         
         return {
             'object_type': 'Group',
             'vendor': {
-                'description': vendor_group.description if vendor_group else None,
-                'parent_group': vendor_group.parent_group_uuid if vendor_group else None,
-                'members': vendor_group.members if vendor_group else None
+                'description': new_group.description if new_group else None,
+                'parent_group': new_group.parent_group_uuid if new_group else None,
+                'members': new_group.members if new_group else None
             },
             'customer': {
-                'description': compare_group.description if compare_group else None,
-                'parent_group': compare_group.parent_group_uuid if compare_group else None,
-                'members': compare_group.members if compare_group else None
+                'description': old_group.description if old_group else None,
+                'parent_group': old_group.parent_group_uuid if old_group else None,
+                'members': old_group.members if old_group else None
             },
-            'has_changes': vendor_group and compare_group and (
-                vendor_group.description != compare_group.description or
-                vendor_group.members != compare_group.members
+            'comparison_type': strategy['comparison_type'],
+            'old_label': strategy['old_label'],
+            'new_label': strategy['new_label'],
+            'has_changes': old_group and new_group and (
+                old_group.description != new_group.description or
+                old_group.members != new_group.members
             )
         }
     
@@ -448,28 +518,32 @@ class ComparisonRetrievalService(BaseService):
         """Get connected system comparison details."""
         obj_id = change.object_id
         
-        # For NO_CONFLICT: compare base vs vendor
-        # For CONFLICT: compare vendor vs customer
-        compare_package_id = base_package_id if change.classification == 'NO_CONFLICT' else customer_package_id
+        # Determine comparison strategy
+        strategy = self._determine_comparison_strategy(
+            change, base_package_id, customer_package_id, new_vendor_package_id
+        )
         
-        vendor_cs = self._get_connected_system(obj_id, new_vendor_package_id)
-        compare_cs = self._get_connected_system(obj_id, compare_package_id)
+        old_cs = self._get_connected_system(obj_id, strategy['old_package_id'])
+        new_cs = self._get_connected_system(obj_id, strategy['new_package_id'])
         
         return {
             'object_type': 'Connected System',
             'vendor': {
-                'description': vendor_cs.description if vendor_cs else None,
-                'base_url': vendor_cs.base_url if vendor_cs else None,
-                'authentication': vendor_cs.authentication_type if vendor_cs else None
+                'description': new_cs.description if new_cs else None,
+                'base_url': new_cs.base_url if new_cs else None,
+                'authentication': new_cs.authentication_type if new_cs else None
             },
             'customer': {
-                'description': compare_cs.description if compare_cs else None,
-                'base_url': compare_cs.base_url if compare_cs else None,
-                'authentication': compare_cs.authentication_type if compare_cs else None
+                'description': old_cs.description if old_cs else None,
+                'base_url': old_cs.base_url if old_cs else None,
+                'authentication': old_cs.authentication_type if old_cs else None
             },
-            'has_changes': vendor_cs and compare_cs and (
-                vendor_cs.description != compare_cs.description or
-                vendor_cs.base_url != compare_cs.base_url
+            'comparison_type': strategy['comparison_type'],
+            'old_label': strategy['old_label'],
+            'new_label': strategy['new_label'],
+            'has_changes': old_cs and new_cs and (
+                old_cs.description != new_cs.description or
+                old_cs.base_url != new_cs.base_url
             )
         }
     
@@ -483,28 +557,32 @@ class ComparisonRetrievalService(BaseService):
         """Get integration comparison details."""
         obj_id = change.object_id
         
-        # For NO_CONFLICT: compare base vs vendor
-        # For CONFLICT: compare vendor vs customer
-        compare_package_id = base_package_id if change.classification == 'NO_CONFLICT' else customer_package_id
+        # Determine comparison strategy
+        strategy = self._determine_comparison_strategy(
+            change, base_package_id, customer_package_id, new_vendor_package_id
+        )
         
-        vendor_int = self._get_integration(obj_id, new_vendor_package_id)
-        compare_int = self._get_integration(obj_id, compare_package_id)
+        old_int = self._get_integration(obj_id, strategy['old_package_id'])
+        new_int = self._get_integration(obj_id, strategy['new_package_id'])
         
         return {
             'object_type': 'Integration',
             'vendor': {
-                'description': vendor_int.description if vendor_int else None,
-                'endpoint': vendor_int.endpoint if vendor_int else None,
-                'method': vendor_int.http_method if vendor_int else None
+                'description': new_int.description if new_int else None,
+                'endpoint': new_int.endpoint if new_int else None,
+                'method': new_int.http_method if new_int else None
             },
             'customer': {
-                'description': compare_int.description if compare_int else None,
-                'endpoint': compare_int.endpoint if compare_int else None,
-                'method': compare_int.http_method if compare_int else None
+                'description': old_int.description if old_int else None,
+                'endpoint': old_int.endpoint if old_int else None,
+                'method': old_int.http_method if old_int else None
             },
-            'has_changes': vendor_int and compare_int and (
-                vendor_int.description != compare_int.description or
-                vendor_int.endpoint != compare_int.endpoint
+            'comparison_type': strategy['comparison_type'],
+            'old_label': strategy['old_label'],
+            'new_label': strategy['new_label'],
+            'has_changes': old_int and new_int and (
+                old_int.description != new_int.description or
+                old_int.endpoint != new_int.endpoint
             )
         }
     
@@ -518,32 +596,36 @@ class ComparisonRetrievalService(BaseService):
         """Get web API comparison details."""
         obj_id = change.object_id
         
-        # For NO_CONFLICT: compare base vs vendor
-        # For CONFLICT: compare vendor vs customer
-        compare_package_id = base_package_id if change.classification == 'NO_CONFLICT' else customer_package_id
+        # Determine comparison strategy
+        strategy = self._determine_comparison_strategy(
+            change, base_package_id, customer_package_id, new_vendor_package_id
+        )
         
-        vendor_api = self._get_web_api(obj_id, new_vendor_package_id)
-        compare_api = self._get_web_api(obj_id, compare_package_id)
+        old_api = self._get_web_api(obj_id, strategy['old_package_id'])
+        new_api = self._get_web_api(obj_id, strategy['new_package_id'])
         
         # Get SAIL code from object_versions
-        vendor_version = self._get_object_version(obj_id, new_vendor_package_id)
-        compare_version = self._get_object_version(obj_id, compare_package_id)
+        old_version = self._get_object_version(obj_id, strategy['old_package_id'])
+        new_version = self._get_object_version(obj_id, strategy['new_package_id'])
         
         return {
             'object_type': 'Web API',
             'vendor': {
-                'sail_code': vendor_version.sail_code if vendor_version else None,
-                'endpoint': vendor_api.endpoint if vendor_api else None,
-                'method': vendor_api.http_method if vendor_api else None
+                'sail_code': new_version.sail_code if new_version else None,
+                'endpoint': new_api.endpoint if new_api else None,
+                'method': new_api.http_method if new_api else None
             },
             'customer': {
-                'sail_code': compare_version.sail_code if compare_version else None,
-                'endpoint': compare_api.endpoint if compare_api else None,
-                'method': compare_api.http_method if compare_api else None
+                'sail_code': old_version.sail_code if old_version else None,
+                'endpoint': old_api.endpoint if old_api else None,
+                'method': old_api.http_method if old_api else None
             },
-            'has_changes': vendor_version and compare_version and (
-                vendor_version.sail_code != compare_version.sail_code or
-                (vendor_api and compare_api and vendor_api.endpoint != compare_api.endpoint)
+            'comparison_type': strategy['comparison_type'],
+            'old_label': strategy['old_label'],
+            'new_label': strategy['new_label'],
+            'has_changes': old_version and new_version and (
+                old_version.sail_code != new_version.sail_code or
+                (old_api and new_api and old_api.endpoint != new_api.endpoint)
             )
         }
     
@@ -557,26 +639,30 @@ class ComparisonRetrievalService(BaseService):
         """Get site comparison details."""
         obj_id = change.object_id
         
-        # For NO_CONFLICT: compare base vs vendor
-        # For CONFLICT: compare vendor vs customer
-        compare_package_id = base_package_id if change.classification == 'NO_CONFLICT' else customer_package_id
+        # Determine comparison strategy
+        strategy = self._determine_comparison_strategy(
+            change, base_package_id, customer_package_id, new_vendor_package_id
+        )
         
-        vendor_site = self._get_site(obj_id, new_vendor_package_id)
-        compare_site = self._get_site(obj_id, compare_package_id)
+        old_site = self._get_site(obj_id, strategy['old_package_id'])
+        new_site = self._get_site(obj_id, strategy['new_package_id'])
         
         return {
             'object_type': 'Site',
             'vendor': {
-                'description': vendor_site.description if vendor_site else None,
-                'url_stub': vendor_site.url_stub if vendor_site else None
+                'description': new_site.description if new_site else None,
+                'url_stub': new_site.url_stub if new_site else None
             },
             'customer': {
-                'description': compare_site.description if compare_site else None,
-                'url_stub': compare_site.url_stub if compare_site else None
+                'description': old_site.description if old_site else None,
+                'url_stub': old_site.url_stub if old_site else None
             },
-            'has_changes': vendor_site and compare_site and (
-                vendor_site.description != compare_site.description or
-                vendor_site.url_stub != compare_site.url_stub
+            'comparison_type': strategy['comparison_type'],
+            'old_label': strategy['old_label'],
+            'new_label': strategy['new_label'],
+            'has_changes': old_site and new_site and (
+                old_site.description != new_site.description or
+                old_site.url_stub != new_site.url_stub
             )
         }
     
@@ -590,23 +676,27 @@ class ComparisonRetrievalService(BaseService):
         """Get basic comparison for unsupported object types."""
         obj_id = change.object_id
         
-        # For NO_CONFLICT: compare base vs vendor
-        # For CONFLICT: compare vendor vs customer
-        compare_package_id = base_package_id if change.classification == 'NO_CONFLICT' else customer_package_id
+        # Determine comparison strategy
+        strategy = self._determine_comparison_strategy(
+            change, base_package_id, customer_package_id, new_vendor_package_id
+        )
         
-        vendor_version = self._get_object_version(obj_id, new_vendor_package_id)
-        compare_version = self._get_object_version(obj_id, compare_package_id)
+        old_version = self._get_object_version(obj_id, strategy['old_package_id'])
+        new_version = self._get_object_version(obj_id, strategy['new_package_id'])
         
         return {
             'object_type': change.object.object_type,
             'vendor': {
-                'version_uuid': vendor_version.version_uuid if vendor_version else None
+                'version_uuid': new_version.version_uuid if new_version else None
             },
             'customer': {
-                'version_uuid': compare_version.version_uuid if compare_version else None
+                'version_uuid': old_version.version_uuid if old_version else None
             },
-            'has_changes': vendor_version and compare_version and (
-                vendor_version.version_uuid != compare_version.version_uuid
+            'comparison_type': strategy['comparison_type'],
+            'old_label': strategy['old_label'],
+            'new_label': strategy['new_label'],
+            'has_changes': old_version and new_version and (
+                old_version.version_uuid != new_version.version_uuid
             )
         }
     
