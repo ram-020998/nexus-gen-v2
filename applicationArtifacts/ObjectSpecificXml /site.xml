@@ -1,0 +1,291 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<siteHaul xmlns:a="http://www.appian.com/ae/types/2009" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <versionUuid>6b8e0ba3-2144-49f5-9f63-3d9c12e4850a</versionUuid>
+  <site a:uuid="e1d84976-cd1c-4153-b61b-410d57572203" name="Requirements Management ">
+    <description>Main Site for the Requirements Management Application</description>
+    <urlStub>requirements-management</urlStub>
+    <page a:uuid="85206637-844a-33dc-8a75-5ec89a099ee8">
+      <staticName>Home</staticName>
+      <description/>
+      <urlStub>home</urlStub>
+      <uiObject a:uuid="681c60a5-638a-404c-aa18-a9540f5f064c" xsi:type="a:TempoReport"/>
+      <iconId>f015</iconId>
+      <visibilityExpr>fn!true()</visibilityExpr>
+      <pageWidth>WIDE</pageWidth>
+      <areUrlParamsEncrypted>true</areUrlParamsEncrypted>
+      <autoContextUpdateEnabled>false</autoContextUpdateEnabled>
+      <siteBrandingEnabled>true</siteBrandingEnabled>
+      <darkThemeEnabled>false</darkThemeEnabled>
+    </page>
+    <page a:uuid="684acdf7-6629-3da9-b72c-577c297514ac">
+      <staticName>Requirements</staticName>
+      <description/>
+      <urlStub>requirements</urlStub>
+      <uiObject a:uuid="ada39a59-27e4-430b-bb10-6d22c37de1e8" xsi:type="a:TempoReport"/>
+      <iconId>f00b</iconId>
+      <visibilityExpr>fn!true()</visibilityExpr>
+      <pageWidth>WIDE</pageWidth>
+      <areUrlParamsEncrypted>true</areUrlParamsEncrypted>
+      <autoContextUpdateEnabled>false</autoContextUpdateEnabled>
+      <siteBrandingEnabled>true</siteBrandingEnabled>
+      <darkThemeEnabled>false</darkThemeEnabled>
+    </page>
+    <page a:uuid="37e575d4-27da-48dc-949a-00c133f24fc5">
+      <nameExpr>#"_a-0000eadf-1289-8000-9ce3-011c48011c48_8848823"(
+  bundleKey: "AS.RM.MSG.AllBundles.lbl_Messages"
+) &amp; " (" &amp; #"_a-0000eadf-1289-8000-9ce3-011c48011c48_8848776"(user: loggedInUser()) &amp; ")"</nameExpr>
+      <description/>
+      <urlStub>messages</urlStub>
+      <uiObject
+        a:uuid="_a-0000e87b-f03a-8000-9bac-011c48011c48_30910-as_vm_msg-as_rm_msg" xsi:type="a:ContentFreeformRule"/>
+      <iconId>f075</iconId>
+      <visibilityExpr>fn!true()</visibilityExpr>
+      <pageWidth>WIDE</pageWidth>
+      <areUrlParamsEncrypted>true</areUrlParamsEncrypted>
+      <autoContextUpdateEnabled>false</autoContextUpdateEnabled>
+      <siteBrandingEnabled>true</siteBrandingEnabled>
+      <darkThemeEnabled>false</darkThemeEnabled>
+    </page>
+    <page a:uuid="54dca6b6-39b9-4e44-bb74-9f34da387f02">
+      <nameExpr>#"_a-0000e6c7-ebca-8000-9bd3-011c48011c48_1674777"(bundleKey: "lbl_Directory")</nameExpr>
+      <description/>
+      <urlStub>directory</urlStub>
+      <iconId>f114</iconId>
+      <visibilityExpr>fn!true()</visibilityExpr>
+      <pageWidth>STANDARD</pageWidth>
+      <page a:uuid="31c1bece-1213-4be1-87eb-c6dbdd43a053">
+        <staticName>People</staticName>
+        <description/>
+        <urlStub>people</urlStub>
+        <uiObject a:uuid="_a-0000e447-9390-8000-9baa-011c48011c48_76800" xsi:type="a:ContentFreeformRule"/>
+        <iconId>f016</iconId>
+        <visibilityExpr>fn!true()</visibilityExpr>
+        <pageWidth>WIDE</pageWidth>
+        <areUrlParamsEncrypted>true</areUrlParamsEncrypted>
+        <autoContextUpdateEnabled>true</autoContextUpdateEnabled>
+        <siteBrandingEnabled>true</siteBrandingEnabled>
+        <darkThemeEnabled>false</darkThemeEnabled>
+      </page>
+      <page a:uuid="03a9e5ea-7d9b-417b-9134-11ad784af389">
+        <staticName>Locations</staticName>
+        <description/>
+        <urlStub>locations</urlStub>
+        <uiObject
+          a:uuid="_a-0000e583-8ce5-8000-9bb7-011c48011c48_811662" xsi:type="a:ContentFreeformRule"/>
+        <iconId>f016</iconId>
+        <visibilityExpr>fn!true()</visibilityExpr>
+        <pageWidth>WIDE</pageWidth>
+        <areUrlParamsEncrypted>true</areUrlParamsEncrypted>
+        <autoContextUpdateEnabled>true</autoContextUpdateEnabled>
+        <siteBrandingEnabled>true</siteBrandingEnabled>
+        <darkThemeEnabled>false</darkThemeEnabled>
+      </page>
+      <areUrlParamsEncrypted>true</areUrlParamsEncrypted>
+      <autoContextUpdateEnabled>false</autoContextUpdateEnabled>
+      <siteBrandingEnabled>true</siteBrandingEnabled>
+      <darkThemeEnabled>false</darkThemeEnabled>
+    </page>
+    <page a:uuid="0976b87f-6a11-4357-a7bb-bb2d8811ced2">
+      <staticName>Reports</staticName>
+      <description/>
+      <urlStub>reports</urlStub>
+      <iconId>f080</iconId>
+      <visibilityExpr>fn!true()</visibilityExpr>
+      <pageWidth>STANDARD</pageWidth>
+      <page a:uuid="224ed5e3-d3a4-42a3-a57d-fec6dce826ae">
+        <staticName>Workload Reports</staticName>
+        <description/>
+        <urlStub>workload-reports</urlStub>
+        <uiObject
+          a:uuid="_a-0000e636-db5c-8000-9bc4-011c48011c48_1220288" xsi:type="a:ContentFreeformRule"/>
+        <iconId>f016</iconId>
+        <visibilityExpr>fn!true()</visibilityExpr>
+        <pageWidth>WIDE</pageWidth>
+        <areUrlParamsEncrypted>true</areUrlParamsEncrypted>
+        <autoContextUpdateEnabled>true</autoContextUpdateEnabled>
+        <siteBrandingEnabled>true</siteBrandingEnabled>
+        <darkThemeEnabled>false</darkThemeEnabled>
+      </page>
+      <page a:uuid="15651249-8165-4764-9f7a-764c2857ccc4">
+        <staticName>Completion Reports</staticName>
+        <description/>
+        <urlStub>completion-reports</urlStub>
+        <uiObject
+          a:uuid="_a-0000e615-fd0f-8000-9bc1-011c48011c48_1197683" xsi:type="a:ContentFreeformRule"/>
+        <iconId>f016</iconId>
+        <visibilityExpr>fn!true()</visibilityExpr>
+        <pageWidth>WIDE</pageWidth>
+        <areUrlParamsEncrypted>true</areUrlParamsEncrypted>
+        <autoContextUpdateEnabled>true</autoContextUpdateEnabled>
+        <siteBrandingEnabled>true</siteBrandingEnabled>
+        <darkThemeEnabled>false</darkThemeEnabled>
+      </page>
+      <areUrlParamsEncrypted>true</areUrlParamsEncrypted>
+      <autoContextUpdateEnabled>false</autoContextUpdateEnabled>
+      <siteBrandingEnabled>true</siteBrandingEnabled>
+      <darkThemeEnabled>false</darkThemeEnabled>
+    </page>
+    <page a:uuid="e07cfe02-969b-46a0-8e11-7a863335c658">
+      <nameExpr>#"_a-0000e6c7-ebca-8000-9bd3-011c48011c48_1674777"(bundleKey: "lbl_ProcureSight")</nameExpr>
+      <description/>
+      <urlStub>procurements</urlStub>
+      <iconId>f33b</iconId>
+      <visibilityExpr>and(
+  #"_a-0000ebea-b304-8000-9d65-011c48011c48_12022580"(),
+  #"_a-0000eeb1-460e-8000-9e4a-011c48011c48_17286274"()
+)</visibilityExpr>
+      <pageWidth>STANDARD</pageWidth>
+      <page a:uuid="8a33a9bc-b3c7-4935-82b6-55d265ff1bfe">
+        <nameExpr>#"_a-0000e42d-ffef-8000-9ba6-011c48011c48_9561"(
+  bundleKey: "txt_SearchProcurements"
+)</nameExpr>
+        <description/>
+        <urlStub>home-ps</urlStub>
+        <uiObject
+          a:uuid="_a-0000eb60-4561-8000-9bae-011c48011c48_22742-as_rm_pro" xsi:type="a:ContentFreeformRule"/>
+        <iconId>f016</iconId>
+        <visibilityExpr>fn!true()</visibilityExpr>
+        <pageWidth>FULL</pageWidth>
+        <areUrlParamsEncrypted>true</areUrlParamsEncrypted>
+        <autoContextUpdateEnabled>false</autoContextUpdateEnabled>
+        <siteBrandingEnabled>true</siteBrandingEnabled>
+        <darkThemeEnabled>false</darkThemeEnabled>
+      </page>
+      <page a:uuid="38a54708-c6bc-4310-b4f9-c59144d9ee1f">
+        <nameExpr>a!localVariables(
+  local!collections: #"_a-0000eb72-ba1b-8000-9bb4-011c48011c48_27478-as_rm_pro"(
+    returnType: #"_a-0000e415-3035-8000-9bb2-011c48011c48_290175",
+    username: loggedInUser()
+  ),
+  if(
+    or(
+      #"_a-0000e2ad-62e7-8000-9ba2-011c48011c48_73536"(local!collections),
+      local!collections = 0
+    ),
+    #"_a-0000e42d-ffef-8000-9ba6-011c48011c48_9561"(bundleKey: "lbl_Procurement_Collections") &amp; " (0)",
+    #"_a-0000e42d-ffef-8000-9ba6-011c48011c48_9561"(bundleKey: "lbl_Procurement_Collections") &amp; " (" &amp; local!collections &amp; ")"
+  )
+)</nameExpr>
+        <description/>
+        <urlStub>collections</urlStub>
+        <uiObject
+          a:uuid="_a-0000eb60-4561-8000-9bae-011c48011c48_22754-as_rm_pro" xsi:type="a:ContentFreeformRule"/>
+        <iconId>f016</iconId>
+        <visibilityExpr>fn!true()</visibilityExpr>
+        <pageWidth>FULL</pageWidth>
+        <areUrlParamsEncrypted>true</areUrlParamsEncrypted>
+        <autoContextUpdateEnabled>false</autoContextUpdateEnabled>
+        <siteBrandingEnabled>true</siteBrandingEnabled>
+        <darkThemeEnabled>false</darkThemeEnabled>
+      </page>
+      <areUrlParamsEncrypted>true</areUrlParamsEncrypted>
+      <autoContextUpdateEnabled>false</autoContextUpdateEnabled>
+      <siteBrandingEnabled>true</siteBrandingEnabled>
+      <darkThemeEnabled>false</darkThemeEnabled>
+    </page>
+    <page a:uuid="b6b01485-5f91-46e0-a31e-1429f6fc1b9e">
+      <nameExpr>#"_a-0000e6c7-ebca-8000-9bd3-011c48011c48_1674777"(bundleKey: "lbl_Procurement_Copilot")</nameExpr>
+      <description/>
+      <urlStub>procurementAiCopilot</urlStub>
+      <uiObject
+        a:uuid="_a-0000ec2b-4d79-8000-9d88-011c48011c48_12565126" xsi:type="a:ContentFreeformRule"/>
+      <iconId>f005</iconId>
+      <visibilityExpr>#"_a-0000ec2b-4d79-8000-9d88-011c48011c48_12572506"()</visibilityExpr>
+      <pageWidth>WIDE</pageWidth>
+      <areUrlParamsEncrypted>true</areUrlParamsEncrypted>
+      <autoContextUpdateEnabled>true</autoContextUpdateEnabled>
+      <siteBrandingEnabled>true</siteBrandingEnabled>
+      <darkThemeEnabled>false</darkThemeEnabled>
+    </page>
+    <page a:uuid="4e23544a-005b-4e47-8be8-ba924d1db019">
+      <staticName>Document Builder</staticName>
+      <description/>
+      <urlStub>document-builder</urlStub>
+      <uiObject
+        a:uuid="_a-0000eeb7-839e-8000-9e4c-011c48011c48_17325410" xsi:type="a:ContentFreeformRule"/>
+      <iconId>f016</iconId>
+      <visibilityExpr>#"_a-0000eeb7-839e-8000-9e4c-011c48011c48_17326694"()</visibilityExpr>
+      <pageWidth>FULL</pageWidth>
+      <areUrlParamsEncrypted>true</areUrlParamsEncrypted>
+      <autoContextUpdateEnabled>true</autoContextUpdateEnabled>
+      <siteBrandingEnabled>true</siteBrandingEnabled>
+      <darkThemeEnabled>false</darkThemeEnabled>
+    </page>
+    <visibility>268435456</visibility>
+    <selectedTabBackgroundColor>#e3fbdf</selectedTabBackgroundColor>
+    <headerBackgroundColorExpr>#"_a-0000e643-f7f1-8000-9bca-011c48011c48_1369580"(
+  brandingKey: "NavigationBarColor"
+)</headerBackgroundColorExpr>
+    <accentColorExpr>#"_a-0000e643-f7f1-8000-9bca-011c48011c48_1369580"(
+  brandingKey: "AccentColor"
+)</accentColorExpr>
+    <logoExpr>#"_a-0000e643-f7f1-8000-9bca-011c48011c48_1369580"(
+  brandingKey: "SiteLogo"
+)</logoExpr>
+    <faviconExpr>#"_a-0000eeb7-839e-8000-9e4c-011c48011c48_17327128"</faviconExpr>
+    <showName>true</showName>
+    <tempoLinkVisibility>HIDDEN</tempoLinkVisibility>
+    <showRecordNews>false</showRecordNews>
+    <tasksInSitesVisibility>HIDDEN</tasksInSitesVisibility>
+    <buttonShape>SEMI_ROUNDED</buttonShape>
+    <loadingBarColorExpr>#"_a-0000e643-f7f1-8000-9bca-011c48011c48_1369580"(
+  brandingKey: "LoadingBarColor"
+)</loadingBarColorExpr>
+    <navigationBarStyle>SIDEBAR</navigationBarStyle>
+    <inputShape>SEMI_ROUNDED</inputShape>
+    <isSystem>false</isSystem>
+    <displayName>Requirements Management </displayName>
+    <isStaticDisplayName>true</isStaticDisplayName>
+    <nameExprIsEvaluable>true</nameExprIsEvaluable>
+    <primaryNavLayoutType>SIDEBAR</primaryNavLayoutType>
+    <buttonLabelCase>UPPERCASE</buttonLabelCase>
+    <dialogShape>SQUARED</dialogShape>
+  </site>
+  <roleMap>
+    <role name="site_administrator">
+      <users/>
+      <groups>
+        <groupUuid>_e-0000e42d-ffef-8000-9af3-01075c01075c_19</groupUuid>
+      </groups>
+    </role>
+    <role name="site_viewer">
+      <users/>
+      <groups>
+        <groupUuid>_e-0000e42d-ffef-8000-9af3-01075c01075c_50</groupUuid>
+      </groups>
+    </role>
+  </roleMap>
+  <history>
+    <historyInfo versionUuid="72a1ed16-75fb-4c64-96d3-7e0454192e80"/>
+    <historyInfo versionUuid="f904d34f-446f-40a8-9805-11cbef3cf8ec"/>
+    <historyInfo versionUuid="efce67f8-9500-478f-bf2b-1bfc9c5f97b8"/>
+    <historyInfo versionUuid="4cce985d-4344-4403-86ae-6ef26a6eb81f"/>
+    <historyInfo versionUuid="9039b2be-f28e-4332-9384-98d0820e191a"/>
+    <historyInfo versionUuid="e18a0ded-24f5-414b-b38e-714ffa424e15"/>
+    <historyInfo versionUuid="19f44d19-832f-4dea-b9fb-4cd56ec182b8"/>
+    <historyInfo versionUuid="8e021d34-418a-4033-a0de-ae98254f7320"/>
+    <historyInfo versionUuid="f544966d-1786-4813-84aa-eb990cfab6f2"/>
+    <historyInfo versionUuid="fd5ab895-8579-4e7e-a2d1-dcbcb92d6725"/>
+    <historyInfo versionUuid="a1e5d2fe-ec2e-442a-8bf0-ee084758fe00"/>
+    <historyInfo versionUuid="5c67e978-fa0d-4822-99a4-6a0564ee86be"/>
+    <historyInfo versionUuid="69102166-6804-43b6-bff9-5268239013a7"/>
+    <historyInfo versionUuid="ffba7ba8-177c-4590-ac01-aa4a532e8f56"/>
+    <historyInfo versionUuid="5a810f60-572c-4f50-914d-9987286b698e"/>
+    <historyInfo versionUuid="26071689-4522-4c14-a86d-f254292504e6"/>
+    <historyInfo versionUuid="89600f97-215d-44ae-9cff-2c09d584bc1f"/>
+    <historyInfo versionUuid="d9815328-fd1d-4786-8892-883f5b6a2811"/>
+    <historyInfo versionUuid="efd30191-7d4b-4e19-ad74-9644045345bd"/>
+    <historyInfo versionUuid="7f4105ae-3ab7-4a3a-a95e-465ef5eda90c"/>
+    <historyInfo versionUuid="fc9686d0-fcdb-4cd3-8bb7-d36d6b82b329"/>
+    <historyInfo versionUuid="d7ce8d3c-3ed5-486b-bf9e-c14df50e0229"/>
+    <historyInfo versionUuid="fbeea3f2-3800-4f13-bea4-c25c87103f7f"/>
+    <historyInfo versionUuid="275eaf49-339b-4a36-96d2-aac0c70987c0"/>
+    <historyInfo versionUuid="57394539-288b-4743-8a84-649b4cd7aaa1"/>
+    <historyInfo versionUuid="71420579-4901-4178-8e18-f7a1b7b7234f"/>
+    <historyInfo versionUuid="15b9b524-39cc-4566-86bd-27475f570bfc"/>
+    <historyInfo versionUuid="5f10dc90-0daf-487b-ad27-9970180833c0"/>
+    <historyInfo versionUuid="2336e455-dc61-4cd0-8506-1a7960905d7e"/>
+    <historyInfo versionUuid="c619a8a1-1991-4217-bdee-223c53567015"/>
+    <historyInfo versionUuid="6b8e0ba3-2144-49f5-9f63-3d9c12e4850a"/>
+  </history>
+</siteHaul>

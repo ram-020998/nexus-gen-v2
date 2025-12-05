@@ -1,0 +1,172 @@
+{
+  "appian_public_functions": {
+    "total_count": 139,
+    "namespace": "a!",
+    "category": "InterfaceComponentFunctions",
+    "functions": {
+      "input_components": {
+        "textField": ["textField_internal"],
+        "paragraphField": ["paragraphField_internal"],
+        "integerField": ["integerField_internal"],
+        "floatingPointField": ["floatingPointField_internal"],
+        "dateField": ["dateField_internal"],
+        "dateTimeField": ["dateTimeField_internal"],
+        "encryptedTextField": [],
+        "signatureField": ["signatureField_internal"]
+      },
+      "choice_components": {
+        "dropdownField": ["dropdownField_internal", "dropdownField_v1"],
+        "dropdownFieldByIndex": ["dropdownFieldByIndex_internal", "dropdownFieldByIndex_v1"],
+        "checkboxField": ["checkboxField_internal", "checkboxField_v1"],
+        "checkboxFieldByIndex": ["checkboxFieldByIndex_internal", "checkboxFieldByIndex_v1"],
+        "radioButtonField": ["radioButtonField_internal", "radioButtonField_v1"],
+        "radioButtonFieldByIndex": ["radioButtonFieldByIndex_internal", "radioButtonFieldByIndex_v1"],
+        "multipleDropdownField": ["multipleDropdownField_internal", "multipleDropdownField_v1"],
+        "multipleDropdownFieldByIndex": ["multipleDropdownFieldByIndex_internal", "multipleDropdownFieldByIndex_v1"],
+        "cardChoiceField": ["cardChoiceField_internal"]
+      },
+      "picker_components": {
+        "pickerFieldUsers": ["pickerFieldUsers_internal"],
+        "pickerFieldGroups": ["pickerFieldGroups_internal"],
+        "pickerFieldUsersAndGroups": ["pickerFieldUsersAndGroups_internal"],
+        "pickerFieldRecords": ["pickerFieldRecords_internal", "pickerFieldRecords_v1", "pickerFieldRecords_v2"],
+        "pickerFieldDocuments": ["pickerFieldDocuments_internal"],
+        "pickerFieldDocumentsAndFolders": [],
+        "pickerFieldFolders": [],
+        "pickerFieldCustom": []
+      },
+      "layout_components": {
+        "columnLayout": ["columnLayout_internal"],
+        "columnsLayout": ["columnsLayout_internal"],
+        "sectionLayout": ["sectionLayout_internal", "sectionLayout_v1"],
+        "cardLayout": ["cardLayout_internal"],
+        "cardGroupLayout": ["cardGroupLayout_internal"],
+        "sideBySideLayout": ["sideBySideLayout_internal"],
+        "sideBySideItem": ["sideBySideItem_internal"],
+        "boxLayout": ["boxLayout_internal"],
+        "paneLayout": ["paneLayout_internal"],
+        "pane": ["pane_internal"],
+        "headerContentLayout": ["headerContentLayout_internal"],
+        "wizardLayout": ["wizardLayout_internal"],
+        "wizardStep": ["wizardStep_internal"],
+        "tabLayout": ["tabLayout_internal"],
+        "tabItem": ["tab_internal"]
+      },
+      "display_components": {
+        "richTextDisplayField": ["richTextDisplayField_internal"],
+        "imageField": ["imageField_internal", "imageField_v1"],
+        "documentImage": ["documentImage_internal"],
+        "webImage": ["webImage_internal"],
+        "webVideo": [],
+        "videoField": [],
+        "stampField": ["stampField_internal"],
+        "progressBarField": ["progressBarField_internal"],
+        "milestoneField": ["milestoneField_internal"],
+        "headingField": ["headingField_internal"],
+        "userImage": ["userImage_internal"]
+      },
+      "rich_text_components": {
+        "richTextIcon": ["richTextIcon_internal"],
+        "richTextImage": ["richTextImage_internal"],
+        "richTextItem": ["richTextItem_internal", "richTextItem_v1"],
+        "richTextBulletedList": [],
+        "richTextNumberedList": [],
+        "richTextListItem": [],"richTextHeader": []
+      },
+      "chart_components": {
+        "columnChartField": [],
+        "barChartField": ["barChartField_v1"],
+        "lineChartField": ["lineChartField_v1", "lineChartField_v1_internal"],
+        "areaChartField": [],
+        "pieChartField": [],
+        "scatterChartField": ["scatterChartField_wrapper"],
+        "comboChartField": ["comboChartField_wrapper", "comboChartField_internal"],
+        "gaugeField": ["gaugeField_internal"]
+      },
+      "chart_configuration": {
+        "columnChartConfig": [],
+        "barChartConfig": [],
+        "lineChartConfig": [],
+        "areaChartConfig": [],
+        "pieChartConfig": [],
+        "comboChartConfig": [],
+        "chartSeries": ["chartSeries_internal"],
+        "chartReferenceLine": ["chartReferenceLine_internal"],
+        "measure": ["measure_implementation"],
+        "grouping": ["grouping_internal"]
+      },
+      "grid_components": {
+        "gridLayout": ["gridLayout_appian_internal"],
+        "gridColumn": ["gridColumn_internal"],
+        "gridRowLayout": ["gridRowLayout_appian_internal"],
+        "gridLayoutColumnConfig": ["gridLayoutColumnConfig_appian_internal"],
+        "gridLayoutHeaderCell": ["gridLayoutHeaderCell_internal"]
+      },
+      "action_components": {
+        "buttonWidget": ["buttonWidget_internal", "buttonWidget_v1"],
+        "ButtonLayout": [],
+        "ButtonArrayLayout": [],
+        "linkField": [],
+        "dynamicLink": ["dynamicLink_internal"],
+        "safeLink": ["safeLink_internal"],
+        "submitLink": [],
+        "recordLink": ["recordLink_internal"],
+        "startProcessLink": ["startProcessLink_internal"],
+        "processTaskLink": [],
+        "reportLink": [],
+        "documentDownloadLink": [],
+        "newsEntryLink": [],
+        "userRecordLink": []
+      },
+      "browser_components": {
+        "documentAndFolderBrowserFieldColumns": [],
+        "folderBrowserFieldColumns": [],
+        "userBrowserFieldColumns": [],
+        "groupBrowserFieldColumns": [],
+        "userAndGroupBrowserFieldColumns": [],
+        "hierarchyBrowserFieldColumns": [],
+        "hierarchyBrowserFieldTree": []
+      },
+      "special_components": {
+        "recordActionField": ["recordActionField_internal", "recordActionField_v1"],
+        "recordActionItem": ["recordActionItem_internal"],
+        "recordData": [],
+        "eventHistoryListField": [],
+        "documentViewerField": ["documentViewerField_internal"],
+        "orgChartField": [],
+        "barcodeField": [],
+        "tagField": ["tagField_internal"],
+        "tagItem": ["tagItem_internal", "tagItem_v1"]
+      },
+      "chat_components": {
+        "chatField": ["chatField_internal"],
+        "recordsChatField": ["recordsChatField_internal"],
+        "agentChatField": ["agentChatField_internal"],
+        "dataFabricChatField": [],
+        "documentsChatField": []
+      },
+      "template_components": {
+        "headerTemplateFull": ["headerTemplateFull_internal"],
+        "headerTemplateImage": ["headerTemplateImage_internal"],
+        "headerTemplateSimple": ["headerTemplateSimple_internal"],
+        "cardTemplateBarTextJustified": ["cardTemplateBarTextJustified_internal"],
+        "cardTemplateBarTextStacked": ["cardTemplateBarTextStacked_internal"],
+        "cardTemplateTile": [],
+        "sidebarTemplate": ["sidebarTemplate_internal"]
+      },
+      "utility_components": {
+        "validationMessage": [],
+        "messageBanner": [],
+        "horizontalLine": ["horizontalLine_internal"],
+        "fullOverlay": [],
+        "columnOverlay": [],
+        "barOverlay": []
+      }
+    }
+  },
+  "metadata": {
+    "generated_on": "2025-11-07T18:54:09.273+05:30",
+    "source": "Appian AE Repository",
+    "description": "Public-facing Appian functions available in documentation with their internal implementations"
+  }
+}

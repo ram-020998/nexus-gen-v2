@@ -1,0 +1,279 @@
+{% extends "base.html" %}
+
+{% block title %}UI Components Demo{% endblock %}
+
+{% block page_title %}UI Components Demo{% endblock %}
+{% block page_subtitle %}Preview of all merge UI components{% endblock %}
+
+{% block content %}
+<div class="components-demo">
+    
+    <!-- Classification Badges -->
+    <section class="demo-section">
+        <h3>Classification Badges</h3>
+        <div class="demo-grid">
+            <div class="demo-item">
+                <h6>Small</h6>
+                {% include 'merge/components/classification_badge.html' with classification='NO_CONFLICT', size='sm' %}
+                {% include 'merge/components/classification_badge.html' with classification='CONFLICT', size='sm' %}
+                {% include 'merge/components/classification_badge.html' with classification='NEW', size='sm' %}
+                {% include 'merge/components/classification_badge.html' with classification='DELETED', size='sm' %}
+            </div>
+            <div class="demo-item">
+                <h6>Medium (Default)</h6>
+                {% include 'merge/components/classification_badge.html' with classification='NO_CONFLICT' %}
+                {% include 'merge/components/classification_badge.html' with classification='CONFLICT' %}
+                {% include 'merge/components/classification_badge.html' with classification='NEW' %}
+                {% include 'merge/components/classification_badge.html' with classification='DELETED' %}
+            </div>
+            <div class="demo-item">
+                <h6>Large</h6>
+                {% include 'merge/components/classification_badge.html' with classification='NO_CONFLICT', size='lg' %}
+                {% include 'merge/components/classification_badge.html' with classification='CONFLICT', size='lg' %}
+                {% include 'merge/components/classification_badge.html' with classification='NEW', size='lg' %}
+                {% include 'merge/components/classification_badge.html' with classification='DELETED', size='lg' %}
+            </div>
+        </div>
+    </section>
+
+    <!-- Object Type Icons -->
+    <section class="demo-section">
+        <h3>Object Type Icons</h3>
+        <div class="demo-grid">
+            <div class="demo-item">
+                <h6>Small</h6>
+                <div class="icon-row">
+                    {% include 'merge/components/object_type_icon.html' with object_type='Interface', size='sm' %}
+                    {% include 'merge/components/object_type_icon.html' with object_type='Expression Rule', size='sm' %}
+                    {% include 'merge/components/object_type_icon.html' with object_type='Process Model', size='sm' %}
+                    {% include 'merge/components/object_type_icon.html' with object_type='Record Type', size='sm' %}
+                </div>
+            </div>
+            <div class="demo-item">
+                <h6>Medium with Labels</h6>
+                <div class="icon-row">
+                    {% include 'merge/components/object_type_icon.html' with object_type='CDT', size='md', show_label=true %}
+                    {% include 'merge/components/object_type_icon.html' with object_type='Integration', size='md', show_label=true %}
+                    {% include 'merge/components/object_type_icon.html' with object_type='Web API', size='md', show_label=true %}
+                </div>
+            </div>
+            <div class="demo-item">
+                <h6>Large</h6>
+                <div class="icon-row">
+                    {% include 'merge/components/object_type_icon.html' with object_type='Site', size='lg' %}
+                    {% include 'merge/components/object_type_icon.html' with object_type='Group', size='lg' %}
+                    {% include 'merge/components/object_type_icon.html' with object_type='Constant', size='lg' %}
+                    {% include 'merge/components/object_type_icon.html' with object_type='Connected System', size='lg' %}
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Progress Bars -->
+    <section class="demo-section">
+        <h3>Progress Bars</h3>
+        <div class="demo-grid">
+            <div class="demo-item">
+                <h6>Default (25%)</h6>
+                {% include 'merge/components/progress_bar.html' with current=5, total=20 %}
+            </div>
+            <div class="demo-item">
+                <h6>Success (75%)</h6>
+                {% include 'merge/components/progress_bar.html' with current=15, total=20, variant='success' %}
+            </div>
+            <div class="demo-item">
+                <h6>Warning (50%)</h6>
+                {% include 'merge/components/progress_bar.html' with current=10, total=20, variant='warning', label='Processing changes...' %}
+            </div>
+            <div class="demo-item">
+                <h6>Danger (90%)</h6>
+                {% include 'merge/components/progress_bar.html' with current=18, total=20, variant='danger' %}
+            </div>
+        </div>
+    </section>
+
+    <!-- SAIL Code Diff -->
+    <section class="demo-section">
+        <h3>SAIL Code Diff</h3>
+        {% set base_code = 'a!textField(
+  label: "First Name",
+  value: local!firstName,
+  saveInto: local!firstName,
+  required: true
+)' %}
+        {% set vendor_code = 'a!textField(
+  label: "First Name",
+  labelPosition: "ABOVE",
+  value: local!firstName,
+  saveInto: local!firstName,
+  required: true,
+  validations: {
+    a!validationMessage(
+      message: "First name is required",
+      validateAfter: "SUBMIT"
+    )
+  }
+)' %}
+        {% set customer_code = 'a!textField(
+  label: "Given Name",
+  value: local!firstName,
+  saveInto: local!firstName,
+  required: true,
+  helpTooltip: "Enter your first name"
+)' %}
+        {% include 'merge/components/sail_code_diff.html' with 
+            base_code=base_code, 
+            vendor_code=vendor_code, 
+            customer_code=customer_code,
+            title='Example Interface Code'
+        %}
+    </section>
+
+    <!-- Navigation Buttons (Mock) -->
+    <section class="demo-section">
+        <h3>Navigation Buttons</h3>
+        <p class="text-muted">Note: This is a visual demo. Buttons are non-functional without actual session data.</p>
+        <div class="demo-item">
+            <div class="navigation-buttons-component">
+                <div class="nav-container">
+                    <button class="btn btn-outline-secondary nav-btn">
+                        <i class="fas fa-arrow-left"></i>
+                        <span class="btn-text">Back to Summary</span>
+                    </button>
+                    
+                    <div class="nav-actions">
+                        <button class="btn btn-outline-primary nav-btn">
+                            <i class="fas fa-chevron-left"></i>
+                            <span class="btn-text">Previous</span>
+                        </button>
+                        
+                        <button type="button" class="btn btn-primary nav-btn">
+                            <i class="fas fa-check"></i>
+                            <span class="btn-text">Mark as Reviewed</span>
+                        </button>
+                        
+                        <button class="btn btn-outline-primary nav-btn">
+                            <span class="btn-text">Next</span>
+                            <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="keyboard-hints">
+                    <span class="hint-item">
+                        <kbd>←</kbd> Previous
+                    </span>
+                    <span class="hint-item">
+                        <kbd>→</kbd> Next
+                    </span>
+                    <span class="hint-item">
+                        <kbd>R</kbd> Mark Reviewed
+                    </span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Notes Section (Mock) -->
+    <section class="demo-section">
+        <h3>Notes Section</h3>
+        <p class="text-muted">Note: This is a visual demo. Save functionality requires actual session data.</p>
+        <div class="demo-item">
+            <div class="notes-section-component">
+                <div class="notes-header">
+                    <h6 class="notes-title">
+                        <i class="fas fa-sticky-note"></i> Merge Notes
+                    </h6>
+                    <div class="notes-status">
+                        <span class="status-indicator saved">
+                            <i class="fas fa-circle"></i>
+                            <span class="status-text">Saved</span>
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="notes-body">
+                    <textarea class="form-control notes-textarea" rows="4" 
+                              placeholder="Add notes about your merge decision, concerns, or action items...">This is a demo note showing how the notes section looks with content.</textarea>
+                    
+                    <div class="notes-meta">
+                        <span class="char-count">
+                            <span>78</span> characters
+                        </span>
+                        <span class="last-saved">
+                            Last saved: 2024-01-15 10:30
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="notes-actions">
+                    <button type="button" class="btn btn-sm btn-outline-primary save-notes-btn">
+                        <i class="fas fa-save"></i> Save Notes
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary clear-notes-btn">
+                        <i class="fas fa-eraser"></i> Clear
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+</div>
+
+<style>
+.components-demo {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.demo-section {
+    background: var(--bg-card);
+    border-radius: 12px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    border: 1px solid var(--border-color);
+}
+
+.demo-section h3 {
+    margin: 0 0 1.5rem 0;
+    color: var(--text-primary);
+    font-size: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid var(--border-color);
+}
+
+.demo-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2rem;
+}
+
+.demo-item {
+    background: rgba(139, 92, 246, 0.03);
+    border-radius: 8px;
+    padding: 1.5rem;
+    border: 1px solid var(--border-color);
+}
+
+.demo-item h6 {
+    margin: 0 0 1rem 0;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.icon-row {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.text-muted {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    margin-bottom: 1rem;
+}
+</style>
+{% endblock %}

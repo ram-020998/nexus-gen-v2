@@ -1,7 +1,7 @@
 """
 Data Source Factory - Create RAG service instances
 """
-from services.bedrock_rag_service import BedrockRAGService
+from services.ai.bedrock_service import BedrockRAGService
 
 
 class DataSourceFactory:

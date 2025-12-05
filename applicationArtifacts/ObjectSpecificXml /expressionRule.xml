@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<contentHaul xmlns:a="http://www.appian.com/ae/types/2009">
+    <versionUuid>_a-0000ea9e-7bb4-8000-9cc4-011c48011c48_8149797</versionUuid>
+    <rule>
+        <name>AS_RM_UT_validateContractFileFolderName</name>
+        <uuid>_a-0000ea9e-7bb4-8000-9cc4-011c48011c48_8112422</uuid>
+        <description>Rule to validate if duplicate contract file folder name exists</description>
+        <parentUuid>_a-0000e42d-ffef-8000-9ba6-011c48011c48_7213</parentUuid>
+        <visibility>
+            <advertise>false</advertise>
+            <hierarchy>true</hierarchy>
+            <indexable>true</indexable>
+            <quota>false</quota>
+            <searchable>true</searchable>
+            <system>false</system>
+            <unlogged>false</unlogged>
+        </visibility>
+        <definition>if(
+  #"_a-0000e5da-a251-8000-9bbe-011c48011c48_1021202"(array: ri!allContractFileFoldersFlat) &gt; 0,
+  if(
+    contains(
+      lower(
+        ri!allContractFileFoldersFlat[#"urn:appian:record-field:v1:d104cab3-0094-4c04-9620-13f8d3356773/3741bcae-2e4f-4625-b512-b46349742431"]
+      ),
+      lower(
+        ri!contractFileFolderFlat[#"urn:appian:record-field:v1:d104cab3-0094-4c04-9620-13f8d3356773/3741bcae-2e4f-4625-b512-b46349742431"]
+      )
+    ),
+    #"_a-0000e61a-f20f-8000-9ba5-011c48011c48_53662"(
+      bundle: ri!bundle,
+      bundleKey: "vld_ContractFileFolderName"
+    ),
+    null()
+  ),
+  null
+)</definition>
+        <namedTypedValue>
+            <name>contractFileFolderFlat</name>
+            <type>
+                <name>d104cab3-0094-4c04-9620-13f8d3356773</name>
+                <namespace>urn:com:appian:recordtype:datatype</namespace>
+            </type>
+        </namedTypedValue>
+        <namedTypedValue>
+            <name>allContractFileFoldersFlat</name>
+            <type>
+                <name>d104cab3-0094-4c04-9620-13f8d3356773?list</name>
+                <namespace>urn:com:appian:recordtype:datatype</namespace>
+            </type>
+        </namedTypedValue>
+        <namedTypedValue>
+            <name>bundle</name>
+            <type>
+                <name>Variant</name>
+                <namespace>http://www.appian.com/ae/types/2009</namespace>
+            </type>
+        </namedTypedValue>
+        <preferredEditor>legacy</preferredEditor>
+        <offlineEnabled>false</offlineEnabled>
+    </rule>
+    <roleMap public="true">
+        <role inherit="true" allowForAll="false" name="readers">
+            <users/>
+            <groups/>
+        </role>
+        <role inherit="true" allowForAll="false" name="authors">
+            <users/>
+            <groups/>
+        </role>
+        <role inherit="true" allowForAll="false" name="administrators">
+            <users/>
+            <groups/>
+        </role>
+        <role inherit="false" allowForAll="false" name="denyReaders">
+            <users/>
+            <groups/>
+        </role>
+        <role inherit="false" allowForAll="false" name="denyAuthors">
+            <users/>
+            <groups/>
+        </role>
+        <role inherit="false" allowForAll="false" name="denyAdministrators">
+            <users/>
+            <groups/>
+        </role>
+    </roleMap>
+    <typedValue>
+        <type>
+            <name>RuleTestConfig?list</name>
+            <namespace>http://www.appian.com/ae/types/2009</namespace>
+        </type>
+        <value>
+            <el>
+                <a:name>Null Check</a:name>
+                <a:ruleInputTestConfigs>
+                    <a:value xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="a:Expression">null</a:value>
+                    <a:nameRef>contractFileFolderFlat</a:nameRef>
+                    <a:id>1</a:id>
+                </a:ruleInputTestConfigs>
+                <a:ruleInputTestConfigs>
+                    <a:value xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="a:Expression">null</a:value>
+                    <a:nameRef>allContractFileFoldersFlat</a:nameRef>
+                    <a:id>2</a:id>
+                </a:ruleInputTestConfigs>
+                <a:ruleInputTestConfigs>
+                    <a:value xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:nil="true"/>
+                    <a:nameRef>bundle</a:nameRef>
+                    <a:id>3</a:id>
+                </a:ruleInputTestConfigs>
+                <a:assertions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:nil="true"/>
+            </el>
+            <el>
+                <a:name>Valid check</a:name>
+                <a:ruleInputTestConfigs>
+                    <a:value xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="a:Expression">#"_a-0000ea8c-0452-8000-9cbc-011c48011c48_8014677"(
+  returnType: #"_a-0000e415-3035-8000-9bb2-011c48011c48_290157",
+  executeWhen: true,
+
+)</a:value>
+                    <a:nameRef>contractFileFolderFlat</a:nameRef>
+                    <a:id>1</a:id>
+                </a:ruleInputTestConfigs>
+                <a:ruleInputTestConfigs>
+                    <a:value xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="a:Expression">#"_a-0000ea8c-0452-8000-9cbc-011c48011c48_8014677"(
+  returnType: #"_a-0000e415-3035-8000-9bb2-011c48011c48_290157",
+  executeWhen: true,
+
+)</a:value>
+                    <a:nameRef>allContractFileFoldersFlat</a:nameRef>
+                    <a:id>2</a:id>
+                </a:ruleInputTestConfigs>
+                <a:ruleInputTestConfigs>
+                    <a:value xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:nil="true"/>
+                    <a:nameRef>bundle</a:nameRef>
+                    <a:id>3</a:id>
+                </a:ruleInputTestConfigs>
+                <a:assertions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:nil="true"/>
+            </el>
+        </value>
+    </typedValue>
+    <history>
+        <historyInfo versionUuid="_a-0000ea9e-7bb4-8000-9cc4-011c48011c48_8123227"/>
+        <historyInfo versionUuid="_a-0000ea9e-7bb4-8000-9cc4-011c48011c48_8149797"/>
+    </history>
+</contentHaul>

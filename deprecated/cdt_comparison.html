@@ -1,0 +1,357 @@
+{% extends "merge/_base_comparison.html" %}
+
+{% block comparison_content %}
+<!-- Namespace Comparison -->
+{% if cdt_comparison %}
+<div class="comparison-section mb-4">
+    <h5 class="section-title">
+        <i class="fas fa-tag"></i> Namespace
+    </h5>
+    
+    {% if cdt_comparison.namespace_changed %}
+    <div class="namespace-comparison">
+        <div class="namespace-item">
+            <span class="namespace-label">Before:</span>
+            <code class="namespace-value">{{ cdt_comparison.before_namespace or 'Not specified' }}</code>
+        </div>
+        <div class="namespace-arrow">
+            <i class="fas fa-arrow-right"></i>
+        </div>
+        <div class="namespace-item">
+            <span class="namespace-label">After:</span>
+            <code class="namespace-value">{{ cdt_comparison.after_namespace or 'Not specified' }}</code>
+        </div>
+    </div>
+    {% else %}
+    <div class="no-changes">
+        <i class="fas fa-check-circle"></i> No namespace changes
+    </div>
+    {% endif %}
+</div>
+
+<!-- Fields Comparison -->
+<div class="comparison-section mb-4">
+    <h5 class="section-title">
+        <i class="fas fa-columns"></i> Fields
+    </h5>
+    
+    {% if cdt_comparison.fields_added %}
+    <div class="change-group added">
+        <h6 class="change-group-title">
+            <i class="fas fa-plus-circle"></i> Added Fields ({{ cdt_comparison.fields_added|length }})
+        </h6>
+        <div class="change-list">
+            {% for field in cdt_comparison.fields_added %}
+            <div class="change-item">
+                <span class="field-name">{{ field.field_name }}</span>
+                <span class="field-type badge badge-secondary">{{ field.field_type }}</span>
+                {% if field.is_list %}
+                <span class="badge badge-info">List</span>
+                {% endif %}
+                {% if field.is_required %}
+                <span class="badge badge-warning">Required</span>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    
+    {% if cdt_comparison.fields_removed %}
+    <div class="change-group removed">
+        <h6 class="change-group-title">
+            <i class="fas fa-minus-circle"></i> Removed Fields ({{ cdt_comparison.fields_removed|length }})
+        </h6>
+        <div class="change-list">
+            {% for field in cdt_comparison.fields_removed %}
+            <div class="change-item">
+                <span class="field-name">{{ field.field_name }}</span>
+                <span class="field-type badge badge-secondary">{{ field.field_type }}</span>
+                {% if field.is_list %}
+                <span class="badge badge-info">List</span>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    
+    {% if cdt_comparison.fields_modified %}
+    <div class="change-group modified">
+        <h6 class="change-group-title">
+            <i class="fas fa-edit"></i> Modified Fields ({{ cdt_comparison.fields_modified|length }})
+        </h6>
+        <div class="change-list">
+            {% for field in cdt_comparison.fields_modified %}
+            <div class="change-item">
+                <div class="field-name">{{ field.field_name }}</div>
+                <div class="field-changes">
+                    <div class="before-after">
+                        <span class="label">Before:</span>
+                        <span class="field-type badge badge-secondary">{{ field.before_type }}</span>
+                        {% if field.before_is_list %}
+                        <span class="badge badge-info">List</span>
+                        {% endif %}
+                        {% if field.before_is_required %}
+                        <span class="badge badge-warning">Required</span>
+                        {% endif %}
+                    </div>
+                    <div class="before-after">
+                        <span class="label">After:</span>
+                        <span class="field-type badge badge-secondary">{{ field.after_type }}</span>
+                        {% if field.after_is_list %}
+                        <span class="badge badge-info">List</span>
+                        {% endif %}
+                        {% if field.after_is_required %}
+                        <span class="badge badge-warning">Required</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    
+    {% if not cdt_comparison.fields_added and not cdt_comparison.fields_removed and not cdt_comparison.fields_modified %}
+    <div class="no-changes">
+        <i class="fas fa-check-circle"></i> No field changes
+    </div>
+    {% endif %}
+</div>
+
+<!-- CDT Structure Visualization -->
+{% if vendor_object and vendor_object.fields %}
+<div class="comparison-section mb-4">
+    <h5 class="section-title">
+        <i class="fas fa-sitemap"></i> CDT Structure (Vendor)
+    </h5>
+    
+    <div class="cdt-structure">
+        <div class="cdt-header">
+            <i class="fas fa-cube"></i>
+            <span class="cdt-name">{{ object.name }}</span>
+        </div>
+        <div class="cdt-fields">
+            {% for field in vendor_object.fields %}
+            <div class="cdt-field">
+                <span class="field-icon">
+                    {% if field.is_list %}
+                    <i class="fas fa-list"></i>
+                    {% else %}
+                    <i class="fas fa-circle"></i>
+                    {% endif %}
+                </span>
+                <span class="field-name">{{ field.field_name }}</span>
+                <span class="field-type badge badge-secondary">{{ field.field_type }}</span>
+                {% if field.is_required %}
+                <span class="badge badge-warning">Required</span>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endif %}
+
+<style>
+.comparison-section {
+    background: rgba(139, 92, 246, 0.05);
+    border-radius: 8px;
+    padding: 1.5rem;
+    border: 1px solid #374151;
+}
+
+.section-title {
+    margin: 0 0 1rem 0;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1.125rem;
+}
+
+.namespace-comparison {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 6px;
+}
+
+.namespace-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    flex: 1;
+}
+
+.namespace-label {
+    font-weight: 600;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+}
+
+.namespace-value {
+    background: var(--bg-card);
+    padding: 0.75rem;
+    border-radius: 4px;
+    border: 1px solid #374151;
+    color: var(--purple);
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 0.875rem;
+    word-break: break-all;
+}
+
+.namespace-arrow {
+    color: var(--purple);
+    font-size: 1.5rem;
+    flex-shrink: 0;
+}
+
+.change-group {
+    margin-top: 1rem;
+    padding: 1rem;
+    border-radius: 6px;
+}
+
+.change-group.added {
+    background: rgba(16, 185, 129, 0.1);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.change-group.removed {
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.change-group.modified {
+    background: rgba(251, 191, 36, 0.1);
+    border: 1px solid rgba(251, 191, 36, 0.3);
+}
+
+.change-group-title {
+    margin: 0 0 0.75rem 0;
+    color: var(--text-primary);
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.change-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.change-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.field-name {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.field-changes {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+    width: 100%;
+}
+
+.before-after {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+}
+
+.before-after .label {
+    font-weight: 600;
+    color: var(--text-secondary);
+    min-width: 60px;
+}
+
+.cdt-structure {
+    background: var(--bg-card);
+    border-radius: 8px;
+    border: 1px solid #374151;
+    overflow: hidden;
+}
+
+.cdt-header {
+    background: rgba(139, 92, 246, 0.2);
+    padding: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    color: var(--purple);
+    font-weight: 600;
+    font-size: 1.125rem;
+}
+
+.cdt-fields {
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.cdt-field {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 6px;
+}
+
+.field-icon {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+}
+
+.no-changes {
+    padding: 1rem;
+    text-align: center;
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+.badge {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+}
+
+.badge-secondary {
+    background: rgba(107, 114, 128, 0.3);
+    color: #9ca3af;
+}
+
+.badge-warning {
+    background: rgba(251, 191, 36, 0.3);
+    color: #fbbf24;
+}
+
+.badge-info {
+    background: rgba(59, 130, 246, 0.3);
+    color: #3b82f6;
+}
+</style>
+{% endblock %}

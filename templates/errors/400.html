@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block title %}Bad Request - NexusGen{% endblock %}
+
+{% block page_title %}
+    <i class="fas fa-exclamation-triangle text-warning"></i> Bad Request
+{% endblock %}
+
+{% block page_subtitle %}
+    The request could not be processed due to invalid data.
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow-sm">
+                <div class="card-body text-center py-5">
+                    <div class="mb-4">
+                        <i class="fas fa-times-circle fa-5x text-warning opacity-50"></i>
+                    </div>
+                    
+                    <h2 class="mb-3">400 - Bad Request</h2>
+                    
+                    {% if message %}
+                    <div class="alert alert-warning mx-auto" style="max-width: 600px;" role="alert">
+                        <i class="fas fa-info-circle me-2"></i>
+                        {{ message }}
+                    </div>
+                    {% else %}
+                    <p class="text-muted mb-4">
+                        The request could not be processed due to invalid or missing data.
+                    </p>
+                    {% endif %}
+                    
+                    <div class="d-flex gap-3 justify-content-center mt-4">
+                        <button onclick="window.history.back()" class="btn btn-primary">
+                            <i class="fas fa-arrow-left me-2"></i>
+                            Go Back
+                        </button>
+                        
+                        <a href="{{ url_for('merge.upload') }}" class="btn btn-outline-primary">
+                            <i class="fas fa-upload me-2"></i>
+                            Upload Packages
+                        </a>
+                        
+                        <a href="{{ url_for('merge.sessions') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-list me-2"></i>
+                            View Sessions
+                        </a>
+                        
+                        <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-home me-2"></i>
+                            Dashboard
+                        </a>
+                    </div>
+                    
+                    <div class="mt-5 pt-4 border-top">
+                        <h5 class="mb-3">Common Issues</h5>
+                        <div class="row g-3 text-start">
+                            <div class="col-md-6">
+                                <div class="p-3 border rounded">
+                                    <h6><i class="fas fa-file-archive text-primary me-2"></i>Invalid File Format</h6>
+                                    <p class="mb-0 small text-muted">
+                                        Ensure all uploaded files are valid ZIP archives containing Appian packages.
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="p-3 border rounded">
+                                    <h6><i class="fas fa-upload text-success me-2"></i>Missing Files</h6>
+                                    <p class="mb-0 small text-muted">
+                                        All three packages (Base, Customized, New Vendor) must be provided.
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="p-3 border rounded">
+                                    <h6><i class="fas fa-weight-hanging text-warning me-2"></i>File Size Limit</h6>
+                                    <p class="mb-0 small text-muted">
+                                        Each package must be under 200MB. Larger files cannot be processed.
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="p-3 border rounded">
+                                    <h6><i class="fas fa-code text-danger me-2"></i>Invalid Data</h6>
+                                    <p class="mb-0 small text-muted">
+                                        Check that all required fields are filled out correctly.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

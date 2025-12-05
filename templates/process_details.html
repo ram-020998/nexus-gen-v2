@@ -191,8 +191,10 @@ function reprocessRequest(requestId) {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
+                // Access nested data from refactored json_success response
+                const newRequestId = data.data?.new_request_id || data.new_request_id;
                 alert('Request reprocessing started. You will be redirected to the new request.');
-                window.location.href = `/process/details/${data.new_request_id}`;
+                window.location.href = `/process/details/${newRequestId}`;
             } else {
                 alert('Error: ' + data.error);
             }

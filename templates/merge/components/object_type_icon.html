@@ -1,0 +1,110 @@
+{# Object Type Icon Component
+   Usage: {% include 'merge/components/object_type_icon.html' with object_type='Interface' %}
+   Parameters:
+   - object_type: Interface, Expression Rule, Process Model, Record Type, CDT, Integration, Web API, Site, Group, Constant, Connected System
+   - size: 'sm', 'md' (default), or 'lg'
+   - show_label: true/false (default: false)
+#}
+
+{% set size_class = size|default('md') %}
+{% set show_label = show_label|default(false) %}
+
+{% set icon_config = {
+    'Interface': {'icon': 'fa-window-maximize', 'color': '#8b5cf6'},
+    'Expression Rule': {'icon': 'fa-function', 'color': '#06b6d4'},
+    'Process Model': {'icon': 'fa-project-diagram', 'color': '#ec4899'},
+    'Record Type': {'icon': 'fa-database', 'color': '#10b981'},
+    'CDT': {'icon': 'fa-cube', 'color': '#f59e0b'},
+    'Integration': {'icon': 'fa-plug', 'color': '#6366f1'},
+    'Web API': {'icon': 'fa-globe', 'color': '#14b8a6'},
+    'Site': {'icon': 'fa-sitemap', 'color': '#a855f7'},
+    'Group': {'icon': 'fa-users', 'color': '#f43f5e'},
+    'Constant': {'icon': 'fa-hashtag', 'color': '#84cc16'},
+    'Connected System': {'icon': 'fa-server', 'color': '#0ea5e9'}
+} %}
+
+{% set config = icon_config.get(object_type, {'icon': 'fa-file', 'color': '#94a3b8'}) %}
+
+{% set size_classes = {
+    'sm': 'icon-sm',
+    'md': 'icon-md',
+    'lg': 'icon-lg'
+} %}
+
+<div class="object-type-icon {{ size_classes[size_class] }}" 
+     style="--icon-color: {{ config.color }};"
+     title="{{ object_type }}">
+    <i class="fas {{ config.icon }}"></i>
+    {% if show_label %}
+    <span class="icon-label">{{ object_type }}</span>
+    {% endif %}
+</div>
+
+<style>
+.object-type-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    background: color-mix(in srgb, var(--icon-color) 15%, transparent);
+    border: 1px solid color-mix(in srgb, var(--icon-color) 30%, transparent);
+    border-radius: 8px;
+    color: var(--icon-color);
+    flex-shrink: 0;
+    transition: all 0.2s ease;
+}
+
+.object-type-icon:hover {
+    background: color-mix(in srgb, var(--icon-color) 25%, transparent);
+    border-color: var(--icon-color);
+    transform: scale(1.05);
+}
+
+.object-type-icon.icon-sm {
+    width: 32px;
+    height: 32px;
+    font-size: 0.875rem;
+}
+
+.object-type-icon.icon-sm .icon-label {
+    font-size: 0.75rem;
+}
+
+.object-type-icon.icon-md {
+    width: 48px;
+    height: 48px;
+    font-size: 1.25rem;
+}
+
+.object-type-icon.icon-md .icon-label {
+    font-size: 0.875rem;
+}
+
+.object-type-icon.icon-lg {
+    width: 64px;
+    height: 64px;
+    font-size: 1.75rem;
+}
+
+.object-type-icon.icon-lg .icon-label {
+    font-size: 1rem;
+}
+
+.icon-label {
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+/* Fallback for browsers without color-mix support */
+@supports not (background: color-mix(in srgb, red, blue)) {
+    .object-type-icon {
+        background: rgba(139, 92, 246, 0.15);
+        border-color: rgba(139, 92, 246, 0.3);
+    }
+    
+    .object-type-icon:hover {
+        background: rgba(139, 92, 246, 0.25);
+        border-color: var(--purple);
+    }
+}
+</style>

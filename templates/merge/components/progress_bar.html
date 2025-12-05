@@ -1,0 +1,142 @@
+{# Progress Bar Component
+   Usage: {% include 'merge/components/progress_bar.html' with current=5, total=20 %}
+   Parameters:
+   - current: Current progress value
+   - total: Total value
+   - label: Optional custom label (default: "Change X of Y")
+   - show_percentage: true/false (default: true)
+   - variant: 'default', 'success', 'warning', 'danger' (default: 'default')
+#}
+
+{% set show_percentage = show_percentage if show_percentage is defined else true %}
+{% set variant = variant|default('default') %}
+{% set percentage = ((current / total) * 100) if total > 0 else 0 %}
+{% set label_text = label if label is defined else "Change " ~ current ~ " of " ~ total %}
+
+{% set variant_classes = {
+    'default': 'progress-default',
+    'success': 'progress-success',
+    'warning': 'progress-warning',
+    'danger': 'progress-danger'
+} %}
+
+<div class="progress-bar-component {{ variant_classes[variant] }}">
+    <div class="progress-info">
+        <span class="progress-label">{{ label_text }}</span>
+        {% if show_percentage %}
+        <span class="progress-percentage">{{ percentage|round(1) }}%</span>
+        {% endif %}
+    </div>
+    <div class="progress-track">
+        <div class="progress-fill" 
+             role="progressbar" 
+             style="width: {{ percentage }}%"
+             aria-valuenow="{{ current }}" 
+             aria-valuemin="0" 
+             aria-valuemax="{{ total }}">
+        </div>
+    </div>
+</div>
+
+<style>
+.progress-bar-component {
+    width: 100%;
+}
+
+.progress-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+}
+
+.progress-label {
+    font-weight: 500;
+    color: var(--text-primary);
+    font-size: 0.875rem;
+}
+
+.progress-percentage {
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+
+.progress-track {
+    height: 12px;
+    background-color: rgba(255, 255, 255, 0.05);
+    border-radius: 6px;
+    overflow: hidden;
+    position: relative;
+}
+
+.progress-fill {
+    height: 100%;
+    border-radius: 6px;
+    transition: width 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.progress-fill::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(255, 255, 255, 0.2),
+        transparent
+    );
+    animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+    0% {
+        transform: translateX(-100%);
+    }
+    100% {
+        transform: translateX(100%);
+    }
+}
+
+/* Variant styles */
+.progress-default .progress-percentage {
+    color: var(--purple);
+}
+
+.progress-default .progress-fill {
+    background: linear-gradient(90deg, var(--purple), var(--teal));
+}
+
+.progress-success .progress-percentage {
+    color: var(--green);
+}
+
+.progress-success .progress-fill {
+    background: linear-gradient(90deg, var(--green), #059669);
+}
+
+.progress-warning .progress-percentage {
+    color: #f59e0b;
+}
+
+.progress-warning .progress-fill {
+    background: linear-gradient(90deg, #f59e0b, #d97706);
+}
+
+.progress-danger .progress-percentage {
+    color: #ef4444;
+}
+
+.progress-danger .progress-fill {
+    background: linear-gradient(90deg, #ef4444, #dc2626);
+}
+
+/* Light theme adjustments */
+[data-theme="light"] .progress-track {
+    background-color: rgba(0, 0, 0, 0.08);
+}
+</style>

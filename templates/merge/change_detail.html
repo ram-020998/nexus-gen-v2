@@ -1,0 +1,1741 @@
+{% extends "base.html" %}
+
+{% block title %}Change Detail - {{ detail.object.name }}{% endblock %}
+
+{% block breadcrumbs %}
+<nav class="breadcrumb-nav">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}"><i class="fas fa-home"></i> Home</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('merge.sessions') }}">Merge Sessions</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('merge.summary', reference_id=detail.session.reference_id) }}">{{ detail.session.reference_id }}</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('merge.workflow', reference_id=detail.session.reference_id) }}">Workflow</a></li>
+        <li class="breadcrumb-item active">Change {{ detail.current_position }}</li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block page_title %}Change Detail{% endblock %}
+{% block page_subtitle %}{{ detail.object.name }} - {{ detail.object.object_type }}{% endblock %}
+
+{% block content %}
+<!-- Modern Object Header -->
+<div class="modern-object-header mb-4">
+    <div class="object-header-main">
+        <div class="object-icon-wrapper">
+            <div class="object-icon">
+                <i class="fas fa-{{ get_object_icon(detail.object.object_type) }}"></i>
+            </div>
+            <div class="object-type-badge">{{ detail.object.object_type }}</div>
+        </div>
+        <div class="object-info">
+            <h2 class="object-name">{{ detail.object.name }}</h2>
+            <p class="object-description">{{ detail.object.description or 'No description available' }}</p>
+            <div class="object-meta">
+                <span class="meta-item">
+                    <i class="fas fa-fingerprint"></i>
+                    <code>{{ detail.object.uuid }}</code>
+                </span>
+                <span class="meta-item">
+                    <i class="fas fa-list-ol"></i>
+                    Change {{ detail.position }} of {{ detail.session.total_changes }}
+                </span>
+                <span class="meta-item">
+                    <i class="fas fa-chart-line"></i>
+                    {{ detail.progress_percent }}% Complete
+                </span>
+            </div>
+        </div>
+        <div class="classification-badge-wrapper">
+            {% if detail.change.classification == 'CONFLICT' %}
+                <div class="classification-badge badge-conflict">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <span>Conflict</span>
+                </div>
+            {% elif detail.change.classification == 'NO_CONFLICT' %}
+                <div class="classification-badge badge-no-conflict">
+                    <i class="fas fa-check-circle"></i>
+                    <span>No Conflict</span>
+                </div>
+            {% elif detail.change.classification == 'NEW' %}
+                <div class="classification-badge badge-new">
+                    <i class="fas fa-plus-circle"></i>
+                    <span>New</span>
+                </div>
+            {% elif detail.change.classification == 'DELETED' %}
+                <div class="classification-badge badge-deleted">
+                    <i class="fas fa-trash-alt"></i>
+                    <span>Deleted</span>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+    <div class="progress-bar-wrapper">
+        <div class="progress-bar-fill" style="width: {{ detail.progress_percent }}%"></div>
+    </div>
+</div>
+
+<!-- Main Content -->
+<div class="row">
+    <div class="col-12"></div>
+        <!-- Change Type Information -->
+        <div class="change-types-card mb-4">
+            <div class="change-type-item">
+                <div class="change-type-label">
+                    <i class="fas fa-code-branch"></i>
+                    Vendor Change
+                </div>
+                <div class="change-type-value">
+                    {% if detail.change.vendor_change_type %}
+                        <span class="type-badge">{{ detail.change.vendor_change_type }}</span>
+                    {% else %}
+                        <span class="type-badge type-badge-none">None</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="change-type-divider"></div>
+            <div class="change-type-item">
+                <div class="change-type-label">
+                    <i class="fas fa-user-edit"></i>
+                    Customer Change
+                </div>
+                <div class="change-type-value">
+                    {% if detail.change.customer_change_type %}
+                        <span class="type-badge">{{ detail.change.customer_change_type }}</span>
+                    {% else %}
+                        <span class="type-badge type-badge-none">None</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Comparison Mode Selector -->
+        {% if comparison %}
+        <div class="comparison-mode-selector mb-4">
+            <div class="mode-selector-header">
+                <div class="mode-selector-icon">
+                    <i class="fas fa-exchange-alt"></i>
+                </div>
+                <div class="mode-selector-title">
+                    <h5>Comparison View</h5>
+                    <small>Select which versions to compare</small>
+                </div>
+            </div>
+            <div class="mode-selector-body">
+                <select id="comparisonModeSelect" class="comparison-mode-dropdown">
+                    <option value="auto" {% if not request.args.get('mode') or request.args.get('mode') == 'auto' %}selected{% endif %}>Auto (Recommended)</option>
+                    <option value="vendor_vs_customer" {% if request.args.get('mode') == 'vendor_vs_customer' %}selected{% endif %}>Vendor Latest vs Customer</option>
+                    <option value="base_vs_vendor" {% if request.args.get('mode') == 'base_vs_vendor' %}selected{% endif %}>Base vs Vendor Latest</option>
+                    <option value="base_vs_customer" {% if request.args.get('mode') == 'base_vs_customer' %}selected{% endif %}>Base vs Customer</option>
+                </select>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Detailed Comparison Section -->
+        {% if comparison %}
+        <!-- Include comparison styles -->
+        {% include 'merge/comparisons/comparison_styles.html' %}
+        
+        <!-- Include appropriate comparison component based on object type -->
+        {% include 'merge/comparisons/constant.html' %}
+        {% include 'merge/comparisons/expression_rule.html' %}
+        {% include 'merge/comparisons/interface.html' %}
+        {% include 'merge/comparisons/process_model.html' %}
+        {% include 'merge/comparisons/cdt.html' %}
+        {% include 'merge/comparisons/record_type.html' %}
+        {% include 'merge/comparisons/other_objects.html' %}
+        {% elif not comparison %}
+        <!-- Show message if no comparison data available -->
+        <div class="detail-card mb-4">
+            <div class="card-body-custom">
+                <div class="no-changes-message">
+                    <i class="fas fa-info-circle"></i>
+                    <p>Detailed comparison data is not available for this object type.</p>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- AI Summary Card -->
+        <div class="detail-card mb-4" id="aiSummaryCard">
+            <div class="card-header-custom">
+                <div class="card-icon">
+                    <i class="fas fa-robot"></i>
+                </div>
+                <div class="card-title-section">
+                    <h5>AI Analysis</h5>
+                    <small class="text-muted">Automated merge guidance</small>
+                </div>
+                {% if detail.change.ai_summary_status == 'failed' %}
+                <button id="regenerateSummaryBtn" class="btn btn-sm btn-outline-primary">
+                    <i class="fas fa-redo"></i> Retry
+                </button>
+                {% endif %}
+            </div>
+            <div class="card-body-custom">
+                <!-- Loading State -->
+                <div id="aiSummaryLoading" class="ai-summary-loading" style="display: {% if detail.change.ai_summary_status in ['pending', 'processing'] %}flex{% else %}none{% endif %};">
+                    <div class="loading-spinner">
+                        <i class="fas fa-spinner fa-spin"></i>
+                    </div>
+                    <div class="loading-text">
+                        <strong>{% if detail.change.ai_summary_status == 'pending' %}Queued for analysis...{% else %}Analyzing changes...{% endif %}</strong>
+                        <p>AI is reviewing the code differences and generating merge recommendations.</p>
+                    </div>
+                </div>
+                
+                <!-- Completed State -->
+                <div id="aiSummaryContent" class="ai-summary-content" style="display: {% if detail.change.ai_summary_status == 'completed' %}block{% else %}none{% endif %};">
+                    {% if detail.change.ai_summary %}
+                    <div class="summary-text">
+                        {{ detail.change.ai_summary|safe }}
+                    </div>
+                    <div class="summary-meta">
+                        <small class="text-muted">
+                            <i class="fas fa-clock"></i>
+                            Generated {% if detail.change.ai_summary_generated_at %}{{ detail.change.ai_summary_generated_at }}{% else %}recently{% endif %}
+                        </small>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <!-- Failed State -->
+                <div id="aiSummaryError" class="ai-summary-error" style="display: {% if detail.change.ai_summary_status == 'failed' %}flex{% else %}none{% endif %};">
+                    <div class="error-icon">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    <div class="error-text">
+                        <strong>Summary generation failed</strong>
+                        <p>{% if detail.change.ai_summary %}{{ detail.change.ai_summary }}{% else %}Unable to generate AI summary. Please try again.{% endif %}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Notes Card -->
+        <div class="detail-card mb-4">
+            <div class="card-header-custom">
+                <div class="card-icon">
+                    <i class="fas fa-sticky-note"></i>
+                </div>
+                <div class="card-title-section">
+                    <h5>Notes</h5>
+                </div>
+            </div>
+            <div class="card-body-custom">
+                <textarea 
+                    id="change-notes" 
+                    class="form-control notes-textarea" 
+                    rows="5" 
+                    placeholder="Add notes about this change..."
+                    maxlength="10000">{{ detail.change.notes or '' }}</textarea>
+                <div class="notes-footer">
+                    <small class="text-muted">
+                        <span id="notes-char-count">{{ (detail.change.notes|length) if detail.change.notes else 0 }}</span> / 10,000 characters
+                    </small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Actions & Navigation Bar -->
+        <div class="actions-navigation-bar">
+            <!-- Left Side: Previous & Auto-save indicator -->
+            <div class="left-buttons">
+                {% if detail.navigation.has_previous %}
+                <a href="{{ url_for('merge.get_change_detail', reference_id=detail.session.reference_id, change_id=detail.navigation.previous_change_id) }}" 
+                   class="btn btn-action">
+                    <i class="fas fa-chevron-left"></i> Previous
+                </a>
+                {% else %}
+                <button class="btn btn-action" disabled>
+                    <i class="fas fa-chevron-left"></i> Previous
+                </button>
+                {% endif %}
+                
+                <span id="notes-save-status" class="notes-save-status" style="display: none;">
+                    <i class="fas fa-check-circle"></i> Notes saved
+                </span>
+            </div>
+            
+            <!-- Status Display (if not pending) -->
+            {% if detail.change.status != 'pending' %}
+            <div class="current-status">
+                <i class="fas fa-info-circle"></i>
+                Status: <strong>{{ detail.change.status|upper }}</strong>
+                {% if detail.change.reviewed_at %}
+                <span class="status-time">• {{ detail.change.reviewed_at }}</span>
+                {% endif %}
+            </div>
+            {% endif %}
+            
+            <!-- Right Side: Mark as Reviewed, Skip, Next -->
+            <div class="right-buttons">
+                {% if detail.change.status != 'skipped' %}
+                <button id="mark-reviewed-btn" class="btn btn-action btn-reviewed" 
+                        {% if detail.change.status == 'reviewed' %}disabled{% endif %}>
+                    <i class="fas fa-check-circle"></i> Mark as Reviewed
+                </button>
+                {% endif %}
+                
+                {% if detail.change.status != 'reviewed' %}
+                <button id="skip-btn" class="btn btn-action btn-skip"
+                        {% if detail.change.status == 'skipped' %}disabled{% endif %}>
+                    <i class="fas fa-forward"></i> Skip
+                </button>
+                {% endif %}
+                
+                <!-- Complete Button (shown only on last change when all are reviewed/skipped) -->
+                <button id="complete-btn" class="btn btn-action btn-complete" style="display: none;">
+                    <i class="fas fa-check-double"></i> Complete Analysis
+                </button>
+                
+                {% if detail.navigation.has_next %}
+                <a href="{{ url_for('merge.get_change_detail', reference_id=detail.session.reference_id, change_id=detail.navigation.next_change_id) }}" 
+                   class="btn btn-action">
+                    Next <i class="fas fa-chevron-right"></i>
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Alert Container for Messages -->
+<div id="alert-container" class="alert-container"></div>
+
+<style>
+/* Modern Object Header */
+.modern-object-header {
+    background: var(--bg-card);
+    border-radius: 16px;
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.object-header-main {
+    padding: 2rem;
+    display: flex;
+    align-items: flex-start;
+    gap: 1.5rem;
+}
+
+.object-icon-wrapper {
+    position: relative;
+    flex-shrink: 0;
+}
+
+.object-icon {
+    width: 80px;
+    height: 80px;
+    background: linear-gradient(135deg, var(--blue-3), var(--purple-3));
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    color: white;
+    box-shadow: 0 8px 24px rgba(107, 107, 247, 0.3);
+}
+
+.object-type-badge {
+    position: absolute;
+    bottom: -8px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--bg-card);
+    border: 2px solid var(--border-color);
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.object-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.object-name {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0 0 0.5rem 0;
+    line-height: 1.2;
+}
+
+.object-description {
+    color: var(--text-secondary);
+    margin: 0 0 1rem 0;
+    font-size: 1rem;
+    line-height: 1.5;
+}
+
+.object-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+}
+
+.meta-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+}
+
+.meta-item i {
+    color: var(--blue-3);
+}
+
+.meta-item code {
+    background: var(--gray-0);
+    padding: 0.25rem 0.5rem;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    color: var(--text-primary);
+    font-family: 'Courier New', monospace;
+}
+
+.classification-badge-wrapper {
+    flex-shrink: 0;
+}
+
+.classification-badge {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem 1.5rem;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 1rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.badge-conflict {
+    background: linear-gradient(135deg, var(--red-1), var(--red-2));
+    color: var(--red-4);
+    border: 2px solid var(--red-3);
+}
+
+.badge-no-conflict {
+    background: linear-gradient(135deg, var(--green-1), var(--green-2));
+    color: var(--green-4);
+    border: 2px solid var(--green-3);
+}
+
+.badge-new {
+    background: linear-gradient(135deg, var(--teal-1), var(--teal-2));
+    color: var(--teal-4);
+    border: 2px solid var(--teal-3);
+}
+
+.badge-deleted {
+    background: linear-gradient(135deg, var(--yellow-1), var(--yellow-2));
+    color: var(--yellow-4);
+    border: 2px solid var(--yellow-3);
+}
+
+.classification-badge i {
+    font-size: 1.25rem;
+}
+
+.progress-bar-wrapper {
+    height: 6px;
+    background: var(--gray-1);
+    position: relative;
+}
+
+.progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--blue-3), var(--purple-3));
+    transition: width 0.3s ease;
+}
+
+/* Change Types Card */
+.change-types-card {
+    background: var(--bg-card);
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    padding: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+}
+
+.change-type-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.change-type-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.change-type-label i {
+    color: var(--blue-3);
+}
+
+.change-type-value {
+    font-size: 1.125rem;
+}
+
+.type-badge {
+    background: var(--blue-1);
+    color: var(--blue-4);
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    font-weight: 600;
+    display: inline-block;
+}
+
+.type-badge-none {
+    background: var(--gray-1);
+    color: var(--gray-3);
+}
+
+.change-type-divider {
+    width: 1px;
+    height: 60px;
+    background: var(--border-color);
+}
+
+.detail-card {
+    background: var(--bg-card);
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+}
+
+.card-header-custom {
+    background: rgba(139, 92, 246, 0.05);
+    border-bottom: 1px solid var(--border-color);
+    padding: 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.card-icon {
+    width: 40px;
+    height: 40px;
+    background: rgba(139, 92, 246, 0.2);
+    color: var(--purple);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    flex-shrink: 0;
+}
+
+.card-title-section {
+    flex: 1;
+}
+
+.card-title-section h4,
+.card-title-section h5 {
+    margin: 0;
+    color: var(--text-primary);
+}
+
+.card-title-section p {
+    margin: 0.25rem 0 0 0;
+    font-size: 0.875rem;
+}
+
+.card-badges {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.badge-conflict {
+    background: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+
+.badge-no-conflict {
+    background: rgba(16, 185, 129, 0.2);
+    color: var(--green);
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+
+.badge-new {
+    background: rgba(59, 130, 246, 0.2);
+    color: #3b82f6;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+
+.badge-deleted {
+    background: rgba(245, 158, 11, 0.2);
+    color: #f59e0b;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+
+.card-body-custom {
+    padding: 1.5rem;
+}
+
+.info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+}
+
+.info-item label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    margin-bottom: 0.5rem;
+    letter-spacing: 0.5px;
+}
+
+.info-item p {
+    margin: 0;
+    color: var(--text-primary);
+    word-break: break-word;
+}
+
+.text-monospace {
+    font-family: 'Courier New', monospace;
+    font-size: 0.875rem;
+}
+
+.sail-code {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1rem;
+    max-height: 400px;
+    overflow-y: auto;
+    margin: 0;
+}
+
+.sail-code code {
+    color: var(--text-primary);
+    font-family: 'Courier New', monospace;
+    font-size: 0.875rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.notes-textarea {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    border-radius: 8px;
+    padding: 0.75rem;
+    font-size: 0.875rem;
+    resize: vertical;
+    transition: border-color 0.2s;
+}
+
+.notes-textarea:focus {
+    background: var(--bg-primary);
+    border-color: var(--purple);
+    color: var(--text-primary);
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+}
+
+.notes-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 0.75rem;
+}
+
+.session-info-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+}
+
+.session-info-item label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    margin-bottom: 0.25rem;
+    letter-spacing: 0.5px;
+}
+
+.session-info-item p {
+    margin: 0;
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.badge-status-ready {
+    background: rgba(16, 185, 129, 0.2);
+    color: var(--green);
+    padding: 0.25rem 0.75rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+}
+
+.badge-status-in_progress {
+    background: rgba(20, 184, 166, 0.2);
+    color: var(--teal);
+    padding: 0.25rem 0.75rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+}
+
+.badge-status-completed {
+    background: rgba(139, 92, 246, 0.2);
+    color: var(--purple);
+    padding: 0.25rem 0.75rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+}
+
+/* Actions & Navigation Bar */
+.actions-navigation-bar {
+    background: var(--bg-card);
+    border-radius: 16px;
+    border: 1px solid var(--border-color);
+    padding: 1.5rem 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 2rem;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+}
+
+.left-buttons,
+.right-buttons {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+}
+
+.notes-save-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: var(--green-1);
+    color: var(--green-4);
+    border-radius: 6px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    animation: fadeIn 0.3s ease;
+}
+
+.notes-save-status i {
+    font-size: 1rem;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-5px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.btn-action {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.625rem 1.25rem;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.875rem;
+    border: none;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    min-width: 120px;
+    white-space: nowrap;
+    background: var(--blue-3);
+    color: white;
+    text-decoration: none;
+}
+
+.btn-action:hover:not(:disabled) {
+    background: var(--blue-4);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.btn-action:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+.btn-action:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.btn-complete {
+    background: var(--green-3) !important;
+    color: white !important;
+}
+
+.btn-complete:hover:not(:disabled) {
+    background: var(--green-4) !important;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3) !important;
+}
+
+.btn-complete i {
+    font-size: 1rem;
+}
+
+.current-status {
+    padding: 0.625rem 1rem;
+    background: var(--blue-1);
+    border-radius: 8px;
+    font-size: 0.8125rem;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex: 1;
+    justify-content: center;
+}
+
+.current-status i {
+    color: var(--blue-3);
+}
+
+.current-status strong {
+    color: var(--blue-4);
+}
+
+.status-time {
+    color: var(--text-secondary);
+    margin-left: 0.25rem;
+}
+
+.alert-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+    max-width: 400px;
+}
+
+.alert {
+    margin-bottom: 0.5rem;
+    border-radius: 8px;
+    padding: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+.alert-success {
+    background: rgba(16, 185, 129, 0.2);
+    border: 1px solid var(--green);
+    color: var(--green);
+}
+
+.alert-error {
+    background: rgba(239, 68, 68, 0.2);
+    border: 1px solid #ef4444;
+    color: #ef4444;
+}
+
+.alert-info {
+    background: rgba(20, 184, 166, 0.2);
+    border: 1px solid var(--teal);
+    color: var(--teal);
+}
+
+/* Loading state for buttons */
+.btn-loading {
+    position: relative;
+    pointer-events: none;
+}
+
+.btn-loading::after {
+    content: '';
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    top: 50%;
+    left: 50%;
+    margin-left: -8px;
+    margin-top: -8px;
+    border: 2px solid transparent;
+    border-top-color: currentColor;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Responsive */
+@media (max-width: 1200px) {
+    .actions-navigation-bar {
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .left-buttons,
+    .right-buttons {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .current-status {
+        order: -1;
+    }
+}
+
+@media (max-width: 768px) {
+    .object-header-main {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+    }
+    
+    .object-meta {
+        justify-content: center;
+    }
+    
+    .classification-badge-wrapper {
+        width: 100%;
+    }
+    
+    .classification-badge {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .change-types-card {
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+    
+    .change-type-divider {
+        width: 100%;
+        height: 1px;
+    }
+    
+    .action-buttons-horizontal {
+        flex-direction: column;
+        width: 100%;
+    }
+    
+    .btn-action {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .navigation-buttons-horizontal {
+        flex-direction: column;
+        width: 100%;
+    }
+    
+    .btn-nav-action {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+/* AI Summary Styles */
+.ai-summary-loading {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    padding: 2rem;
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.05), rgba(236, 72, 153, 0.05));
+    border-radius: 12px;
+    border: 2px dashed var(--border-color);
+}
+
+.loading-spinner {
+    flex-shrink: 0;
+}
+
+.loading-spinner i {
+    font-size: 2.5rem;
+    color: var(--purple);
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.loading-text {
+    flex: 1;
+}
+
+.loading-text strong {
+    display: block;
+    color: var(--text-primary);
+    font-size: 1.125rem;
+    margin-bottom: 0.5rem;
+}
+
+.loading-text p {
+    color: var(--text-secondary);
+    margin: 0;
+    font-size: 0.875rem;
+}
+
+.ai-summary-content {
+    padding: 1.5rem;
+}
+
+.summary-text {
+    color: var(--text-primary);
+    line-height: 1.8;
+    font-size: 1rem;
+}
+
+.summary-text strong {
+    color: var(--purple);
+    font-weight: 600;
+}
+
+.summary-meta {
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.ai-summary-error {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    padding: 2rem;
+    background: rgba(239, 68, 68, 0.05);
+    border-radius: 12px;
+    border: 2px solid rgba(239, 68, 68, 0.2);
+}
+
+.error-icon {
+    flex-shrink: 0;
+}
+
+.error-icon i {
+    font-size: 2.5rem;
+    color: #ef4444;
+}
+
+.error-text {
+    flex: 1;
+}
+
+.error-text strong {
+    display: block;
+    color: #ef4444;
+    font-size: 1.125rem;
+    margin-bottom: 0.5rem;
+}
+
+.error-text p {
+    color: var(--text-secondary);
+    margin: 0;
+    font-size: 0.875rem;
+}
+
+/* Comparison Mode Selector */
+.comparison-mode-selector {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.mode-selector-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.25rem 1.5rem;
+    background: rgba(107, 107, 247, 0.05);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.mode-selector-icon {
+    width: 48px;
+    height: 48px;
+    background: var(--blue-1);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--blue-3);
+    font-size: 1.25rem;
+}
+
+.mode-selector-title h5 {
+    margin: 0 0 0.25rem 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.mode-selector-title small {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+}
+
+.mode-selector-body {
+    padding: 1.5rem;
+}
+
+.comparison-mode-dropdown {
+    width: 100%;
+    padding: 0.875rem 1rem;
+    background: var(--bg-primary);
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--text-primary);
+    font-size: 0.9375rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236b6bf7' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 1rem center;
+    padding-right: 3rem;
+}
+
+.comparison-mode-dropdown:hover {
+    border-color: var(--blue-3);
+    background-color: rgba(107, 107, 247, 0.03);
+}
+
+.comparison-mode-dropdown:focus {
+    outline: none;
+    border-color: var(--blue-3);
+    box-shadow: 0 0 0 3px rgba(107, 107, 247, 0.1);
+}
+
+.mode-description {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    margin-top: 1rem;
+    padding: 0.875rem 1rem;
+    background: rgba(107, 107, 247, 0.05);
+    border-radius: 8px;
+    border-left: 3px solid var(--blue-3);
+}
+
+.mode-description i {
+    color: var(--blue-3);
+    font-size: 1rem;
+    margin-top: 0.125rem;
+    flex-shrink: 0;
+}
+
+.mode-description span {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    line-height: 1.5;
+}
+
+/* Loading overlay for comparison refresh */
+.comparison-loading-overlay {
+    position: relative;
+}
+
+.comparison-loading-overlay::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(15, 20, 25, 0.7);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    border-radius: 12px;
+}
+
+[data-theme="light"] .comparison-loading-overlay::after {
+    background: rgba(250, 250, 252, 0.8);
+}
+
+.comparison-loading-spinner {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 11;
+    color: var(--blue-3);
+    font-size: 2rem;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const comparisonModeSelect = document.getElementById('comparisonModeSelect');
+    const modeDescriptionText = document.getElementById('modeDescriptionText');
+    const comparisonSection = document.querySelector('.comparison-section');
+    
+    if (!comparisonModeSelect) return;
+    
+    // Handle mode change
+    comparisonModeSelect.addEventListener('change', function() {
+        const selectedMode = this.value;
+        console.log('Comparison mode changed to:', selectedMode);
+        
+        // Store the selected mode in sessionStorage
+        sessionStorage.setItem('comparisonMode', selectedMode);
+        
+        // Reload the page with the mode parameter in URL
+        const referenceId = '{{ detail.session.reference_id }}';
+        const changeId = {{ detail.change.id }};
+        const currentUrl = new URL(window.location.href);
+        currentUrl.searchParams.set('mode', selectedMode);
+        
+        console.log('Navigating to:', currentUrl.toString());
+        
+        // Navigate to the new URL (this will reload the page with the mode parameter)
+        window.location.href = currentUrl.toString();
+    });
+    
+    // Restore selected mode from URL parameter or sessionStorage
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlMode = urlParams.get('mode');
+    const savedMode = urlMode || sessionStorage.getItem('comparisonMode') || 'auto';
+    
+    if (savedMode && savedMode !== 'auto') {
+        comparisonModeSelect.value = savedMode;
+        sessionStorage.setItem('comparisonMode', savedMode);
+    }
+});
+</script>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Store change and session IDs
+const changeId = {{ detail.change.id }};
+const referenceId = '{{ detail.session.reference_id }}';
+const totalChanges = {{ detail.session.total_changes }};
+const isLastChange = {% if not detail.navigation.has_next %}true{% else %}false{% endif %};
+
+// Character counter for notes and auto-save
+const notesTextarea = document.getElementById('change-notes');
+const charCount = document.getElementById('notes-char-count');
+const saveStatus = document.getElementById('notes-save-status');
+let saveTimeout = null;
+
+// Auto-save notes with debounce
+notesTextarea.addEventListener('input', function() {
+    charCount.textContent = this.value.length;
+    
+    // Clear existing timeout
+    if (saveTimeout) {
+        clearTimeout(saveTimeout);
+    }
+    
+    // Set new timeout to save after 1 second of no typing
+    saveTimeout = setTimeout(async () => {
+        await saveNotes(this.value);
+    }, 1000);
+});
+
+// Function to save notes
+async function saveNotes(notes) {
+    try {
+        const response = await fetch(`/merge/${referenceId}/changes/${changeId}/notes`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ notes })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            // Show save status briefly
+            saveStatus.style.display = 'inline-flex';
+            setTimeout(() => {
+                saveStatus.style.display = 'none';
+            }, 2000);
+        }
+    } catch (error) {
+        console.error('Failed to save notes:', error);
+    }
+}
+
+// Helper function to show alerts
+function showAlert(message, type = 'success') {
+    const alertContainer = document.getElementById('alert-container');
+    const alert = document.createElement('div');
+    alert.className = `alert alert-${type}`;
+    alert.innerHTML = `
+        <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i>
+        <span>${message}</span>
+    `;
+    alertContainer.appendChild(alert);
+    
+    // Auto-remove after 3 seconds
+    setTimeout(() => {
+        alert.style.animation = 'slideOut 0.3s ease';
+        setTimeout(() => alert.remove(), 300);
+    }, 3000);
+}
+
+// Helper function to update session info panel
+function updateSessionInfo(data) {
+    if (data.reviewed_count !== undefined) {
+        document.getElementById('reviewed-count').textContent = data.reviewed_count;
+    }
+    if (data.skipped_count !== undefined) {
+        document.getElementById('skipped-count').textContent = data.skipped_count;
+    }
+    if (data.total_changes !== undefined) {
+        const totalChanges = data.total_changes;
+        const reviewed = parseInt(document.getElementById('reviewed-count').textContent);
+        const skipped = parseInt(document.getElementById('skipped-count').textContent);
+        const pending = totalChanges - reviewed - skipped;
+        document.getElementById('pending-count').textContent = pending;
+        
+        // Check if we should show the Complete button
+        checkCompleteButtonVisibility(reviewed, skipped, totalChanges);
+    }
+}
+
+// Check if Complete button should be shown
+function checkCompleteButtonVisibility(reviewed, skipped, total) {
+    const completeBtn = document.getElementById('complete-btn');
+    const completedCount = reviewed + skipped;
+    
+    // Show Complete button only on last change when all are reviewed/skipped
+    if (isLastChange && completedCount === total && total > 0) {
+        completeBtn.style.display = 'inline-flex';
+    } else {
+        completeBtn.style.display = 'none';
+    }
+}
+
+// Mark as Reviewed button
+const markReviewedBtn = document.getElementById('mark-reviewed-btn');
+if (markReviewedBtn) {
+    markReviewedBtn.addEventListener('click', async function() {
+    const btn = this;
+    btn.classList.add('btn-loading');
+    btn.disabled = true;
+    
+    try {
+        const response = await fetch(`/merge/${referenceId}/changes/${changeId}/review`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showAlert('Change marked as reviewed', 'success');
+            
+            // Broadcast update to workflow page
+            localStorage.setItem('merge_card_update', JSON.stringify({
+                reference_id: referenceId,
+                timestamp: Date.now()
+            }));
+            
+            // Reload page to update UI
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showAlert(result.error || 'Failed to mark as reviewed', 'error');
+            btn.classList.remove('btn-loading');
+            btn.disabled = false;
+        }
+    } catch (error) {
+        showAlert('An error occurred', 'error');
+        btn.classList.remove('btn-loading');
+        btn.disabled = false;
+    }
+    });
+}
+
+// Skip button
+const skipBtn = document.getElementById('skip-btn');
+if (skipBtn) {
+    skipBtn.addEventListener('click', async function() {
+    const btn = this;
+    btn.classList.add('btn-loading');
+    btn.disabled = true;
+    
+    try {
+        const response = await fetch(`/merge/${referenceId}/changes/${changeId}/skip`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showAlert('Change skipped', 'success');
+            
+            // Broadcast update to workflow page
+            localStorage.setItem('merge_card_update', JSON.stringify({
+                reference_id: referenceId,
+                timestamp: Date.now()
+            }));
+            
+            // Reload page to update UI
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showAlert(result.error || 'Failed to skip change', 'error');
+            btn.classList.remove('btn-loading');
+            btn.disabled = false;
+        }
+    } catch (error) {
+        showAlert('An error occurred', 'error');
+        btn.classList.remove('btn-loading');
+        btn.disabled = false;
+    }
+    });
+}
+
+// Undo button (if present)
+const undoBtn = document.getElementById('undo-btn');
+if (undoBtn) {
+    undoBtn.addEventListener('click', async function() {
+        const btn = this;
+        btn.classList.add('btn-loading');
+        btn.disabled = true;
+        
+        try {
+            const response = await fetch(`/merge/${referenceId}/changes/${changeId}/undo`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                showAlert('Action undone', 'success');
+                
+                // Broadcast update to workflow page
+                localStorage.setItem('merge_card_update', JSON.stringify({
+                    reference_id: referenceId,
+                    timestamp: Date.now()
+                }));
+                
+                // Reload page to update UI
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                showAlert(result.error || 'Failed to undo action', 'error');
+                btn.classList.remove('btn-loading');
+                btn.disabled = false;
+            }
+        } catch (error) {
+            showAlert('An error occurred', 'error');
+            btn.classList.remove('btn-loading');
+            btn.disabled = false;
+        }
+    });
+}
+
+// Complete button handler
+const completeBtn = document.getElementById('complete-btn');
+if (completeBtn) {
+    completeBtn.addEventListener('click', async function() {
+        if (!confirm('Are you sure you want to mark this analysis as completed? This will finalize the session.')) {
+            return;
+        }
+        
+        const btn = this;
+        btn.classList.add('btn-loading');
+        btn.disabled = true;
+        
+        try {
+            const response = await fetch(`/merge/${referenceId}/complete`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                showAlert('Session completed successfully!', 'success');
+                
+                // Redirect to summary page after a short delay
+                setTimeout(() => {
+                    window.location.href = `/merge/${referenceId}/summary`;
+                }, 1500);
+            } else {
+                throw new Error(result.message || 'Failed to complete session');
+            }
+        } catch (error) {
+            showAlert(error.message || 'Failed to complete session', 'error');
+            btn.classList.remove('btn-loading');
+            btn.disabled = false;
+        }
+    });
+}
+
+// Check on page load if Complete button should be shown
+window.addEventListener('DOMContentLoaded', async function() {
+    try {
+        const response = await fetch(`/merge/api/${referenceId}/summary`);
+        const result = await response.json();
+        
+        if (result.success) {
+            // Session data is at root level of result.data, not nested
+            const sessionData = result.data;
+            checkCompleteButtonVisibility(
+                sessionData.reviewed_count || 0,
+                sessionData.skipped_count || 0,
+                sessionData.total_changes || 0
+            );
+        }
+    } catch (error) {
+        console.error('Failed to check session status:', error);
+    }
+});
+
+// Add slideOut animation
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes slideOut {
+        from {
+            transform: translateX(0);
+            opacity: 1;
+        }
+        to {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+    }
+`;
+document.head.appendChild(style);
+
+// AI Summary Polling
+let aiSummaryPollInterval = null;
+const aiSummaryStatus = '{{ detail.change.ai_summary_status }}';
+
+// Start polling if summary is pending or processing
+if (aiSummaryStatus === 'pending' || aiSummaryStatus === 'processing') {
+    startAISummaryPolling();
+}
+
+function startAISummaryPolling() {
+    // Poll every 3 seconds
+    aiSummaryPollInterval = setInterval(checkAISummaryStatus, 3000);
+    // Check immediately
+    checkAISummaryStatus();
+}
+
+function stopAISummaryPolling() {
+    if (aiSummaryPollInterval) {
+        clearInterval(aiSummaryPollInterval);
+        aiSummaryPollInterval = null;
+    }
+}
+
+async function checkAISummaryStatus() {
+    try {
+        // Fetch the change detail again to get updated AI summary status
+        const response = await fetch(`/merge/${referenceId}/changes?classification=all`);
+        const data = await response.json();
+        
+        if (data.success) {
+            // Find this change in the response
+            const change = data.data.changes.find(c => c.change_id === changeId);
+            
+            if (change && change.ai_summary_status) {
+                updateAISummaryDisplay(change);
+            }
+        }
+    } catch (error) {
+        console.error('Failed to check AI summary status:', error);
+    }
+}
+
+function updateAISummaryDisplay(change) {
+    const loadingEl = document.getElementById('aiSummaryLoading');
+    const contentEl = document.getElementById('aiSummaryContent');
+    const errorEl = document.getElementById('aiSummaryError');
+    
+    // Hide all states first
+    loadingEl.style.display = 'none';
+    contentEl.style.display = 'none';
+    errorEl.style.display = 'none';
+    
+    if (change.ai_summary_status === 'completed') {
+        // Stop polling
+        stopAISummaryPolling();
+        
+        // Show completed state
+        if (change.ai_summary) {
+            // Format the summary text
+            const formattedSummary = formatAISummary(change.ai_summary);
+            contentEl.querySelector('.summary-text').innerHTML = formattedSummary;
+            
+            // Update timestamp if available
+            if (change.ai_summary_generated_at) {
+                const metaEl = contentEl.querySelector('.summary-meta small');
+                if (metaEl) {
+                    metaEl.innerHTML = `<i class="fas fa-clock"></i> Generated ${formatTimestamp(change.ai_summary_generated_at)}`;
+                }
+            }
+            
+            contentEl.style.display = 'block';
+            
+            // Show brief notification
+            showAlert('AI analysis completed!', 'success');
+        }
+    } else if (change.ai_summary_status === 'failed') {
+        // Stop polling
+        stopAISummaryPolling();
+        
+        // Show error state
+        if (change.ai_summary) {
+            errorEl.querySelector('.error-text p').textContent = change.ai_summary;
+        }
+        errorEl.style.display = 'flex';
+    } else if (change.ai_summary_status === 'processing') {
+        // Update loading text
+        loadingEl.querySelector('.loading-text strong').textContent = 'Analyzing changes...';
+        loadingEl.style.display = 'flex';
+    } else if (change.ai_summary_status === 'pending') {
+        // Update loading text
+        loadingEl.querySelector('.loading-text strong').textContent = 'Queued for analysis...';
+        loadingEl.style.display = 'flex';
+    }
+}
+
+function formatAISummary(summary) {
+    // Convert markdown-style formatting to HTML
+    return summary
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\n/g, '<br>');
+}
+
+function formatTimestamp(timestamp) {
+    try {
+        const date = new Date(timestamp);
+        const now = new Date();
+        const diffMs = now - date;
+        const diffMins = Math.floor(diffMs / 60000);
+        
+        if (diffMins < 1) return 'just now';
+        if (diffMins < 60) return `${diffMins} minute${diffMins > 1 ? 's' : ''} ago`;
+        
+        const diffHours = Math.floor(diffMins / 60);
+        if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+        
+        return date.toLocaleString();
+    } catch (e) {
+        return timestamp;
+    }
+}
+
+// Regenerate Summary Button
+const regenerateSummaryBtn = document.getElementById('regenerateSummaryBtn');
+if (regenerateSummaryBtn) {
+    regenerateSummaryBtn.addEventListener('click', async function() {
+        const btn = this;
+        const originalHtml = btn.innerHTML;
+        
+        // Disable button and show loading
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Regenerating...';
+        
+        try {
+            const response = await fetch(`/merge/change/${changeId}/regenerate-summary`, {
+                method: 'POST'
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                // Show loading state
+                document.getElementById('aiSummaryLoading').style.display = 'flex';
+                document.getElementById('aiSummaryError').style.display = 'none';
+                
+                // Start polling
+                startAISummaryPolling();
+                
+                // Hide regenerate button
+                btn.style.display = 'none';
+                
+                showAlert('Summary regeneration started', 'success');
+            } else {
+                throw new Error(result.message || 'Failed to regenerate summary');
+            }
+        } catch (error) {
+            console.error('Failed to regenerate summary:', error);
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+            showAlert('Failed to regenerate summary. Please try again.', 'error');
+        }
+    });
+}
+
+// Clean up polling on page unload
+window.addEventListener('beforeunload', function() {
+    stopAISummaryPolling();
+});
+</script>
+{% endblock %}

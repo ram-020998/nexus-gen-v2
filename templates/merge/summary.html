@@ -1,0 +1,1552 @@
+{% extends "base.html" %}
+
+{% block title %}Merge Summary - {{ session.reference_id }}{% endblock %}
+
+{% block breadcrumbs %}
+<nav class="breadcrumb-nav">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}"><i class="fas fa-home"></i> Home</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('merge.sessions') }}">Merge Sessions</a></li>
+        <li class="breadcrumb-item active">{{ session.reference_id }}</li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block page_title %}
+    Merge Session Summary
+    {% if session.status == 'ready' or session.status == 'in_progress' or session.status == 'completed' %}
+        <button id="generateReportBtn" class="btn btn-modern-primary float-end">
+            <i class="fas fa-file-excel me-2"></i>
+            <span class="btn-text">Generate Report</span>
+            <i class="fas fa-sparkles ms-2"></i>
+        </button>
+    {% endif %}
+{% endblock %}
+{% block page_subtitle %}{{ session.reference_id }} - Created {{ session.created_at.strftime('%Y-%m-%d %H:%M') }}{% endblock %}
+
+{% block content %}
+<!-- Session Status Banner -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="status-banner status-{{ session.status }}">
+            <div class="status-icon">
+                {% if session.status == 'ready' %}
+                    <i class="fas fa-check-circle"></i>
+                {% elif session.status == 'processing' %}
+                    <i class="fas fa-spinner fa-spin"></i>
+                {% elif session.status == 'in_progress' %}
+                    <i class="fas fa-tasks"></i>
+                {% elif session.status == 'completed' %}
+                    <i class="fas fa-check-double"></i>
+                {% elif session.status == 'error' %}
+                    <i class="fas fa-exclamation-triangle"></i>
+                {% endif %}
+            </div>
+            <div class="status-content">
+                <h5>
+                    {% if session.status == 'ready' %}
+                        Analysis Complete - Ready for Review
+                    {% elif session.status == 'processing' %}
+                        Processing Packages...
+                    {% elif session.status == 'in_progress' %}
+                        Merge Review In Progress
+                    {% elif session.status == 'completed' %}
+                        Merge Completed
+                    {% elif session.status == 'error' %}
+                        Error Processing Packages
+                    {% endif %}
+                </h5>
+                <p class="mb-0">
+                    {% if session.status == 'ready' %}
+                        All packages have been analyzed. You can now start the merge workflow.
+                    {% elif session.status == 'processing' %}
+                        Please wait while we extract and analyze your packages...
+                    {% elif session.status == 'in_progress' %}
+                        Continue reviewing changes to complete the merge.
+                    {% elif session.status == 'completed' %}
+                        All changes have been reviewed and the merge is complete.
+                    {% elif session.status == 'error' %}
+                        An error occurred during package processing. Please try again.
+                    {% endif %}
+                </p>
+            </div>
+            {% if session.status == 'ready' or session.status == 'in_progress' %}
+                <a href="{{ url_for('merge.workflow', reference_id=session.reference_id) }}" 
+                   class="btn btn-light btn-lg">
+                    <i class="fas fa-play-circle"></i> {% if session.status == 'ready' %}Start Merge Workflow{% else %}Continue Review{% endif %}
+                </a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- What's in the Merge Workflow? -->
+<!-- <div class="row mb-4">
+    <div class="col-12">
+        <div class="info-panel">
+            <h5 class="panel-title">
+                <i class="fas fa-info-circle"></i> What's in the Merge Workflow?
+            </h5>
+            <p class="text-muted mb-3">
+                The merge workflow contains all changes detected between the Base Version (Package A) and the New Vendor Version (Package C). 
+                Each change has been analyzed against your Customized Version (Package B) to identify potential conflicts.
+            </p>
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="workflow-info-item">
+                        <i class="fas fa-check-circle text-success"></i>
+                        <strong>No Conflicts:</strong> Changes that don't conflict with your customizations
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="workflow-info-item">
+                        <i class="fas fa-exclamation-triangle text-danger"></i>
+                        <strong>Conflicts:</strong> Changes that conflict with your customizations and require review
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="workflow-info-item">
+                        <i class="fas fa-plus-circle text-info"></i>
+                        <strong>New Objects:</strong> Objects added in the new vendor version
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="workflow-info-item">
+                        <i class="fas fa-minus-circle text-warning"></i>
+                        <strong>Deleted Objects:</strong> Objects deprecated in the new vendor version
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div> -->
+
+<!-- Statistics Overview -->
+<div class="row mb-4">
+    <div class="col-md-3 col-sm-6 mb-3 mb-md-0">
+        <div class="stat-card-modern">
+            <div class="stat-icon-modern stat-primary">
+                <i class="fas fa-list"></i>
+            </div>
+            <div class="stat-details">
+                <div class="stat-value-modern">{{ statistics.total_changes }}</div>
+                <div class="stat-label-modern">Total Changes</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-sm-6 mb-3 mb-md-0">
+        <div class="stat-card-modern">
+            <div class="stat-icon-modern stat-success">
+                <i class="fas fa-check"></i>
+            </div>
+            <div class="stat-details">
+                <div class="stat-value-modern">{{ statistics.by_classification.NO_CONFLICT or 0 }}</div>
+                <div class="stat-label-modern">No Conflicts</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-sm-6 mb-3 mb-md-0">
+        <div class="stat-card-modern">
+            <div class="stat-icon-modern stat-danger">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <div class="stat-details">
+                <div class="stat-value-modern">{{ statistics.by_classification.CONFLICT or 0 }}</div>
+                <div class="stat-label-modern">Conflicts</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-sm-6 mb-3 mb-md-0">
+        <div class="stat-card-modern">
+            <div class="stat-icon-modern stat-info">
+                <i class="fas fa-plus-circle"></i>
+            </div>
+            <div class="stat-details">
+                <div class="stat-value-modern">{{ statistics.by_classification.NEW or 0 }}</div>
+                <div class="stat-label-modern">New Objects</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- AI Summary Progress -->
+<div class="row mb-4" id="aiSummaryProgressSection">
+    <div class="col-12">
+        <div class="ai-progress-card">
+            <div class="progress-card-header">
+                <div class="progress-icon">
+                    <i class="fas fa-robot"></i>
+                </div>
+                <div class="progress-info">
+                    <h5>AI Summary Generation</h5>
+                    <p class="progress-subtitle">Automated merge analysis in progress</p>
+                </div>
+                <div class="progress-stats">
+                    <span class="progress-badge">
+                        <span id="aiProgressCompleted">0</span>/<span id="aiProgressTotal">0</span>
+                    </span>
+                </div>
+            </div>
+            <div class="progress-bar-container">
+                <div class="progress-bar-fill" id="aiProgressBar" style="width: 0%">
+                    <span class="progress-percentage" id="aiProgressPercentage">0%</span>
+                </div>
+            </div>
+            <div class="progress-details">
+                <div class="progress-detail-item">
+                    <i class="fas fa-spinner fa-spin text-primary"></i>
+                    <span>Processing: <strong id="aiProgressProcessing">0</strong></span>
+                </div>
+                <div class="progress-detail-item">
+                    <i class="fas fa-exclamation-triangle text-warning"></i>
+                    <span>Failed: <strong id="aiProgressFailed">0</strong></span>
+                </div>
+                <div class="progress-detail-item" id="retryAllContainer" style="display: none;">
+                    <button id="retryAllBtn" class="btn btn-sm btn-outline-warning">
+                        <i class="fas fa-redo"></i> Retry Failed
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Complexity and Time Estimation -->
+<div class="row mb-4">
+    <div class="col-md-6 mb-3 mb-md-0">
+        <div class="stat-card-modern">
+            <div class="stat-icon-modern {% if session.estimated_complexity == 'Low' %}stat-success{% elif session.estimated_complexity == 'Medium' %}stat-warning{% else %}stat-danger{% endif %}">
+                <i class="fas fa-chart-line"></i>
+            </div>
+            <div class="stat-details">
+                <div class="stat-value-modern">{{ session.estimated_complexity or 'Calculating...' }}</div>
+                <div class="stat-label-modern">Estimated Complexity</div>
+                <small class="stat-hint">Based on conflicts and object types</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="stat-card-modern">
+            <div class="stat-icon-modern stat-primary">
+                <i class="fas fa-clock"></i>
+            </div>
+            <div class="stat-details">
+                <div class="stat-value-modern">{{ session.estimated_time_hours or 0 }}h</div>
+                <div class="stat-label-modern">Estimated Review Time</div>
+                <small class="stat-hint">Approximate time to review all changes</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Package Information -->
+{% if packages and packages.get('base') %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="info-panel">
+            <h5 class="panel-title">
+                <i class="fas fa-box"></i> Package Information
+            </h5>
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="package-info">
+                        <span class="badge bg-primary mb-2">Package A</span>
+                        <h6>Base Version</h6>
+                        <p class="text-muted mb-1">{{ packages.base.filename }}</p>
+                        <p class="text-muted mb-0">
+                            <i class="fas fa-cube"></i> {{ packages.base.total_objects }} objects
+                        </p>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="package-info">
+                        <span class="badge bg-success mb-2">Package B</span>
+                        <h6>Customized Version</h6>
+                        <p class="text-muted mb-1">{{ packages.customized.filename }}</p>
+                        <p class="text-muted mb-0">
+                            <i class="fas fa-cube"></i> {{ packages.customized.total_objects }} objects
+                        </p>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="package-info">
+                        <span class="badge bg-info mb-2">Package C</span>
+                        <h6>New Vendor Version</h6>
+                        <p class="text-muted mb-1">{{ packages.new_vendor.filename }}</p>
+                        <p class="text-muted mb-0">
+                            <i class="fas fa-cube"></i> {{ packages.new_vendor.total_objects }} objects
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Breakdown by Object Type -->
+<div class="row">
+    <div class="col-12">
+        <div class="breakdown-section">
+            <div class="breakdown-header-main">
+                <h5>
+                    <i class="fas fa-chart-bar"></i>
+                    Breakdown by Object Type
+                </h5>
+                <span class="breakdown-count">{{ statistics.by_object_type|length }} types</span>
+            </div>
+            
+            <div class="object-type-grid">
+                {% for object_type, count in statistics.by_object_type.items() %}
+                <div class="object-type-card" data-object-type="{{ object_type }}" onclick="selectObjectType('{{ session.reference_id }}', '{{ object_type }}', this)">
+                    <div class="type-icon">
+                        <i class="fas fa-{{ get_object_icon(object_type) }}"></i>
+                    </div>
+                    <div class="type-info">
+                        <h6 class="type-name">{{ object_type }}</h6>
+                        <span class="type-count">{{ count }} change{{ 's' if count != 1 else '' }}</span>
+                    </div>
+                    <div class="selected-indicator">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Objects Grid (shown when a type is selected) -->
+<div class="row mt-4" id="objectsGridSection" style="display: none;">
+    <div class="col-12">
+        <div class="objects-grid-panel">
+            <div class="grid-header">
+                <h5 id="selectedTypeName">
+                    <i class="fas fa-cube"></i>
+                    <span></span>
+                </h5>
+                <button class="btn-close-grid" onclick="closeObjectsGrid()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="grid-loading" id="gridLoading">
+                <i class="fas fa-spinner fa-spin"></i>
+                <span>Loading objects...</span>
+            </div>
+            <div class="grid-content" id="gridContent">
+                <!-- Objects will be loaded here -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.status-banner {
+    background: var(--bg-card);
+    border-radius: 12px;
+    padding: 2rem;
+    border: 2px solid;
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+}
+
+.status-banner.status-ready {
+    border-color: var(--green);
+    background: rgba(16, 185, 129, 0.1);
+}
+
+.status-banner.status-processing {
+    border-color: #f59e0b;
+    background: rgba(245, 158, 11, 0.1);
+}
+
+.status-banner.status-in_progress {
+    border-color: var(--teal);
+    background: rgba(20, 184, 166, 0.1);
+}
+
+.status-banner.status-completed {
+    border-color: var(--purple);
+    background: rgba(139, 92, 246, 0.1);
+}
+
+.status-banner.status-error {
+    border-color: #ef4444;
+    background: rgba(239, 68, 68, 0.1);
+}
+
+.status-icon {
+    font-size: 3rem;
+    flex-shrink: 0;
+}
+
+.status-banner.status-ready .status-icon {
+    color: var(--green);
+}
+
+.status-banner.status-processing .status-icon {
+    color: #f59e0b;
+}
+
+.status-banner.status-in_progress .status-icon {
+    color: var(--teal);
+}
+
+.status-banner.status-completed .status-icon {
+    color: var(--purple);
+}
+
+.status-banner.status-error .status-icon {
+    color: #ef4444;
+}
+
+.status-content {
+    flex: 1;
+}
+
+.status-content h5 {
+    margin: 0 0 0.5rem 0;
+    color: var(--text-primary);
+}
+
+.status-content p {
+    color: var(--text-secondary);
+}
+
+/* Modern Stat Cards */
+.stat-card-modern {
+    background: var(--bg-card);
+    border-radius: 12px;
+    padding: 1.25rem;
+    border: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    transition: all 0.3s ease;
+    height: 100%;
+}
+
+.stat-card-modern:hover {
+    border-color: var(--purple);
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(139, 92, 246, 0.2);
+}
+
+.stat-icon-modern {
+    width: 56px;
+    height: 56px;
+    min-width: 56px;
+    max-width: 56px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    color: white;
+    flex-shrink: 0;
+}
+
+.stat-primary {
+    background: linear-gradient(135deg, var(--purple), var(--pink));
+}
+
+.stat-success {
+    background: linear-gradient(135deg, #10b981, #059669);
+}
+
+.stat-danger {
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+}
+
+.stat-info {
+    background: linear-gradient(135deg, var(--teal), #0891b2);
+}
+
+.stat-details {
+    flex: 1;
+    min-width: 0;
+}
+
+.stat-value-modern {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1;
+    margin-bottom: 0.375rem;
+}
+
+.stat-label-modern {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.info-panel {
+    background: var(--bg-card);
+    border-radius: 16px;
+    padding: 1.5rem;
+    border: 1px solid var(--border-color);
+}
+
+.panel-title {
+    margin: 0 0 1.5rem 0;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #cfd3da;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.package-info {
+    padding: 1rem;
+    background: rgba(139, 92, 246, 0.05);
+    border-radius: 8px;
+}
+
+.package-info h6 {
+    margin: 0.5rem 0;
+    color: var(--text-primary);
+}
+
+/* Breakdown Section */
+.breakdown-section {
+    background: var(--bg-card);
+    border-radius: 16px;
+    padding: 1.5rem;
+    border: 1px solid var(--border-color);
+}
+
+.breakdown-header-main {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.breakdown-header-main h5 {
+    margin: 0;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1.125rem;
+}
+
+.breakdown-count {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    background: rgba(139, 92, 246, 0.1);
+    padding: 0.375rem 0.875rem;
+    border-radius: 20px;
+}
+
+.object-type-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+.object-type-card {
+    background: rgba(139, 92, 246, 0.03);
+    border: 2px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.object-type-card:hover {
+    border-color: var(--purple);
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(139, 92, 246, 0.2);
+    background: rgba(139, 92, 246, 0.08);
+}
+
+.object-type-card.selected {
+    border-color: var(--purple);
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(236, 72, 153, 0.15));
+    box-shadow: 0 8px 24px rgba(139, 92, 246, 0.3);
+}
+
+.type-icon {
+    width: 56px;
+    height: 56px;
+    background: linear-gradient(135deg, var(--purple), var(--pink));
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.5rem;
+    flex-shrink: 0;
+}
+
+.type-info {
+    text-align: center;
+    width: 100%;
+}
+
+.type-name {
+    margin: 0 0 0.375rem 0;
+    color: var(--text-primary);
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.type-count {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    display: block;
+}
+
+.selected-indicator {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    color: var(--purple);
+    font-size: 1.25rem;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.object-type-card.selected .selected-indicator {
+    opacity: 1;
+}
+
+/* Objects Grid Panel */
+.objects-grid-panel {
+    background: var(--bg-card);
+    border-radius: 16px;
+    padding: 1.5rem;
+    border: 1px solid var(--border-color);
+    animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.grid-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.grid-header h5 {
+    margin: 0;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 1.125rem;
+}
+
+.grid-header h5 i {
+    color: var(--purple);
+}
+
+.btn-close-grid {
+    width: 36px;
+    height: 36px;
+    background: rgba(139, 92, 246, 0.1);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-close-grid:hover {
+    background: rgba(239, 68, 68, 0.1);
+    border-color: #ef4444;
+    color: #ef4444;
+}
+
+.grid-loading {
+    padding: 3rem;
+    text-align: center;
+    color: var(--text-secondary);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+}
+
+.grid-loading i {
+    font-size: 2rem;
+    color: var(--purple);
+}
+
+.grid-content {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 1rem;
+}
+
+.text-purple {
+    color: var(--purple);
+}
+
+.workflow-info-item {
+    padding: 0.75rem;
+    background: rgba(139, 92, 246, 0.05);
+    border-radius: 8px;
+    margin-bottom: 0.5rem;
+}
+
+.workflow-info-item i {
+    margin-right: 0.5rem;
+}
+
+.workflow-info-item strong {
+    display: block;
+    margin-bottom: 0.25rem;
+    color: var(--text-primary);
+}
+
+.stat-warning {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+}
+
+.stat-hint {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin-top: 0.25rem;
+}
+
+.chevron-icon {
+    transition: transform 0.3s ease;
+}
+
+.chevron-icon.rotated {
+    transform: rotate(180deg);
+}
+
+/* Object Cards in Grid */
+.object-card {
+    background: rgba(139, 92, 246, 0.03);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    display: flex;
+    flex-direction: column;
+}
+
+.object-card:hover {
+    border-color: var(--purple);
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(139, 92, 246, 0.2);
+}
+
+.object-card-header {
+    padding: 1.25rem;
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.object-icon {
+    width: 48px;
+    height: 48px;
+    background: linear-gradient(135deg, var(--purple), var(--pink));
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.125rem;
+    flex-shrink: 0;
+}
+
+.object-title {
+    flex: 1;
+    min-width: 0;
+}
+
+.object-title h6 {
+    margin: 0 0 0.375rem 0;
+    color: var(--text-primary);
+    font-size: 1rem;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.object-uuid {
+    font-family: 'Courier New', monospace;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.object-card-body {
+    padding: 1.25rem;
+    flex: 1;
+}
+
+.object-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.meta-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.meta-label {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.object-card-footer {
+    padding: 1.25rem;
+    border-top: 1px solid var(--border-color);
+    background: var(--bg-primary);
+}
+
+.btn-view-object {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    background: linear-gradient(135deg, var(--purple), var(--pink));
+    color: white;
+    border-radius: 10px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    transition: all 0.2s ease;
+}
+
+.btn-view-object:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
+    color: white;
+}
+
+.empty-grid,
+.error-grid {
+    grid-column: 1 / -1;
+    padding: 3rem;
+    text-align: center;
+    color: var(--text-secondary);
+}
+
+.empty-grid i,
+.error-grid i {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    display: block;
+}
+
+.error-grid {
+    color: #ef4444;
+}
+
+.error-grid i {
+    color: #ef4444;
+}
+
+.classification-badge {
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.classification-NO_CONFLICT {
+    background: rgba(16, 185, 129, 0.2);
+    color: var(--green);
+}
+
+.classification-CONFLICT {
+    background: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+}
+
+.classification-NEW {
+    background: rgba(20, 184, 166, 0.2);
+    color: var(--teal);
+}
+
+.classification-DELETED {
+    background: rgba(245, 158, 11, 0.2);
+    color: #f59e0b;
+}
+
+.complexity-badge {
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.complexity-Low {
+    background: rgba(16, 185, 129, 0.2);
+    color: var(--green);
+}
+
+.complexity-Medium {
+    background: rgba(245, 158, 11, 0.2);
+    color: #f59e0b;
+}
+
+.complexity-High {
+    background: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+}
+
+/* Modern Generate Report Button */
+.btn-modern-primary {
+    background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+    border: none;
+    color: white;
+    padding: 0.75rem 1.75rem;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-modern-primary::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(255, 255, 255, 0.2),
+        transparent
+    );
+    transition: left 0.5s;
+}
+
+.btn-modern-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(139, 92, 246, 0.4);
+    background: linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%);
+}
+
+.btn-modern-primary:hover::before {
+    left: 100%;
+}
+
+.btn-modern-primary:active {
+    transform: translateY(0);
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+}
+
+.btn-modern-primary:disabled {
+    background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+.btn-modern-primary .fa-sparkles {
+    animation: sparkle 2s ease-in-out infinite;
+}
+
+@keyframes sparkle {
+    0%, 100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.6;
+        transform: scale(1.1);
+    }
+}
+
+.btn-modern-primary .btn-text {
+    position: relative;
+    z-index: 1;
+}
+
+/* Loading state for button */
+.btn-modern-primary.loading {
+    pointer-events: none;
+}
+
+.btn-modern-primary.loading .btn-text {
+    opacity: 0.7;
+}
+
+.btn-modern-primary.loading .fa-file-excel {
+    animation: bounce 1s ease-in-out infinite;
+}
+
+@keyframes bounce {
+    0%, 100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-4px);
+    }
+}
+
+/* AI Summary Progress Card */
+.ai-progress-card {
+    background: var(--bg-card);
+    border-radius: 16px;
+    padding: 1.5rem;
+    border: 2px solid var(--border-color);
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.1);
+}
+
+.progress-card-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.progress-icon {
+    width: 56px;
+    height: 56px;
+    background: linear-gradient(135deg, var(--purple), var(--pink));
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.5rem;
+    flex-shrink: 0;
+}
+
+.progress-info {
+    flex: 1;
+}
+
+.progress-info h5 {
+    margin: 0 0 0.25rem 0;
+    color: var(--text-primary);
+    font-size: 1.125rem;
+}
+
+.progress-subtitle {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+}
+
+.progress-stats {
+    flex-shrink: 0;
+}
+
+.progress-badge {
+    background: rgba(139, 92, 246, 0.1);
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-weight: 600;
+    color: var(--purple);
+    font-size: 1rem;
+}
+
+.progress-bar-container {
+    background: rgba(139, 92, 246, 0.1);
+    border-radius: 12px;
+    height: 32px;
+    overflow: hidden;
+    position: relative;
+    margin-bottom: 1rem;
+}
+
+.progress-bar-fill {
+    height: 32px;
+    background: linear-gradient(135deg, var(--purple), var(--pink));
+    border-radius: 12px;
+    transition: width 0.5s ease;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding-right: 1rem;
+    position: relative;
+}
+
+.progress-bar-fill::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(255, 255, 255, 0.3),
+        transparent
+    );
+    animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+    0% { left: -100%; }
+    100% { left: 100%; }
+}
+
+.progress-percentage {
+    color: white;
+    font-weight: 700;
+    font-size: 0.875rem;
+    position: relative;
+    z-index: 1;
+}
+
+.progress-details {
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+    flex-wrap: wrap;
+}
+
+.progress-detail-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+}
+
+.progress-detail-item i {
+    font-size: 1rem;
+}
+
+.progress-detail-item strong {
+    color: var(--text-primary);
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Auto-refresh if processing
+{% if session.status == 'processing' %}
+setTimeout(function() {
+    location.reload();
+}, 5000);
+{% endif %}
+
+// Select object type and show grid
+function selectObjectType(referenceId, objectType, cardElement) {
+    // Remove selected class from all cards
+    document.querySelectorAll('.object-type-card').forEach(card => {
+        card.classList.remove('selected');
+    });
+    
+    // Add selected class to clicked card
+    cardElement.classList.add('selected');
+    
+    // Show the grid section
+    const gridSection = document.getElementById('objectsGridSection');
+    const gridLoading = document.getElementById('gridLoading');
+    const gridContent = document.getElementById('gridContent');
+    const selectedTypeName = document.getElementById('selectedTypeName').querySelector('span');
+    
+    gridSection.style.display = 'block';
+    gridLoading.style.display = 'flex';
+    gridContent.innerHTML = '';
+    selectedTypeName.textContent = objectType;
+    
+    // Scroll to grid
+    setTimeout(() => {
+        gridSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 100);
+    
+    // Fetch object details via AJAX
+    fetch(`/merge/${referenceId}/objects/${encodeURIComponent(objectType)}`)
+        .then(response => response.json())
+        .then(data => {
+            gridLoading.style.display = 'none';
+            
+            if (data.success && data.data.objects.length > 0) {
+                // Build object cards
+                let objectsHtml = '';
+                
+                data.data.objects.forEach(obj => {
+                    objectsHtml += `
+                        <div class="object-card">
+                            <div class="object-card-header">
+                                <div class="object-icon">
+                                    <i class="fas fa-cube"></i>
+                                </div>
+                                <div class="object-title">
+                                    <h6>${escapeHtml(obj.object_name)}</h6>
+                                    <span class="object-uuid">${escapeHtml(obj.object_uuid)}</span>
+                                </div>
+                            </div>
+                            <div class="object-card-body">
+                                <div class="object-meta">
+                                    <div class="meta-item">
+                                        <span class="meta-label">Classification</span>
+                                        <span class="classification-badge classification-${obj.classification}">
+                                            ${obj.classification}
+                                        </span>
+                                    </div>
+                                    <div class="meta-item">
+                                        <span class="meta-label">Complexity</span>
+                                        <span class="complexity-badge complexity-${obj.complexity}">
+                                            ${obj.complexity}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="object-card-footer">
+                                <a href="/merge/${referenceId}/changes/${obj.change_id}" 
+                                   class="btn-view-object">
+                                    <i class="fas fa-eye"></i>
+                                    View Details
+                                </a>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                gridContent.innerHTML = objectsHtml;
+            } else {
+                gridContent.innerHTML = `
+                    <div class="empty-grid">
+                        <i class="fas fa-inbox"></i>
+                        <p>No objects found</p>
+                    </div>
+                `;
+            }
+        })
+        .catch(error => {
+            gridLoading.style.display = 'none';
+            gridContent.innerHTML = `
+                <div class="error-grid">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <p>Error loading objects. Please try again.</p>
+                </div>
+            `;
+            console.error('Error fetching object details:', error);
+        });
+}
+
+// Close objects grid
+function closeObjectsGrid() {
+    const gridSection = document.getElementById('objectsGridSection');
+    gridSection.style.display = 'none';
+    
+    // Remove selected class from all cards
+    document.querySelectorAll('.object-type-card').forEach(card => {
+        card.classList.remove('selected');
+    });
+}
+
+// Helper function to escape HTML
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Generate Report button handler with modern loading states
+document.addEventListener('DOMContentLoaded', function() {
+    const generateReportBtn = document.getElementById('generateReportBtn');
+    
+    if (generateReportBtn) {
+        generateReportBtn.addEventListener('click', function() {
+            const referenceId = '{{ session.reference_id }}';
+            const btn = this;
+            const originalHtml = btn.innerHTML;
+            
+            // Show modern loading state
+            btn.disabled = true;
+            btn.classList.add('loading');
+            btn.innerHTML = `
+                <i class="fas fa-spinner fa-spin me-2"></i>
+                <span class="btn-text">Generating Report...</span>
+                <i class="fas fa-magic ms-2"></i>
+            `;
+            
+            // Trigger report generation
+            fetch(`/merge/${referenceId}/report?format=xlsx`, {
+                method: 'POST'
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Report generation failed');
+                }
+                return response.blob();
+            })
+            .then(blob => {
+                // Create download link
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${referenceId}_report.xlsx`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+                
+                // Show success state briefly
+                btn.innerHTML = `
+                    <i class="fas fa-check-circle me-2"></i>
+                    <span class="btn-text">Report Downloaded!</span>
+                    <i class="fas fa-sparkles ms-2"></i>
+                `;
+                
+                // Reset button after 2 seconds
+                setTimeout(() => {
+                    btn.disabled = false;
+                    btn.classList.remove('loading');
+                    btn.innerHTML = originalHtml;
+                }, 2000);
+                
+                // Show success notification
+                showNotification('📊 Report generated successfully!', 'success');
+            })
+            .catch(error => {
+                console.error('Error generating report:', error);
+                btn.disabled = false;
+                btn.classList.remove('loading');
+                btn.innerHTML = originalHtml;
+                showNotification('❌ Failed to generate report. Please try again.', 'error');
+            });
+        });
+    }
+});
+
+// Show notification helper
+function showNotification(message, type) {
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type === 'success' ? 'success' : 'danger'} alert-dismissible fade show`;
+    notification.style.position = 'fixed';
+    notification.style.top = '20px';
+    notification.style.right = '20px';
+    notification.style.zIndex = '9999';
+    notification.style.minWidth = '300px';
+    notification.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        notification.remove();
+    }, 5000);
+}
+
+// AI Summary Progress Polling
+let aiProgressPollInterval = null;
+const referenceId = '{{ session.reference_id }}';
+
+// Start polling on page load
+document.addEventListener('DOMContentLoaded', function() {
+    checkAIProgressAndStartPolling();
+});
+
+async function checkAIProgressAndStartPolling() {
+    try {
+        const response = await fetch(`/merge/${referenceId}/summary-progress`);
+        const data = await response.json();
+        
+        if (data.success) {
+            const progress = data.data;
+            updateProgressDisplay(progress);
+            
+            // Start polling if there are pending or processing summaries
+            if (progress.processing > 0 || progress.pending > 0) {
+                startProgressPolling();
+            } else if (progress.total > 0) {
+                // All done, hide the progress section after a brief display
+                setTimeout(() => {
+                    const progressSection = document.getElementById('aiSummaryProgressSection');
+                    if (progressSection) {
+                        progressSection.style.display = 'none';
+                    }
+                }, 3000);
+            } else {
+                // No summaries at all, hide immediately
+                const progressSection = document.getElementById('aiSummaryProgressSection');
+                if (progressSection) {
+                    progressSection.style.display = 'none';
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Failed to check AI progress:', error);
+        // Hide progress section on error
+        const progressSection = document.getElementById('aiSummaryProgressSection');
+        if (progressSection) {
+            progressSection.style.display = 'none';
+        }
+    }
+}
+
+function startProgressPolling() {
+    // Poll every 3 seconds
+    aiProgressPollInterval = setInterval(pollAIProgress, 3000);
+}
+
+function stopProgressPolling() {
+    if (aiProgressPollInterval) {
+        clearInterval(aiProgressPollInterval);
+        aiProgressPollInterval = null;
+    }
+}
+
+async function pollAIProgress() {
+    try {
+        const response = await fetch(`/merge/${referenceId}/summary-progress`);
+        const data = await response.json();
+        
+        if (data.success) {
+            const progress = data.data;
+            updateProgressDisplay(progress);
+            
+            // Stop polling if all done
+            if (progress.processing === 0 && progress.pending === 0) {
+                stopProgressPolling();
+                
+                // Show completion notification
+                if (progress.completed > 0) {
+                    showNotification('🤖 AI analysis completed for all changes!', 'success');
+                }
+                
+                // Hide progress section after 5 seconds
+                setTimeout(() => {
+                    const progressSection = document.getElementById('aiSummaryProgressSection');
+                    if (progressSection) {
+                        progressSection.style.transition = 'opacity 0.5s ease';
+                        progressSection.style.opacity = '0';
+                        setTimeout(() => {
+                            progressSection.style.display = 'none';
+                        }, 500);
+                    }
+                }, 5000);
+            }
+        }
+    } catch (error) {
+        console.error('Failed to poll AI progress:', error);
+    }
+}
+
+function updateProgressDisplay(progress) {
+    // Update counts
+    document.getElementById('aiProgressCompleted').textContent = progress.completed || 0;
+    document.getElementById('aiProgressTotal').textContent = progress.total || 0;
+    document.getElementById('aiProgressProcessing').textContent = progress.processing || 0;
+    document.getElementById('aiProgressFailed').textContent = progress.failed || 0;
+    
+    // Update progress bar
+    const percentage = progress.percentage || 0;
+    document.getElementById('aiProgressBar').style.width = percentage + '%';
+    document.getElementById('aiProgressPercentage').textContent = Math.round(percentage) + '%';
+    
+    // Show/hide retry button
+    const retryContainer = document.getElementById('retryAllContainer');
+    if (progress.failed > 0) {
+        retryContainer.style.display = 'flex';
+    } else {
+        retryContainer.style.display = 'none';
+    }
+}
+
+// Retry All Failed Summaries
+const retryAllBtn = document.getElementById('retryAllBtn');
+if (retryAllBtn) {
+    retryAllBtn.addEventListener('click', async function() {
+        const btn = this;
+        const originalHtml = btn.innerHTML;
+        
+        // Disable button and show loading
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Retrying...';
+        
+        try {
+            const response = await fetch(`/merge/${referenceId}/regenerate-summaries`, {
+                method: 'POST'
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                showNotification('Summary regeneration started', 'success');
+                
+                // Reset progress display
+                updateProgressDisplay({
+                    total: result.data.total_changes,
+                    completed: 0,
+                    processing: 0,
+                    failed: 0,
+                    pending: result.data.total_changes,
+                    percentage: 0
+                });
+                
+                // Start polling
+                startProgressPolling();
+                
+                // Re-enable button after a delay
+                setTimeout(() => {
+                    btn.disabled = false;
+                    btn.innerHTML = originalHtml;
+                }, 2000);
+            } else {
+                throw new Error(result.message || 'Failed to regenerate summaries');
+            }
+        } catch (error) {
+            console.error('Failed to regenerate summaries:', error);
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+            showNotification('Failed to regenerate summaries. Please try again.', 'error');
+        }
+    });
+}
+
+// Clean up polling on page unload
+window.addEventListener('beforeunload', function() {
+    stopProgressPolling();
+});
+</script>
+{% endblock %}

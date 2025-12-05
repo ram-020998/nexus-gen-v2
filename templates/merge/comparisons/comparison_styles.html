@@ -1,0 +1,468 @@
+<!-- Comparison Component Styles -->
+<style>
+/* Comparison Section Container */
+.comparison-section {
+    background: var(--bg-card);
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    margin-bottom: 2rem;
+    overflow: hidden;
+}
+
+.comparison-header {
+    background: rgba(139, 92, 246, 0.05);
+    border-bottom: 1px solid var(--border-color);
+    padding: 1.25rem;
+}
+
+.comparison-header h5 {
+    margin: 0;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.comparison-body {
+    padding: 1.5rem;
+}
+
+/* Subsections */
+.subsection {
+    margin-bottom: 2rem;
+}
+
+.subsection:last-child {
+    margin-bottom: 0;
+}
+
+.subsection h6 {
+    color: var(--text-primary);
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* Comparison Grid (Side by Side) */
+.comparison-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+}
+
+.version-column {
+    background: rgba(139, 92, 246, 0.03);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+}
+
+.version-header {
+    background: rgba(139, 92, 246, 0.1);
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.version-content {
+    padding: 1rem;
+}
+
+.vendor-column {
+    border-left: 3px solid #3b82f6;
+}
+
+.customer-column {
+    border-left: 3px solid #10b981;
+}
+
+/* Detail Items */
+.detail-item {
+    margin-bottom: 1rem;
+}
+
+.detail-item:last-child {
+    margin-bottom: 0;
+}
+
+.detail-item label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    margin-bottom: 0.5rem;
+    letter-spacing: 0.5px;
+}
+
+.value-display {
+    color: var(--text-primary);
+    margin: 0;
+    padding: 0.5rem;
+    background: var(--bg-primary);
+    border-radius: 4px;
+    word-break: break-word;
+}
+
+.value-display code {
+    color: var(--text-primary);
+    background: transparent;
+}
+
+/* Tables */
+.inputs-table,
+.params-table,
+.fields-table,
+.nodes-table,
+.relationships-table,
+.views-table,
+.actions-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+}
+
+.inputs-table thead,
+.params-table thead,
+.fields-table thead,
+.nodes-table thead,
+.relationships-table thead,
+.views-table thead,
+.actions-table thead {
+    background: rgba(139, 92, 246, 0.1);
+}
+
+.inputs-table th,
+.params-table th,
+.fields-table th,
+.nodes-table th,
+.relationships-table th,
+.views-table th,
+.actions-table th {
+    padding: 0.75rem;
+    text-align: left;
+    font-weight: 600;
+    color: var(--text-primary);
+    border-bottom: 2px solid var(--border-color);
+}
+
+.inputs-table td,
+.params-table td,
+.fields-table td,
+.nodes-table td,
+.relationships-table td,
+.views-table td,
+.actions-table td {
+    padding: 0.75rem;
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-secondary);
+}
+
+.inputs-table tbody tr:hover,
+.params-table tbody tr:hover,
+.fields-table tbody tr:hover,
+.nodes-table tbody tr:hover,
+.relationships-table tbody tr:hover,
+.views-table tbody tr:hover,
+.actions-table tbody tr:hover {
+    background: rgba(139, 92, 246, 0.05);
+}
+
+/* Highlighting Differences */
+.highlight-diff {
+    background: rgba(239, 68, 68, 0.2) !important;
+    border-left: 3px solid #ef4444;
+}
+
+.highlight-added {
+    background: rgba(16, 185, 129, 0.2) !important;
+    border-left: 3px solid #10b981;
+}
+
+.highlight-removed {
+    background: rgba(245, 158, 11, 0.2) !important;
+    border-left: 3px solid #f59e0b;
+    text-decoration: line-through;
+}
+
+/* Code Comparison */
+.code-comparison {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+}
+
+.code-column {
+    background: var(--bg-primary);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+}
+
+.code-header {
+    background: rgba(139, 92, 246, 0.1);
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.code-display {
+    margin: 0;
+    padding: 1rem;
+    max-height: 500px;
+    overflow-y: auto;
+    background: var(--bg-primary);
+    border: none;
+}
+
+.code-display code {
+    color: var(--text-primary);
+    font-family: 'Courier New', monospace;
+    font-size: 0.875rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+/* Tabs */
+.comparison-tabs {
+    border-bottom: 2px solid var(--border-color);
+    margin-bottom: 1.5rem;
+}
+
+.comparison-tabs .nav-link {
+    color: var(--text-secondary);
+    border: none;
+    border-bottom: 2px solid transparent;
+    padding: 0.75rem 1.5rem;
+    transition: all 0.2s;
+}
+
+.comparison-tabs .nav-link:hover {
+    color: var(--text-primary);
+    background: rgba(139, 92, 246, 0.05);
+}
+
+.comparison-tabs .nav-link.active {
+    color: var(--purple);
+    border-bottom-color: var(--purple);
+    background: rgba(139, 92, 246, 0.1);
+}
+
+.comparison-tab-content {
+    padding: 1rem 0;
+}
+
+/* Flow Diagrams */
+.flow-diagrams {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+.diagram-section {
+    background: var(--bg-primary);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+}
+
+.diagram-header {
+    background: rgba(139, 92, 246, 0.1);
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.mermaid-container {
+    padding: 1.5rem;
+    background: var(--bg-primary);
+    overflow-x: auto;
+}
+
+.mermaid-container .mermaid {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 150px;
+}
+
+.mermaid-container .mermaid svg {
+    max-width: 100% !important;
+    height: auto !important;
+    width: auto !important;
+    max-height: 300px !important;
+}
+
+/* Responsive */
+@media (max-width: 991px) {
+    .comparison-grid,
+    .code-comparison {
+        grid-template-columns: 1fr;
+    }
+    
+    .version-column {
+        margin-bottom: 1rem;
+    }
+}
+
+/* No Changes Message */
+.no-changes-message {
+    text-align: center;
+    padding: 2rem;
+    color: var(--text-secondary);
+    background: rgba(139, 92, 246, 0.05);
+    border-radius: 8px;
+    border: 1px dashed var(--border-color);
+}
+
+.no-changes-message i {
+    font-size: 3rem;
+    color: var(--green);
+    margin-bottom: 1rem;
+}
+
+/* Loading State */
+.comparison-loading {
+    text-align: center;
+    padding: 3rem;
+    color: var(--text-secondary);
+}
+
+.comparison-loading i {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+}
+
+/* Variables Grid - Modern Card Layout */
+.variables-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1rem;
+    padding: 0.5rem 0;
+}
+
+.variable-card {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1rem;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.variable-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.15);
+    border-color: rgba(139, 92, 246, 0.3);
+}
+
+.variable-card.highlight-added {
+    background: rgba(16, 185, 129, 0.1);
+    border-left: 3px solid #10b981;
+}
+
+.variable-card.highlight-diff {
+    background: rgba(239, 68, 68, 0.1);
+    border-left: 3px solid #ef4444;
+}
+
+.variable-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.variable-name {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--purple);
+    background: rgba(139, 92, 246, 0.1);
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.variable-badge {
+    font-size: 0.7rem;
+    padding: 0.25rem 0.5rem;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.variable-badge i {
+    font-size: 0.65rem;
+}
+
+.variable-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.variable-type {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+}
+
+.variable-type i {
+    color: var(--purple);
+    font-size: 0.75rem;
+    opacity: 0.7;
+}
+
+.variable-type span {
+    background: rgba(139, 92, 246, 0.05);
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.8rem;
+}
+
+/* Variables Table - Keep for backward compatibility */
+.variables-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+}
+
+.variables-table thead {
+    background: rgba(139, 92, 246, 0.1);
+}
+
+.variables-table th {
+    padding: 0.75rem;
+    text-align: left;
+    font-weight: 600;
+    color: var(--text-primary);
+    border-bottom: 2px solid var(--border-color);
+}
+
+.variables-table td {
+    padding: 0.75rem;
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-secondary);
+}
+
+.variables-table tbody tr:hover {
+    background: rgba(139, 92, 246, 0.05);
+}
+
+/* Responsive Variables Grid */
+@media (max-width: 768px) {
+    .variables-grid {
+        grid-template-columns: 1fr;
+    }
+}
+</style>

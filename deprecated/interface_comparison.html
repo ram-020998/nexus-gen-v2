@@ -1,0 +1,373 @@
+{% extends "merge/_base_comparison.html" %}
+{% from "merge/comparisons/_sail_diff.html" import render_sail_diff %}
+
+{% block comparison_content %}
+<!-- SAIL Code Comparison -->
+<div class="comparison-section mb-4">
+    <h5 class="section-title">
+        <i class="fas fa-code"></i> SAIL Code {% if change.classification == 'NO_CONFLICT' %}(Vendor Changes){% else %}Comparison{% endif %}
+    </h5>
+    
+    {% if change.classification == 'NO_CONFLICT' %}
+        <!-- NO_CONFLICT: Show only vendor changes -->
+        <div class="sail-diff-container single-view">
+            <div class="diff-side">
+                <div class="diff-side-header vendor">
+                    <i class="fas fa-code"></i> Vendor Version
+                </div>
+                <div class="diff-code-content">
+                    <pre><code class="language-sail">{{ vendor_object.sail_code or 'No SAIL code available' }}</code></pre>
+                </div>
+            </div>
+        </div>
+    {% else %}
+        <!-- CONFLICT/NEW/DELETED: Show comparison -->
+        {% if diff_hunks is defined %}
+            {{ render_sail_diff(diff_hunks, old_label='Customer' if customer_object else 'Base', new_label='Vendor', stats=diff_stats) }}
+        {% else %}
+            <div class="sail-diff-container">
+                <div class="diff-side">
+                    <div class="diff-side-header before">
+                        <i class="fas fa-minus-circle"></i> Before ({{ 'Customer' if customer_object else 'Base' }})
+                    </div>
+                    <div class="diff-code-content">
+                        <pre><code class="language-sail">{{ (customer_object.sail_code if customer_object else base_object.sail_code) or 'No SAIL code available' }}</code></pre>
+                    </div>
+                </div>
+                <div class="diff-side">
+                    <div class="diff-side-header after">
+                        <i class="fas fa-plus-circle"></i> After (Vendor)
+                    </div>
+                    <div class="diff-code-content">
+                        <pre><code class="language-sail">{{ vendor_object.sail_code or 'No SAIL code available' }}</code></pre>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+    {% endif %}
+</div>
+
+<!-- Parameters Comparison -->
+{% if interface_comparison %}
+<div class="comparison-section mb-4">
+    <h5 class="section-title">
+        <i class="fas fa-sliders-h"></i> Parameters
+    </h5>
+    
+    {% if interface_comparison.parameters_added %}
+    <div class="change-group added">
+        <h6 class="change-group-title">
+            <i class="fas fa-plus-circle"></i> Added Parameters ({{ interface_comparison.parameters_added|length }})
+        </h6>
+        <div class="change-list">
+            {% for param in interface_comparison.parameters_added %}
+            <div class="change-item">
+                <span class="param-name">{{ param.name }}</span>
+                <span class="param-type badge badge-secondary">{{ param.type }}</span>
+                {% if param.required %}
+                <span class="param-required badge badge-warning">Required</span>
+                {% else %}
+                <span class="param-optional badge badge-info">Optional</span>
+                {% endif %}
+                {% if param.default_value %}
+                <span class="param-default text-muted">Default: {{ param.default_value }}</span>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    
+    {% if interface_comparison.parameters_removed %}
+    <div class="change-group removed">
+        <h6 class="change-group-title">
+            <i class="fas fa-minus-circle"></i> Removed Parameters ({{ interface_comparison.parameters_removed|length }})
+        </h6>
+        <div class="change-list">
+            {% for param in interface_comparison.parameters_removed %}
+            <div class="change-item">
+                <span class="param-name">{{ param.name }}</span>
+                <span class="param-type badge badge-secondary">{{ param.type }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    
+    {% if interface_comparison.parameters_modified %}
+    <div class="change-group modified">
+        <h6 class="change-group-title">
+            <i class="fas fa-edit"></i> Modified Parameters ({{ interface_comparison.parameters_modified|length }})
+        </h6>
+        <div class="change-list">
+            {% for param in interface_comparison.parameters_modified %}
+            <div class="change-item">
+                <div class="param-name">{{ param.name }}</div>
+                <div class="param-changes">
+                    <div class="before-after">
+                        <span class="label">Before:</span>
+                        <span class="param-type badge badge-secondary">{{ param.before_type }}</span>
+                        {% if param.before_required %}
+                        <span class="badge badge-warning">Required</span>
+                        {% else %}
+                        <span class="badge badge-info">Optional</span>
+                        {% endif %}
+                        {% if param.before_default %}
+                        <span class="text-muted">Default: {{ param.before_default }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="before-after">
+                        <span class="label">After:</span>
+                        <span class="param-type badge badge-secondary">{{ param.after_type }}</span>
+                        {% if param.after_required %}
+                        <span class="badge badge-warning">Required</span>
+                        {% else %}
+                        <span class="badge badge-info">Optional</span>
+                        {% endif %}
+                        {% if param.after_default %}
+                        <span class="text-muted">Default: {{ param.after_default }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    
+    {% if not interface_comparison.parameters_added and not interface_comparison.parameters_removed and not interface_comparison.parameters_modified %}
+    <div class="no-changes">
+        <i class="fas fa-check-circle"></i> No parameter changes
+    </div>
+    {% endif %}
+</div>
+
+<!-- Security Comparison -->
+<div class="comparison-section mb-4">
+    <h5 class="section-title">
+        <i class="fas fa-shield-alt"></i> Security Settings
+    </h5>
+    
+    {% if interface_comparison.security_added %}
+    <div class="change-group added">
+        <h6 class="change-group-title">
+            <i class="fas fa-plus-circle"></i> Added Roles ({{ interface_comparison.security_added|length }})
+        </h6>
+        <div class="change-list">
+            {% for security in interface_comparison.security_added %}
+            <div class="change-item">
+                <span class="role-name">{{ security.role_name }}</span>
+                <span class="permission badge badge-primary">{{ security.permission_type }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    
+    {% if interface_comparison.security_removed %}
+    <div class="change-group removed">
+        <h6 class="change-group-title">
+            <i class="fas fa-minus-circle"></i> Removed Roles ({{ interface_comparison.security_removed|length }})
+        </h6>
+        <div class="change-list">
+            {% for security in interface_comparison.security_removed %}
+            <div class="change-item">
+                <span class="role-name">{{ security.role_name }}</span>
+                <span class="permission badge badge-primary">{{ security.permission_type }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    
+    {% if not interface_comparison.security_added and not interface_comparison.security_removed %}
+    <div class="no-changes">
+        <i class="fas fa-check-circle"></i> No security changes
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+<style>
+.comparison-section {
+    background: rgba(139, 92, 246, 0.05);
+    border-radius: 8px;
+    padding: 1.5rem;
+    border: 1px solid #374151;
+}
+
+.section-title {
+    margin: 0 0 1rem 0;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1.125rem;
+}
+
+.sail-diff-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.sail-diff-container.single-view {
+    grid-template-columns: 1fr;
+}
+
+.diff-side {
+    background: var(--bg-card);
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #374151;
+}
+
+.diff-side-header {
+    padding: 0.75rem 1rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.diff-side-header.before {
+    background: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+}
+
+.diff-side-header.after {
+    background: rgba(16, 185, 129, 0.2);
+    color: var(--green);
+}
+
+.diff-side-header.vendor {
+    background: rgba(139, 92, 246, 0.2);
+    color: var(--purple);
+}
+
+.diff-code-content {
+    padding: 1rem;
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.diff-code-content pre {
+    margin: 0;
+    background: transparent;
+}
+
+.diff-code-content code {
+    color: var(--text-primary);
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.change-group {
+    margin-top: 1rem;
+    padding: 1rem;
+    border-radius: 6px;
+}
+
+.change-group.added {
+    background: rgba(16, 185, 129, 0.1);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.change-group.removed {
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.change-group.modified {
+    background: rgba(251, 191, 36, 0.1);
+    border: 1px solid rgba(251, 191, 36, 0.3);
+}
+
+.change-group-title {
+    margin: 0 0 0.75rem 0;
+    color: var(--text-primary);
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.change-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.change-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.param-name, .role-name {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.param-changes {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+    width: 100%;
+}
+
+.before-after {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+}
+
+.before-after .label {
+    font-weight: 600;
+    color: var(--text-secondary);
+    min-width: 60px;
+}
+
+.no-changes {
+    padding: 1rem;
+    text-align: center;
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+.badge {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+}
+
+.badge-secondary {
+    background: rgba(107, 114, 128, 0.3);
+    color: #9ca3af;
+}
+
+.badge-warning {
+    background: rgba(251, 191, 36, 0.3);
+    color: #fbbf24;
+}
+
+.badge-info {
+    background: rgba(59, 130, 246, 0.3);
+    color: #3b82f6;
+}
+
+.badge-primary {
+    background: rgba(139, 92, 246, 0.3);
+    color: var(--purple);
+}
+</style>
+{% endblock %}

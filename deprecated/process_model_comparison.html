@@ -1,0 +1,554 @@
+{% extends "merge/_base_comparison.html" %}
+
+{% block comparison_content %}
+<!-- Summary Statistics -->
+<div class="comparison-section mb-4">
+    <h5 class="section-title">
+        <i class="fas fa-chart-bar"></i> Process Model Summary
+    </h5>
+    
+    <div class="summary-stats">
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-circle"></i>
+            </div>
+            <div class="stat-content">
+                <div class="stat-value">{{ vendor_object.total_nodes or 0 }}</div>
+                <div class="stat-label">Nodes</div>
+                {% if process_model_comparison %}
+                <div class="stat-change">
+                    {% if process_model_comparison.nodes_added|length > 0 %}
+                    <span class="change-added">+{{ process_model_comparison.nodes_added|length }}</span>
+                    {% endif %}
+                    {% if process_model_comparison.nodes_removed|length > 0 %}
+                    <span class="change-removed">-{{ process_model_comparison.nodes_removed|length }}</span>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-arrow-right"></i>
+            </div>
+            <div class="stat-content">
+                <div class="stat-value">{{ vendor_object.total_flows or 0 }}</div>
+                <div class="stat-label">Flows</div>
+                {% if process_model_comparison %}
+                <div class="stat-change">
+                    {% if process_model_comparison.flows_added|length > 0 %}
+                    <span class="change-added">+{{ process_model_comparison.flows_added|length }}</span>
+                    {% endif %}
+                    {% if process_model_comparison.flows_removed|length > 0 %}
+                    <span class="change-removed">-{{ process_model_comparison.flows_removed|length }}</span>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-dollar-sign"></i>
+            </div>
+            <div class="stat-content">
+                <div class="stat-value">{{ (vendor_object.variables|length) if vendor_object.variables else 0 }}</div>
+                <div class="stat-label">Variables</div>
+                {% if process_model_comparison and process_model_comparison.variables_changed %}
+                <div class="stat-change">
+                    <span class="change-modified">{{ process_model_comparison.variables_changed|length }} changed</span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-tachometer-alt"></i>
+            </div>
+            <div class="stat-content">
+                <div class="stat-value">{{ vendor_object.complexity_score or 0 }}</div>
+                <div class="stat-label">Complexity</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Mermaid Diagram -->
+{% if process_model_comparison and process_model_comparison.mermaid_diagram %}
+<div class="comparison-section mb-4">
+    <h5 class="section-title">
+        <i class="fas fa-project-diagram"></i> Process Flow Diagram {% if change.classification == 'NO_CONFLICT' %}(Vendor){% endif %}
+    </h5>
+    
+    {% if change.classification == 'NO_CONFLICT' %}
+        <!-- NO_CONFLICT: Show only vendor diagram -->
+        <div class="mermaid-container">
+            <pre class="mermaid">{{ process_model_comparison.mermaid_diagram }}</pre>
+        </div>
+    {% else %}
+        <!-- CONFLICT/NEW/DELETED: Show all diagrams with tabs -->
+        <div class="diagram-tabs">
+            <ul class="nav nav-tabs" role="tablist">
+                <li class="nav-item">
+                    <a class="nav-link" id="base-tab" data-toggle="tab" href="#base-diagram" role="tab">
+                        Base
+                    </a>
+                </li>
+                {% if customer_object %}
+                <li class="nav-item">
+                    <a class="nav-link" id="customer-tab" data-toggle="tab" href="#customer-diagram" role="tab">
+                        Customer
+                    </a>
+                </li>
+                {% endif %}
+                <li class="nav-item">
+                    <a class="nav-link active" id="vendor-tab" data-toggle="tab" href="#vendor-diagram" role="tab">
+                        Vendor
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" id="diff-tab" data-toggle="tab" href="#diff-diagram" role="tab">
+                        Diff
+                    </a>
+                </li>
+            </ul>
+            
+            <div class="tab-content">
+                <div class="tab-pane fade" id="base-diagram" role="tabpanel">
+                    <div class="mermaid-container">
+                        <pre class="mermaid">{{ process_model_comparison.base_mermaid or 'graph TD\n  Start[Start]\n  End[End]\n  Start --> End' }}</pre>
+                    </div>
+                </div>
+                
+                {% if customer_object %}
+                <div class="tab-pane fade" id="customer-diagram" role="tabpanel">
+                    <div class="mermaid-container">
+                        <pre class="mermaid">{{ process_model_comparison.customer_mermaid or 'graph TD\n  Start[Start]\n  End[End]\n  Start --> End' }}</pre>
+                    </div>
+                </div>
+                {% endif %}
+                
+                <div class="tab-pane fade show active" id="vendor-diagram" role="tabpanel">
+                    <div class="mermaid-container">
+                        <pre class="mermaid">{{ process_model_comparison.mermaid_diagram }}</pre>
+                    </div>
+                </div>
+                
+                <div class="tab-pane fade" id="diff-diagram" role="tabpanel">
+                    <div class="mermaid-container">
+                        <pre class="mermaid">{{ process_model_comparison.diff_mermaid or process_model_comparison.mermaid_diagram }}</pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- Detailed Comparison Tabs -->
+{% if process_model_comparison %}
+<div class="comparison-section mb-4">
+    <h5 class="section-title">
+        <i class="fas fa-list"></i> Detailed Changes
+    </h5>
+    
+    <div class="detail-tabs">
+        <ul class="nav nav-tabs" role="tablist">
+            <li class="nav-item">
+                <a class="nav-link active" id="nodes-tab" data-toggle="tab" href="#nodes-content" role="tab">
+                    <i class="fas fa-circle"></i> Nodes
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" id="flows-tab" data-toggle="tab" href="#flows-content" role="tab">
+                    <i class="fas fa-arrow-right"></i> Flows
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" id="variables-tab" data-toggle="tab" href="#variables-content" role="tab">
+                    <i class="fas fa-dollar-sign"></i> Variables
+                </a>
+            </li>
+        </ul>
+        
+        <div class="tab-content">
+            <!-- Nodes Tab -->
+            <div class="tab-pane fade show active" id="nodes-content" role="tabpanel">
+                <div class="tab-inner-content">
+    
+    {% if process_model_comparison.nodes_added %}
+    <div class="change-group added">
+        <h6 class="change-group-title">
+            <i class="fas fa-plus-circle"></i> Added Nodes ({{ process_model_comparison.nodes_added|length }})
+        </h6>
+        <div class="change-list">
+            {% for node in process_model_comparison.nodes_added %}
+            <div class="change-item">
+                <span class="node-name">{{ node.node_name or node.node_id }}</span>
+                <span class="node-type badge badge-secondary">{{ node.node_type }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    
+    {% if process_model_comparison.nodes_removed %}
+    <div class="change-group removed">
+        <h6 class="change-group-title">
+            <i class="fas fa-minus-circle"></i> Removed Nodes ({{ process_model_comparison.nodes_removed|length }})
+        </h6>
+        <div class="change-list">
+            {% for node in process_model_comparison.nodes_removed %}
+            <div class="change-item">
+                <span class="node-name">{{ node.node_name or node.node_id }}</span>
+                <span class="node-type badge badge-secondary">{{ node.node_type }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    
+    {% if process_model_comparison.nodes_modified %}
+    <div class="change-group modified">
+        <h6 class="change-group-title">
+            <i class="fas fa-edit"></i> Modified Nodes ({{ process_model_comparison.nodes_modified|length }})
+        </h6>
+        <div class="change-list">
+            {% for node in process_model_comparison.nodes_modified %}
+            <div class="change-item">
+                <div class="node-name">{{ node.node_name or node.node_id }}</div>
+                <span class="node-type badge badge-secondary">{{ node.node_type }}</span>
+                {% if node.properties_changed %}
+                <div class="node-properties">
+                    <span class="text-muted">Properties changed: {{ node.properties_changed|join(', ') }}</span>
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    
+    {% if not process_model_comparison.nodes_added and not process_model_comparison.nodes_removed and not process_model_comparison.nodes_modified %}
+    <div class="no-changes">
+        <i class="fas fa-check-circle"></i> No node changes
+    </div>
+    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Flows Tab -->
+            <div class="tab-pane fade" id="flows-content" role="tabpanel">
+                <div class="tab-inner-content">
+    
+    {% if process_model_comparison.flows_added %}
+    <div class="change-group added">
+        <h6 class="change-group-title">
+            <i class="fas fa-plus-circle"></i> Added Flows ({{ process_model_comparison.flows_added|length }})
+        </h6>
+        <div class="change-list">
+            {% for flow in process_model_comparison.flows_added %}
+            <div class="change-item">
+                <span class="flow-path">{{ flow.from_node_id }} → {{ flow.to_node_id }}</span>
+                {% if flow.flow_label %}
+                <span class="flow-label badge badge-info">{{ flow.flow_label }}</span>
+                {% endif %}
+                {% if flow.flow_condition %}
+                <span class="flow-condition text-muted">Condition: {{ flow.flow_condition }}</span>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    
+    {% if process_model_comparison.flows_removed %}
+    <div class="change-group removed">
+        <h6 class="change-group-title">
+            <i class="fas fa-minus-circle"></i> Removed Flows ({{ process_model_comparison.flows_removed|length }})
+        </h6>
+        <div class="change-list">
+            {% for flow in process_model_comparison.flows_removed %}
+            <div class="change-item">
+                <span class="flow-path">{{ flow.from_node_id }} → {{ flow.to_node_id }}</span>
+                {% if flow.flow_label %}
+                <span class="flow-label badge badge-info">{{ flow.flow_label }}</span>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    
+    {% if not process_model_comparison.flows_added and not process_model_comparison.flows_removed %}
+    <div class="no-changes">
+        <i class="fas fa-check-circle"></i> No flow changes
+    </div>
+    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Variables Tab -->
+            <div class="tab-pane fade" id="variables-content" role="tabpanel">
+                <div class="tab-inner-content">
+    {% if process_model_comparison.variables_changed %}
+    <div class="change-group modified">
+        <h6 class="change-group-title">
+            <i class="fas fa-edit"></i> Changed Variables ({{ process_model_comparison.variables_changed|length }})
+        </h6>
+        <div class="change-list">
+            {% for variable in process_model_comparison.variables_changed %}
+            <div class="change-item">
+                <span class="variable-name">{{ variable.variable_name }}</span>
+                <span class="variable-type badge badge-secondary">{{ variable.variable_type }}</span>
+                {% if variable.is_parameter %}
+                <span class="badge badge-primary">Parameter</span>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% else %}
+    <div class="no-changes">
+        <i class="fas fa-check-circle"></i> No variable changes
+    </div>
+    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<style>
+.comparison-section {
+    background: rgba(139, 92, 246, 0.05);
+    border-radius: 8px;
+    padding: 1.5rem;
+    border: 1px solid #374151;
+}
+
+.section-title {
+    margin: 0 0 1rem 0;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1.125rem;
+}
+
+.summary-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+.stat-card {
+    background: var(--bg-card);
+    border-radius: 8px;
+    padding: 1.5rem;
+    border: 1px solid #374151;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.stat-icon {
+    width: 50px;
+    height: 50px;
+    background: rgba(139, 92, 246, 0.2);
+    color: var(--purple);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+}
+
+.stat-content {
+    flex: 1;
+}
+
+.stat-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1;
+}
+
+.stat-label {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    margin-top: 0.25rem;
+}
+
+.stat-change {
+    margin-top: 0.5rem;
+    display: flex;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+}
+
+.change-added {
+    color: var(--green);
+}
+
+.change-removed {
+    color: #ef4444;
+}
+
+.change-modified {
+    color: #fbbf24;
+}
+
+.diagram-tabs, .detail-tabs {
+    margin-top: 1rem;
+}
+
+.nav-tabs {
+    border-bottom: 2px solid #374151;
+    margin-bottom: 1rem;
+}
+
+.nav-tabs .nav-link {
+    color: var(--text-secondary);
+    border: none;
+    padding: 0.75rem 1.5rem;
+    background: transparent;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.nav-tabs .nav-link:hover {
+    color: var(--text-primary);
+    border: none;
+}
+
+.nav-tabs .nav-link.active {
+    color: var(--purple);
+    background: rgba(139, 92, 246, 0.1);
+    border: none;
+    border-bottom: 2px solid var(--purple);
+}
+
+.tab-inner-content {
+    padding: 1rem 0;
+}
+
+.mermaid-container {
+    background: var(--bg-card);
+    border-radius: 8px;
+    padding: 2rem;
+    border: 1px solid #374151;
+    overflow-x: auto;
+}
+
+.mermaid {
+    display: flex;
+    justify-content: center;
+    min-height: 300px;
+}
+
+.change-group {
+    margin-top: 1rem;
+    padding: 1rem;
+    border-radius: 6px;
+}
+
+.change-group.added {
+    background: rgba(16, 185, 129, 0.1);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.change-group.removed {
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.change-group.modified {
+    background: rgba(251, 191, 36, 0.1);
+    border: 1px solid rgba(251, 191, 36, 0.3);
+}
+
+.change-group-title {
+    margin: 0 0 0.75rem 0;
+    color: var(--text-primary);
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.change-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.change-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.node-name, .flow-path, .variable-name {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.node-properties {
+    width: 100%;
+    margin-top: 0.25rem;
+    font-size: 0.875rem;
+}
+
+.no-changes {
+    padding: 1rem;
+    text-align: center;
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+.badge {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+}
+
+.badge-secondary {
+    background: rgba(107, 114, 128, 0.3);
+    color: #9ca3af;
+}
+
+.badge-info {
+    background: rgba(59, 130, 246, 0.3);
+    color: #3b82f6;
+}
+
+.badge-primary {
+    background: rgba(139, 92, 246, 0.3);
+    color: var(--purple);
+}
+</style>
+
+<!-- Include Mermaid.js -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+    mermaid.initialize({ 
+        startOnLoad: true,
+        theme: 'dark',
+        themeVariables: {
+            primaryColor: '#8b5cf6',
+            primaryTextColor: '#fff',
+            primaryBorderColor: '#6d28d9',
+            lineColor: '#8b5cf6',
+            secondaryColor: '#14b8a6',
+            tertiaryColor: '#374151'
+        }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,142 @@
+<!-- Interface Comparison Component -->
+{% if comparison and comparison.object_type == 'Interface' %}
+<div class="comparison-section">
+    <div class="comparison-header">
+        <h5><i class="fas fa-window-maximize"></i> Interface Details</h5>
+    </div>
+    
+    <div class="comparison-body">
+        <!-- Tabs for Parameters and SAIL Code -->
+        <ul class="nav nav-tabs comparison-tabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="interface-params-tab" data-bs-toggle="tab" data-bs-target="#interface-params-content" type="button" role="tab">
+                    <i class="fas fa-sliders-h"></i> Parameters
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="interface-code-tab" data-bs-toggle="tab" data-bs-target="#interface-code-content" type="button" role="tab">
+                    <i class="fas fa-code"></i> SAIL Code
+                </button>
+            </li>
+        </ul>
+        
+        <div class="tab-content comparison-tab-content">
+            <!-- Parameters Tab -->
+            <div class="tab-pane fade show active" id="interface-params-content" role="tabpanel">
+                <div class="comparison-grid">
+                <!-- Left side: old version -->
+                <div class="version-column vendor-column">
+                    <div class="version-header">
+                        <span class="badge bg-secondary">{{ comparison.old_label or 'Base Version' }}</span>
+                    </div>
+                    <div class="version-content">
+                        {% if comparison.customer.parameters %}
+                        <table class="params-table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Type</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for param in comparison.customer.parameters %}
+                                <tr>
+                                    <td>{{ param.name }}</td>
+                                    <td>{{ param.type }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        {% else %}
+                        <p class="text-muted">No parameters</p>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <!-- Right side: new version -->
+                <div class="version-column customer-column">
+                    <div class="version-header">
+                        <span class="badge bg-info">{{ comparison.new_label or 'New Version' }}</span>
+                    </div>
+                    <div class="version-content">
+                        {% if comparison.vendor.parameters %}
+                        <table class="params-table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Type</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for param in comparison.vendor.parameters %}
+                                {% set old_param = comparison.customer.parameters | selectattr('name', 'equalto', param.name) | first %}
+                                <tr class="{% if not old_param %}highlight-added{% elif old_param.type != param.type %}highlight-diff{% endif %}">
+                                    <td>{{ param.name }}</td>
+                                    <td>{{ param.type }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        {% else %}
+                        <p class="text-muted">No parameters</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            </div>
+            
+            <!-- SAIL Code Tab -->
+            <div class="tab-pane fade" id="interface-code-content" role="tabpanel">
+            {% if comparison.diff_hunks is defined %}
+                {% from "merge/comparisons/_sail_diff.html" import render_sail_diff %}
+                {{ render_sail_diff(comparison.diff_hunks, old_label=comparison.old_label, new_label=comparison.new_label, stats=comparison.diff_stats) }}
+            {% else %}
+                <div class="code-diff-container">
+                    <!-- Left side: old version -->
+                    <div class="code-diff-column vendor-version">
+                        <div class="code-diff-header">
+                            <div class="code-diff-label">
+                                <i class="fas fa-cube"></i>
+                                <span>{{ comparison.old_label or 'Base Version' }}</span>
+                            </div>
+                            <span class="code-diff-badge vendor">{{ comparison.old_label or 'Base Version' }}</span>
+                        </div>
+                        <div class="code-diff-body">
+                            {% if comparison.customer.sail_code %}
+                            <pre><code class="language-sail">{{ comparison.customer.sail_code | e }}</code></pre>
+                            {% else %}
+                            <div class="code-empty-state">
+                                <i class="fas fa-code"></i>
+                                <p>No code available</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <!-- Right side: new version -->
+                    <div class="code-diff-column customer-version">
+                        <div class="code-diff-header">
+                            <div class="code-diff-label">
+                                <i class="fas fa-cube"></i>
+                                <span>{{ comparison.new_label or 'New Version' }}</span>
+                            </div>
+                            <span class="code-diff-badge customer">{{ comparison.new_label or 'New Version' }}</span>
+                        </div>
+                        <div class="code-diff-body">
+                            {% if comparison.vendor.sail_code %}
+                            <pre><code class="language-sail">{{ comparison.vendor.sail_code | e }}</code></pre>
+                            {% else %}
+                            <div class="code-empty-state">
+                                <i class="fas fa-code"></i>
+                                <p>No code available</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}

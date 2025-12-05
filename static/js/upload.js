@@ -96,14 +96,26 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(response => response.json())
         .then(data => {
             clearInterval(progressInterval);
+            console.log('Upload response:', data); // Debug log
+            
             if (data.success) {
                 showSuccess();
                 DocFlow.showNotification('File uploaded and processed successfully!', 'success');
                 
                 // Redirect to results page after a short delay
-                setTimeout(() => {
-                    window.location.href = `/breakdown/results/${data.request_id}`;
-                }, 1500);
+                // Access request_id from data.data since json_success wraps it
+                const requestId = data.data?.request_id || data.request_id;
+                console.log('Request ID:', requestId); // Debug log
+                
+                if (requestId) {
+                    setTimeout(() => {
+                        window.location.href = `/breakdown/results/${requestId}`;
+                    }, 1500);
+                } else {
+                    console.error('No request_id found in response:', data);
+                    DocFlow.showNotification('Upload succeeded but no request ID returned', 'warning');
+                    resetUpload();
+                }
             } else {
                 throw new Error(data.error || 'Upload failed');
             }

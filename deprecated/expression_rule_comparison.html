@@ -1,0 +1,380 @@
+{% extends "merge/_base_comparison.html" %}
+{% from "merge/comparisons/_sail_diff.html" import render_sail_diff %}
+
+{% block comparison_content %}
+<!-- SAIL Code Comparison -->
+<div class="comparison-section mb-4">
+    <h5 class="section-title">
+        <i class="fas fa-code"></i> SAIL Code {% if change.classification == 'NO_CONFLICT' %}(Vendor Changes){% else %}Comparison{% endif %}
+    </h5>
+    
+    {% if change.classification == 'NO_CONFLICT' %}
+        <!-- NO_CONFLICT: Show only vendor changes -->
+        <div class="sail-diff-container single-view">
+            <div class="diff-side">
+                <div class="diff-side-header vendor">
+                    <i class="fas fa-code"></i> Vendor Version
+                </div>
+                <div class="diff-code-content">
+                    <pre><code class="language-sail">{{ vendor_object.sail_code or 'No SAIL code available' }}</code></pre>
+                </div>
+            </div>
+        </div>
+    {% else %}
+        <!-- CONFLICT/NEW/DELETED: Show comparison -->
+        {% if diff_hunks is defined %}
+            {{ render_sail_diff(diff_hunks, old_label='Vendor', new_label='Customer' if customer_object else 'Base', stats=diff_stats) }}
+        {% else %}
+            <div class="sail-diff-container">
+                <div class="diff-side">
+                    <div class="diff-side-header before">
+                        <i class="fas fa-minus-circle"></i> Before ({{ 'Customer' if customer_object else 'Base' }})
+                    </div>
+                    <div class="diff-code-content">
+                        <pre><code class="language-sail">{{ (customer_object.sail_code if customer_object else base_object.sail_code) or 'No SAIL code available' }}</code></pre>
+                    </div>
+                </div>
+                <div class="diff-side">
+                    <div class="diff-side-header after">
+                        <i class="fas fa-plus-circle"></i> After (Vendor)
+                    </div>
+                    <div class="diff-code-content">
+                        <pre><code class="language-sail">{{ vendor_object.sail_code or 'No SAIL code available' }}</code></pre>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+    {% endif %}
+</div>
+
+<!-- Rule Inputs Comparison -->
+{% if expression_rule_comparison %}
+<div class="comparison-section mb-4">
+    <h5 class="section-title">
+        <i class="fas fa-sign-in-alt"></i> Rule Inputs
+    </h5>
+    
+    {% if expression_rule_comparison.inputs_added %}
+    <div class="change-group added">
+        <h6 class="change-group-title">
+            <i class="fas fa-plus-circle"></i> Added Inputs ({{ expression_rule_comparison.inputs_added|length }})
+        </h6>
+        <div class="change-list">
+            {% for input in expression_rule_comparison.inputs_added %}
+            <div class="change-item">
+                <span class="input-name">{{ input.name }}</span>
+                <span class="input-type badge badge-secondary">{{ input.type }}</span>
+                {% if input.required %}
+                <span class="input-required badge badge-warning">Required</span>
+                {% else %}
+                <span class="input-optional badge badge-info">Optional</span>
+                {% endif %}
+                {% if input.default_value %}
+                <span class="input-default text-muted">Default: {{ input.default_value }}</span>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    
+    {% if expression_rule_comparison.inputs_removed %}
+    <div class="change-group removed">
+        <h6 class="change-group-title">
+            <i class="fas fa-minus-circle"></i> Removed Inputs ({{ expression_rule_comparison.inputs_removed|length }})
+        </h6>
+        <div class="change-list">
+            {% for input in expression_rule_comparison.inputs_removed %}
+            <div class="change-item">
+                <span class="input-name">{{ input.name }}</span>
+                <span class="input-type badge badge-secondary">{{ input.type }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    
+    {% if expression_rule_comparison.inputs_modified %}
+    <div class="change-group modified">
+        <h6 class="change-group-title">
+            <i class="fas fa-edit"></i> Modified Inputs ({{ expression_rule_comparison.inputs_modified|length }})
+        </h6>
+        <div class="change-list">
+            {% for input in expression_rule_comparison.inputs_modified %}
+            <div class="change-item">
+                <div class="input-name">{{ input.name }}</div>
+                <div class="input-changes">
+                    <div class="before-after">
+                        <span class="label">Before:</span>
+                        <span class="input-type badge badge-secondary">{{ input.before_type }}</span>
+                        {% if input.before_required %}
+                        <span class="badge badge-warning">Required</span>
+                        {% else %}
+                        <span class="badge badge-info">Optional</span>
+                        {% endif %}
+                        {% if input.before_default %}
+                        <span class="text-muted">Default: {{ input.before_default }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="before-after">
+                        <span class="label">After:</span>
+                        <span class="input-type badge badge-secondary">{{ input.after_type }}</span>
+                        {% if input.after_required %}
+                        <span class="badge badge-warning">Required</span>
+                        {% else %}
+                        <span class="badge badge-info">Optional</span>
+                        {% endif %}
+                        {% if input.after_default %}
+                        <span class="text-muted">Default: {{ input.after_default }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    
+    {% if not expression_rule_comparison.inputs_added and not expression_rule_comparison.inputs_removed and not expression_rule_comparison.inputs_modified %}
+    <div class="no-changes">
+        <i class="fas fa-check-circle"></i> No input changes
+    </div>
+    {% endif %}
+</div>
+
+<!-- Output Type Comparison -->
+<div class="comparison-section mb-4">
+    <h5 class="section-title">
+        <i class="fas fa-sign-out-alt"></i> Output Type
+    </h5>
+    
+    {% if expression_rule_comparison.output_type_changed %}
+    <div class="output-comparison">
+        <div class="output-item">
+            <span class="output-label">Before:</span>
+            <span class="output-type badge badge-secondary">{{ expression_rule_comparison.before_output_type or 'Not specified' }}</span>
+        </div>
+        <div class="output-arrow">
+            <i class="fas fa-arrow-right"></i>
+        </div>
+        <div class="output-item">
+            <span class="output-label">After:</span>
+            <span class="output-type badge badge-secondary">{{ expression_rule_comparison.after_output_type or 'Not specified' }}</span>
+        </div>
+    </div>
+    {% else %}
+    <div class="no-changes">
+        <i class="fas fa-check-circle"></i> No output type changes
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+<style>
+.comparison-section {
+    background: rgba(139, 92, 246, 0.05);
+    border-radius: 8px;
+    padding: 1.5rem;
+    border: 1px solid #374151;
+}
+
+.section-title {
+    margin: 0 0 1rem 0;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1.125rem;
+}
+
+.sail-diff-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.sail-diff-container.single-view {
+    grid-template-columns: 1fr;
+}
+
+.diff-side {
+    background: var(--bg-card);
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #374151;
+}
+
+.diff-side-header {
+    padding: 0.75rem 1rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.diff-side-header.before {
+    background: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+}
+
+.diff-side-header.after {
+    background: rgba(16, 185, 129, 0.2);
+    color: var(--green);
+}
+
+.diff-side-header.vendor {
+    background: rgba(139, 92, 246, 0.2);
+    color: var(--purple);
+}
+
+.diff-code-content {
+    padding: 1rem;
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.diff-code-content pre {
+    margin: 0;
+    background: transparent;
+}
+
+.diff-code-content code {
+    color: var(--text-primary);
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.change-group {
+    margin-top: 1rem;
+    padding: 1rem;
+    border-radius: 6px;
+}
+
+.change-group.added {
+    background: rgba(16, 185, 129, 0.1);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.change-group.removed {
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.change-group.modified {
+    background: rgba(251, 191, 36, 0.1);
+    border: 1px solid rgba(251, 191, 36, 0.3);
+}
+
+.change-group-title {
+    margin: 0 0 0.75rem 0;
+    color: var(--text-primary);
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.change-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.change-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.input-name {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.input-changes {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+    width: 100%;
+}
+
+.before-after {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+}
+
+.before-after .label {
+    font-weight: 600;
+    color: var(--text-secondary);
+    min-width: 60px;
+}
+
+.output-comparison {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 6px;
+}
+
+.output-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.output-label {
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.output-type {
+    font-size: 1rem;
+    padding: 0.5rem 1rem;
+}
+
+.output-arrow {
+    color: var(--purple);
+    font-size: 1.5rem;
+}
+
+.no-changes {
+    padding: 1rem;
+    text-align: center;
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+.badge {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+}
+
+.badge-secondary {
+    background: rgba(107, 114, 128, 0.3);
+    color: #9ca3af;
+}
+
+.badge-warning {
+    background: rgba(251, 191, 36, 0.3);
+    color: #fbbf24;
+}
+
+.badge-info {
+    background: rgba(59, 130, 246, 0.3);
+    color: #3b82f6;
+}
+</style>
+{% endblock %}

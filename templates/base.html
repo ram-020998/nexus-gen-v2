@@ -7,13 +7,72 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/docflow.css') }}" rel="stylesheet">
+    <style>
+        /* Reduce main content top padding */
+        .main-content {
+            padding-top: 1rem !important;
+        }
+        
+        .breadcrumb-nav {
+            padding: 0;
+            margin-bottom: 0.75rem;
+        }
+        
+        .breadcrumb {
+            background: transparent;
+            padding: 0;
+            margin-bottom: 0;
+            font-size: 0.8125rem;
+        }
+        
+        .breadcrumb-item {
+            display: inline-flex;
+            align-items: center;
+        }
+        
+        .breadcrumb-item + .breadcrumb-item::before {
+            content: "/";
+            color: var(--text-secondary);
+            padding: 0 0.5rem;
+            opacity: 0.5;
+        }
+        
+        .breadcrumb-item a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+        }
+        
+        .breadcrumb-item a:hover {
+            color: var(--blue-3);
+            background: rgba(107, 107, 247, 0.1);
+        }
+        
+        .breadcrumb-item a i {
+            font-size: 0.75rem;
+        }
+        
+        .breadcrumb-item.active {
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+        
+        /* Reduce content header spacing */
+        .content-header {
+            margin-bottom: 1.5rem !important;
+        }
+        
+        .content-header h1 {
+            margin-bottom: 0.25rem !important;
+        }
+    </style>
 </head>
 <body>
-    <!-- Theme Toggle -->
-    <button class="theme-toggle" id="themeToggle" title="Toggle theme">
-        <i class="fas fa-sun"></i>
-    </button>
-
     <div class="app-container">
         <!-- Sidebar -->
         <nav class="sidebar" id="sidebar">
@@ -25,29 +84,38 @@
             </div>
             
             <div class="sidebar-menu">
-                <a href="{{ url_for('dashboard') }}" class="menu-item {% if request.endpoint == 'dashboard' %}active{% endif %}">
+                <a href="{{ url_for('dashboard') }}" class="menu-item">
                     <i class="fas fa-home"></i>
                     <span>Dashboard</span>
                 </a>
-                <!-- <a href="{{ url_for('breakdown.index') }}" class="menu-item {% if request.endpoint == 'breakdown.index' %}active{% endif %}">
+                <a href="{{ url_for('merge.sessions') }}" class="menu-item">
+                    <i class="fas fa-code-branch"></i>
+                    <span>Three-Way Merge</span>
+                </a>
+                <!-- <a href="{{ url_for('breakdown.index') }}" class="menu-item">
                     <i class="fas fa-upload"></i>
                     <span>Spec Breakdown</span>
                 </a>
-                <a href="{{ url_for('create.index') }}" class="menu-item {% if request.endpoint == 'create.index' %}active{% endif %}">
+                <a href="{{ url_for('create.index') }}" class="menu-item">
                     <i class="fas fa-file-alt"></i>
                     <span>Create Design Doc</span>
                 </a>
-                <a href="{{ url_for('verify.index') }}" class="menu-item {% if request.endpoint == 'verify.index' %}active{% endif %}">
+                <a href="{{ url_for('verify.index') }}" class="menu-item">
                     <i class="fas fa-check-circle"></i>
                     <span>Review Design Doc</span>
                 </a>
-                <a href="{{ url_for('chat.index') }}" class="menu-item {% if request.endpoint == 'chat.index' %}active{% endif %}">
+                <a href="{{ url_for('chat.index') }}" class="menu-item">
                     <i class="fas fa-comments"></i>
                     <span>AI Chat</span>
                 </a> -->
-                <a href="{{ url_for('process.history') }}" class="menu-item {% if request.endpoint == 'process.history' %}active{% endif %}">
+                <a href="{{ url_for('process.history') }}" class="menu-item">
                     <i class="fas fa-history"></i>
                     <span>Process History</span>
+                </a>
+
+                <a href="{{ url_for('settings.settings_page') }}" class="menu-item">
+                    <i class="fas fa-cog"></i>
+                    <span>Settings</span>
                 </a>
             </div>
             
@@ -60,6 +128,8 @@
         
         <!-- Main Content -->
         <main class="main-content" id="mainContent">
+            {% block breadcrumbs %}{% endblock %}
+            
             <div class="content-header">
                 <h1>{% block page_title %}{% endblock %}</h1>
                 <p class="content-subtitle">{% block page_subtitle %}{% endblock %}</p>
@@ -73,6 +143,7 @@
     
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/sail-highlighter.js') }}"></script>
     {% block scripts %}{% endblock %}
 </body>
 </html>

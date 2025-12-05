@@ -1,0 +1,201 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<connectedSystemHaul xmlns:a="http://www.appian.com/ae/types/2009">
+    <versionUuid>_a-0000ed52-9d71-8000-9cc3-011c48011c48_413914</versionUuid>
+    <connectedSystem>
+        <name>AS RM CS SharePoint</name>
+        <uuid>_a-0000ed52-a319-8000-9df0-011c48011c48_14999407</uuid>
+        <description>Connected System to integrate with SharePoint using SharePoint API</description>
+        <visibility>
+            <advertise>false</advertise>
+            <hierarchy>true</hierarchy>
+            <indexable>true</indexable>
+            <quota>false</quota>
+            <searchable>true</searchable>
+            <system>false</system>
+            <unlogged>false</unlogged>
+        </visibility>
+        <sharedConfigParameters>
+            <a:Dictionary xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                <configurationDescriptor xsi:type="a:Dictionary">
+                    <types xsi:type="a:Dictionary">
+                        <RootType xsi:type="a:Dictionary">
+                            <properties xsi:type="a:Dictionary?list">
+<item>
+    <description xsi:nil="true" xsi:type="a:Null"/>
+    <refresh xsi:type="xsd:string">NEVER</refresh>
+    <placeholder xsi:nil="true" xsi:type="a:Null"/>
+    <isImportCustomizable xsi:type="xsd:boolean">false</isImportCustomizable>
+    <instructionText xsi:nil="true" xsi:type="a:Null"/>
+    <isExpressionable xsi:type="xsd:boolean">false</isExpressionable>
+    <label xsi:nil="true" xsi:type="a:Null"/>
+    <isRequired xsi:type="xsd:boolean">false</isRequired>
+    <displayHint xsi:type="xsd:string">NORMAL</displayHint>
+    <hasTransientChoices xsi:type="xsd:boolean">false</hasTransientChoices>
+    <key xsi:type="xsd:string">instructions</key>
+    <isHidden xsi:type="xsd:boolean">false</isHidden>
+    <isMasked xsi:type="xsd:boolean">false</isMasked>
+    <isReadOnly xsi:type="xsd:boolean">true</isReadOnly>
+    <type xsi:type="xsd:string">STRING</type>
+</item>
+<item>
+    <description xsi:nil="true" xsi:type="a:Null"/>
+    <refresh xsi:type="xsd:string">NEVER</refresh>
+    <placeholder xsi:type="xsd:string">https://yourInstance.sharepoint.com</placeholder>
+    <isImportCustomizable xsi:type="xsd:boolean">true</isImportCustomizable>
+    <instructionText xsi:nil="true" xsi:type="a:Null"/>
+    <isExpressionable xsi:type="xsd:boolean">false</isExpressionable>
+    <label xsi:type="xsd:string">Instance URL</label>
+    <isRequired xsi:type="xsd:boolean">true</isRequired>
+    <displayHint xsi:type="xsd:string">NORMAL</displayHint>
+    <hasTransientChoices xsi:type="xsd:boolean">false</hasTransientChoices>
+    <key xsi:type="xsd:string">instanceUrl</key>
+    <isHidden xsi:type="xsd:boolean">false</isHidden>
+    <isMasked xsi:type="xsd:boolean">false</isMasked>
+    <isReadOnly xsi:type="xsd:boolean">false</isReadOnly>
+    <type xsi:type="xsd:string">STRING</type>
+</item>
+<item>
+    <description xsi:nil="true" xsi:type="a:Null"/>
+    <refresh xsi:type="xsd:string">NEVER</refresh>
+    <placeholder xsi:nil="true" xsi:type="a:Null"/>
+    <isImportCustomizable xsi:type="xsd:boolean">true</isImportCustomizable>
+    <instructionText xsi:type="xsd:string">Generate a Client ID using the instructions above.</instructionText>
+    <isExpressionable xsi:type="xsd:boolean">false</isExpressionable>
+    <label xsi:type="xsd:string">Application (Client) ID</label>
+    <isRequired xsi:type="xsd:boolean">true</isRequired>
+    <displayHint xsi:type="xsd:string">NORMAL</displayHint>
+    <hasTransientChoices xsi:type="xsd:boolean">false</hasTransientChoices>
+    <key xsi:type="xsd:string">applicationId</key>
+    <isHidden xsi:type="xsd:boolean">false</isHidden>
+    <isMasked xsi:type="xsd:boolean">false</isMasked>
+    <isReadOnly xsi:type="xsd:boolean">false</isReadOnly>
+    <type xsi:type="xsd:string">STRING</type>
+</item>
+<item>
+    <description xsi:nil="true" xsi:type="a:Null"/>
+    <refresh xsi:type="xsd:string">NEVER</refresh>
+    <placeholder xsi:nil="true" xsi:type="a:Null"/>
+    <isImportCustomizable xsi:type="xsd:boolean">true</isImportCustomizable>
+    <instructionText xsi:type="xsd:string">In the Azure portal, navigate to "Microsoft Entra ID". Select "Manage" and then select "App registrations". Under "App registrations" select the "Application (Client) ID" entered above. The Directory (Tenant ID) is displayed in the Overview section.</instructionText>
+    <isExpressionable xsi:type="xsd:boolean">false</isExpressionable>
+    <label xsi:type="xsd:string">Directory (Tenant) ID</label>
+    <isRequired xsi:type="xsd:boolean">true</isRequired>
+    <displayHint xsi:type="xsd:string">NORMAL</displayHint>
+    <hasTransientChoices xsi:type="xsd:boolean">false</hasTransientChoices>
+    <key xsi:type="xsd:string">directoryId</key>
+    <isHidden xsi:type="xsd:boolean">false</isHidden>
+    <isMasked xsi:type="xsd:boolean">false</isMasked>
+    <isReadOnly xsi:type="xsd:boolean">false</isReadOnly>
+    <type xsi:type="xsd:string">STRING</type>
+</item>
+<item>
+    <description xsi:nil="true" xsi:type="a:Null"/>
+    <refresh xsi:type="xsd:string">NEVER</refresh>
+    <placeholder xsi:nil="true" xsi:type="a:Null"/>
+    <isImportCustomizable xsi:type="xsd:boolean">true</isImportCustomizable>
+    <instructionText xsi:type="xsd:string">The RSA private key in .PEM format</instructionText>
+    <isExpressionable xsi:type="xsd:boolean">false</isExpressionable>
+    <label xsi:type="xsd:string">Private Key</label>
+    <isRequired xsi:type="xsd:boolean">true</isRequired>
+    <displayHint xsi:type="xsd:string">NORMAL</displayHint>
+    <key xsi:type="xsd:string">privateKey</key>
+    <isHidden xsi:type="xsd:boolean">false</isHidden>
+    <isMasked xsi:type="xsd:boolean">true</isMasked>
+    <isReadOnly xsi:type="xsd:boolean">false</isReadOnly>
+    <type xsi:type="xsd:string">ENCRYPTED</type>
+</item>
+<item>
+    <description xsi:nil="true" xsi:type="a:Null"/>
+    <refresh xsi:type="xsd:string">NEVER</refresh>
+    <placeholder xsi:nil="true" xsi:type="a:Null"/>
+    <isImportCustomizable xsi:type="xsd:boolean">true</isImportCustomizable>
+    <instructionText xsi:type="xsd:string">Customers are recommended to use an encrypted private key with a dedicated password.</instructionText>
+    <isExpressionable xsi:type="xsd:boolean">false</isExpressionable>
+    <label xsi:type="xsd:string">Password</label>
+    <isRequired xsi:type="xsd:boolean">false</isRequired>
+    <displayHint xsi:type="xsd:string">NORMAL</displayHint>
+    <key xsi:type="xsd:string">password</key>
+    <isHidden xsi:type="xsd:boolean">false</isHidden>
+    <isMasked xsi:type="xsd:boolean">true</isMasked>
+    <isReadOnly xsi:type="xsd:boolean">false</isReadOnly>
+    <type xsi:type="xsd:string">ENCRYPTED</type>
+</item>
+<item>
+    <description xsi:nil="true" xsi:type="a:Null"/>
+    <refresh xsi:type="xsd:string">NEVER</refresh>
+    <placeholder xsi:nil="true" xsi:type="a:Null"/>
+    <isImportCustomizable xsi:type="xsd:boolean">true</isImportCustomizable>
+    <instructionText xsi:type="xsd:string">In the Azure portal, navigate to "Microsoft Entra ID". Select "Manage" and then select "App registrations". In "App registrations", select your application. On the app page, select "Manage" and then select "Certificates and secrets". The Thumbprint is displayed in the "Certificates" section.</instructionText>
+    <isExpressionable xsi:type="xsd:boolean">false</isExpressionable>
+    <label xsi:type="xsd:string">Thumbprint</label>
+    <isRequired xsi:type="xsd:boolean">true</isRequired>
+    <displayHint xsi:type="xsd:string">NORMAL</displayHint>
+    <hasTransientChoices xsi:type="xsd:boolean">false</hasTransientChoices>
+    <key xsi:type="xsd:string">thumbprint</key>
+    <isHidden xsi:type="xsd:boolean">false</isHidden>
+    <isMasked xsi:type="xsd:boolean">false</isMasked>
+    <isReadOnly xsi:type="xsd:boolean">false</isReadOnly>
+    <type xsi:type="xsd:string">STRING</type>
+</item>
+                            </properties>
+                            <name xsi:type="xsd:string">RootType</name>
+                        </RootType>
+                    </types>
+                    <state xsi:type="a:Dictionary">
+                        <a:entry key="#t" xsi:type="xsd:string">#/types/RootType</a:entry>
+                        <applicationId xsi:type="xsd:string">01c046d5-aa01-4ff6-9457-2f017d222097</applicationId>
+                        <thumbprint xsi:type="xsd:string">CA395FDB29F2F7C1E442EA0FC97D68D7411E1BD8</thumbprint>
+                        <instructions xsi:type="xsd:string">Follow these instructions to generate Client Credentials using SharePoint "App-Only" permissions: https://docs.microsoft.com/en-us/sharepoint/dev/solution-guidance/security-apponly-azuread</instructions>
+                        <directoryId xsi:type="xsd:string">37f0ecc1-aca2-4411-b5ef-566fd86daea2</directoryId>
+                        <privateKey xsi:type="a:EncryptedText"/>
+                        <instanceUrl xsi:type="xsd:string">https://itregappian.sharepoint.com</instanceUrl>
+                        <password xsi:type="a:EncryptedText"/>
+                    </state>
+                    <connectedSystemTemplateKey xsi:type="xsd:string">SharePointClientCredentialsCertificate</connectedSystemTemplateKey>
+                </configurationDescriptor>
+                <url xsi:type="xsd:string"/>
+                <isInheritedUrlOptionSelected xsi:type="xsd:boolean">false</isInheritedUrlOptionSelected>
+                <isCstOAuth xsi:type="xsd:boolean">false</isCstOAuth>
+                <authType xsi:type="xsd:string">CSTF Auth</authType>
+                <authDetails xsi:type="a:Variant?list"/>
+            </a:Dictionary>
+        </sharedConfigParameters>
+        <logoChoice></logoChoice>
+        <integrationType>plugin.[SharePoint].[SharePoint]</integrationType>
+    </connectedSystem>
+    <roleMap public="true">
+        <role inherit="false" allowForAll="false" name="readers">
+            <users/>
+            <groups>
+                <groupUuid>_e-0000e583-8ce5-8000-9b04-01075c01075c_612</groupUuid>
+            </groups>
+        </role>
+        <role inherit="false" allowForAll="false" name="authors">
+            <users/>
+            <groups/>
+        </role>
+        <role inherit="false" allowForAll="false" name="administrators">
+            <users/>
+            <groups>
+                <groupUuid>_e-0000e42d-ffef-8000-9af3-01075c01075c_19</groupUuid>
+            </groups>
+        </role>
+        <role inherit="false" allowForAll="false" name="denyReaders">
+            <users/>
+            <groups/>
+        </role>
+        <role inherit="false" allowForAll="false" name="denyAuthors">
+            <users/>
+            <groups/>
+        </role>
+        <role inherit="false" allowForAll="false" name="denyAdministrators">
+            <users/>
+            <groups/>
+        </role>
+    </roleMap>
+    <history>
+        <historyInfo versionUuid="_a-0000ed52-a319-8000-9df0-011c48011c48_14999421"/>
+        <historyInfo versionUuid="_a-0000ed52-a319-8000-9df0-011c48011c48_15034106"/>
+        <historyInfo versionUuid="_a-0000ed52-9d71-8000-9cc3-011c48011c48_413914"/>
+    </history>
+</connectedSystemHaul>
