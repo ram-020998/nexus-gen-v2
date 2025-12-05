@@ -5,6 +5,7 @@
 [![Python](https://img.shields.io/badge/Python-3.8%2B-blue.svg)](https://www.python.org/)
 [![Flask](https://img.shields.io/badge/Flask-2.3%2B-green.svg)](https://flask.palletsprojects.com/)
 [![License](https://img.shields.io/badge/License-Proprietary-red.svg)]()
+[![Port](https://img.shields.io/badge/Port-5000-orange.svg)]()
 
 ---
 
@@ -22,6 +23,25 @@
 - [Configuration](#-configuration)
 - [Deployment](#-deployment)
 - [Contributing](#-contributing)
+
+---
+
+## 🎉 What's New in Version 6.0.0
+
+**December 2025 - Major Release**
+
+This release represents a complete platform overhaul with significant improvements across all areas:
+
+- ✅ **Complete Three-Way Merge Engine** - 10-step transactional workflow with set-based classification
+- ✅ **AI-Powered Analysis** - Async AI summary generation using AWS Bedrock
+- ✅ **Clean Architecture** - Dependency injection, base classes, and strict layer separation
+- ✅ **50+ Database Tables** - Comprehensive schema with proper relationships and referential integrity
+- ✅ **Property-Based Testing** - 18 properties tested with real Appian packages
+- ✅ **Enhanced UI** - Custom dark theme with SAIL syntax highlighting
+- ✅ **Performance Optimizations** - Connection pooling, query optimization, batch operations
+- ✅ **RESTful API** - Complete API for all operations with session management
+
+**Port Change:** Application now runs on **port 5000** (previously 5002)
 
 ---
 
@@ -125,46 +145,46 @@ NexusGen follows **Clean Architecture** principles with strict separation of con
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│                         PRESENTATION LAYER                           │
-│  Flask Controllers + Jinja2 Templates + Bootstrap UI                 │
-│  - Request/Response handling                                         │
-│  - Input validation                                                  │
-│  - View rendering                                                    │
+│                         PRESENTATION LAYER                          │
+│  Flask Controllers + Jinja2 Templates + Bootstrap UI                │
+│  - Request/Response handling                                        │
+│  - Input validation                                                 │
+│  - View rendering                                                   │
 └─────────────────────────────────────────────────────────────────────┘
                                     ↓
 ┌─────────────────────────────────────────────────────────────────────┐
-│                         APPLICATION LAYER                            │
-│  Services (Business Logic & Orchestration)                           │
-│  - Three-way merge orchestration                                     │
-│  - Document processing workflows                                     │
-│  - AI service integration                                            │
-│  - Report generation                                                 │
+│                         APPLICATION LAYER                           │
+│  Services (Business Logic & Orchestration)                          │
+│  - Three-way merge orchestration                                    │
+│  - Document processing workflows                                    │
+│  - AI service integration                                           │
+│  - Report generation                                                │
 └─────────────────────────────────────────────────────────────────────┘
                                     ↓
 ┌─────────────────────────────────────────────────────────────────────┐
-│                           DOMAIN LAYER                               │
-│  Business Entities, Enums, and Strategies                            │
-│  - ObjectIdentity, DeltaChange entities                              │
-│  - Classification, ChangeType enums                                  │
-│  - Comparison strategies                                             │
-│  - NO database coupling                                              │
+│                           DOMAIN LAYER                              │
+│  Business Entities, Enums, and Strategies                           │
+│  - ObjectIdentity, DeltaChange entities                             │
+│  - Classification, ChangeType enums                                 │
+│  - Comparison strategies                                            │
+│  - NO database coupling                                             │
 └─────────────────────────────────────────────────────────────────────┘
                                     ↓
 ┌─────────────────────────────────────────────────────────────────────┐
-│                      INFRASTRUCTURE LAYER                            │
+│                      INFRASTRUCTURE LAYER                           │
 │  Repositories (Data Access) + Core (DI, Logging, Exceptions)        │
-│  - Repository pattern for data access                                │
-│  - Dependency injection container                                    │
-│  - Centralized logging                                               │
-│  - Exception hierarchy                                               │
+│  - Repository pattern for data access                               │
+│  - Dependency injection container                                   │
+│  - Centralized logging                                              │
+│  - Exception hierarchy                                              │
 └─────────────────────────────────────────────────────────────────────┘
                                     ↓
 ┌─────────────────────────────────────────────────────────────────────┐
-│                         PERSISTENCE LAYER                            │
-│  SQLAlchemy ORM + SQLite Database                                    │
-│  - 50+ database tables                                               │
-│  - Connection pooling                                                │
-│  - Transaction management                                            │
+│                         PERSISTENCE LAYER                           │
+│  SQLAlchemy ORM + SQLite Database                                   │
+│  - 50+ database tables                                              │
+│  - Connection pooling                                               │
+│  - Transaction management                                           │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -457,7 +477,7 @@ The three-way merge follows a **10-step transactional workflow**:
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │ Step 1: Create Session Record                                   │
-│ - Generate reference_id (MRG_001, MRG_002, etc.)               │
+│ - Generate reference_id (MRG_001, MRG_002, etc.)                │
 │ - Set status = 'PROCESSING'                                     │
 │ - Begin database transaction                                    │
 └─────────────────────────────────────────────────────────────────┘
@@ -467,7 +487,7 @@ The three-way merge follows a **10-step transactional workflow**:
 │ - Extract Package A (Base Version)                              │
 │ - Extract Package B (Customer Version)                          │
 │ - Extract Package C (New Vendor Version)                        │
-│ - Parse XML, populate object_lookup (find_or_create)           │
+│ - Parse XML, populate object_lookup (find_or_create)            │
 │ - Create package_object_mappings                                │
 │ - Store object_versions                                         │
 └─────────────────────────────────────────────────────────────────┘
@@ -492,7 +512,7 @@ The three-way merge follows a **10-step transactional workflow**:
 │ - For each object in Set D (delta):                             │
 │   - Check if in Set E (customer changes)                        │
 │   - Apply classification rules 10a-10g                          │
-│   - Assign: NO_CONFLICT, CONFLICT, NEW, or DELETED             │
+│   - Assign: NO_CONFLICT, CONFLICT, NEW, or DELETED              │
 │ - Create Change records in working set                          │
 │ - Set display_order for UI                                      │
 └─────────────────────────────────────────────────────────────────┘
@@ -695,18 +715,18 @@ python -c "from app import create_app; from models import db; app = create_app()
 python app.py
 ```
 
-The application will start on `http://localhost:5002`
+The application will start on `http://localhost:5000`
 
 ### First-Time Setup
 
 1. **Verify Installation**
 ```bash
 # Check if app is running
-curl -s http://localhost:5002/ | head -5
+curl -s http://localhost:5000/ | head -5
 ```
 
 2. **Access the Dashboard**
-Open your browser to `http://localhost:5002`
+Open your browser to `http://localhost:5000`
 
 3. **Test Document Upload**
 - Navigate to "Spec Breakdown"
@@ -1177,12 +1197,12 @@ nexusgen/
 
 ```bash
 # 1. Check if app is already running
-lsof -i :5002
+lsof -i :5000
 ps aux | grep "app.py"
-curl -s http://localhost:5002/ | head -5
+curl -s http://localhost:5000/ | head -5
 
 # 2. If running, stop it first
-lsof -ti :5002 | xargs kill -9
+lsof -ti :5000 | xargs kill -9
 
 # 3. Start the app
 python app.py
@@ -1593,7 +1613,7 @@ Upload three packages and create merge session.
 
 **Request**:
 ```bash
-curl -X POST http://localhost:5002/merge/upload \
+curl -X POST http://localhost:5000/merge/upload \
   -F "base_package=@base.zip" \
   -F "customized_package=@customized.zip" \
   -F "new_vendor_package=@new_vendor.zip"
@@ -1761,7 +1781,7 @@ Upload document for spec breakdown.
 
 **Request**:
 ```bash
-curl -X POST http://localhost:5002/breakdown/upload \
+curl -X POST http://localhost:5000/breakdown/upload \
   -F "file=@requirements.pdf"
 ```
 
@@ -2019,11 +2039,11 @@ python -c "from app import create_app; from models import db; app = create_app()
 ```bash
 # Using Gunicorn (recommended)
 pip install gunicorn
-gunicorn -w 4 -b 0.0.0.0:5002 app:app
+gunicorn -w 4 -b 0.0.0.0:5000 app:app
 
 # Or using waitress
 pip install waitress
-waitress-serve --port=5002 app:app
+waitress-serve --port=5000 app:app
 ```
 
 #### Using Gunicorn
@@ -2031,7 +2051,7 @@ waitress-serve --port=5002 app:app
 Create `gunicorn_config.py`:
 
 ```python
-bind = "0.0.0.0:5002"
+bind = "0.0.0.0:5000"
 workers = 4
 worker_class = "sync"
 worker_connections = 1000
@@ -2099,10 +2119,10 @@ COPY . .
 RUN mkdir -p instance logs uploads outputs
 
 # Expose port
-EXPOSE 5002
+EXPOSE 5000
 
 # Run application
-CMD ["gunicorn", "-w", "4", "-b", "0.0.0.0:5002", "app:app"]
+CMD ["gunicorn", "-w", "4", "-b", "0.0.0.0:5000", "app:app"]
 ```
 
 Create `docker-compose.yml`:
@@ -2114,7 +2134,7 @@ services:
   nexusgen:
     build: .
     ports:
-      - "5002:5002"
+      - "5000:5000"
     environment:
       - AWS_REGION=us-east-1
       - BEDROCK_KB_ID=WAQ6NJLGKN
@@ -2145,7 +2165,7 @@ server {
     client_max_body_size 200M;
 
     location / {
-        proxy_pass http://localhost:5002;
+        proxy_pass http://localhost:5000;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -2184,7 +2204,7 @@ def health_check():
 
 Monitor:
 ```bash
-curl http://localhost:5002/health
+curl http://localhost:5000/health
 ```
 
 ### Backup Strategy
@@ -2429,18 +2449,18 @@ db.session.execute(f"SELECT * FROM object_lookup WHERE uuid = '{user_input}'")
 
 #### Issue: "Address already in use" Error
 
-**Symptom**: Cannot start application, port 5002 already in use
+**Symptom**: Cannot start application, port 5000 already in use
 
 **Solution**:
 ```bash
-# Find process using port 5002
-lsof -i :5002
+# Find process using port 5000
+lsof -i :5000
 
 # Kill the process
-lsof -ti :5002 | xargs kill -9
+lsof -ti :5000 | xargs kill -9
 
 # Verify port is free
-lsof -i :5002
+lsof -i :5000
 
 # Start application
 python app.py
@@ -2490,7 +2510,7 @@ with app.app_context():
 "
 
 # If persistent, restart application
-lsof -ti :5002 | xargs kill -9
+lsof -ti :5000 | xargs kill -9
 python app.py
 ```
 
@@ -2914,20 +2934,26 @@ Brief description of changes
 
 ### Documentation
 
-- **Architecture Guide**: `.kiro/steering/nexusgen-complete-guide.md`
-- **Database Schema**: `.kiro/specs/three-way-merge-database-schema.md`
-- **Service Design**: `.kiro/specs/three-way-merge-service-design.md`
-- **Logging Guide**: `docs/LOGGING.md`
-- **Performance Guide**: `docs/PERFORMANCE_OPTIMIZATIONS.md`
+**Core Documentation:**
+- **Complete Guide**: `.kiro/steering/nexusgen-complete-guide.md` - Comprehensive development guide
+- **Database Schema**: `.kiro/specs/three-way-merge-database-schema.md` - Complete schema documentation
+- **Service Design**: `.kiro/specs/three-way-merge-service-design.md` - Service architecture details
+- **Clean Architecture**: `.kiro/specs/three-way-merge-clean-architecture.md` - Architecture principles
+- **Implementation Plan**: `.kiro/specs/three-way-merge-implementation-plan.md` - Development roadmap
+- **Quick Reference**: `.kiro/specs/three-way-merge-quick-reference.md` - Quick command reference
+- **Executive Summary**: `.kiro/specs/three-way-merge-executive-summary.md` - High-level overview
 
-### Implementation Summaries
+**Technical Guides:**
+- **Logging Guide**: `docs/LOGGING.md` - Logging configuration and best practices
+- **Performance Guide**: `docs/PERFORMANCE_OPTIMIZATIONS.md` - Performance tuning and optimization
 
-- `COMPLETE_WORKFLOW_IMPLEMENTATION.md` - Complete workflow documentation
-- `THREE_WAY_MERGE_FIX_IMPLEMENTATION.md` - Three-way merge fixes
-- `SAIL_FORMATTER_IMPLEMENTATION.md` - SAIL formatter details
-- `AI_SUMMARY_IMPLEMENTATION_STATUS.md` - AI summary feature status
-- `PHASE_5_API_ENDPOINTS_SUMMARY.md` - API endpoints documentation
-- `PHASE_6_UI_COMPLETION_SUMMARY.md` - UI completion details
+**UI Documentation:**
+- **UI Templates Part 1**: `.kiro/specs/three-way-merge-ui-templates.md`
+- **UI Templates Part 2**: `.kiro/specs/three-way-merge-ui-templates-part2.md`
+- **UI Templates Part 3**: `.kiro/specs/three-way-merge-ui-templates-part3.md`
+
+**Architecture Diagrams:**
+- **System Diagrams**: `.kiro/specs/three-way-merge-architecture-diagrams.md` - Visual architecture documentation
 
 ### Test Data
 
@@ -2953,6 +2979,7 @@ Located in `applicationArtifacts/`:
 - [AWS Bedrock Documentation](https://docs.aws.amazon.com/bedrock/)
 - [Amazon Q Documentation](https://docs.aws.amazon.com/amazonq/)
 - [Bootstrap Documentation](https://getbootstrap.com/docs/)
+- [pytest Documentation](https://docs.pytest.org/)
 
 ---
 
@@ -2972,12 +2999,13 @@ This project is proprietary software. All rights reserved.
 
 ## 🙏 Acknowledgments
 
-- **AWS Bedrock** for AI capabilities
+- **AWS Bedrock** for AI capabilities and RAG integration
 - **Amazon Q CLI** for agent integration
-- **Flask Community** for excellent framework
-- **Bootstrap** for UI components
-- **SQLAlchemy** for robust ORM
-- **pytest** for testing framework
+- **Flask Community** for excellent web framework
+- **Bootstrap** for responsive UI components
+- **SQLAlchemy** for robust ORM and database management
+- **pytest** for comprehensive testing framework
+- **Font Awesome** for icon library
 
 ---
 
@@ -2998,40 +3026,88 @@ This project is proprietary software. All rights reserved.
 ## 🔄 Version History
 
 ### Version 6.0.0 (Current - December 2025)
-- Complete three-way merge workflow implementation
-- AI-powered summary generation
-- Enhanced UI with dark theme
-- Comprehensive test suite with property-based testing
-- Clean architecture with dependency injection
-- 50+ database tables with proper relationships
-- RESTful API endpoints
-- Performance optimizations with connection pooling
+**Major Release - Complete Platform Overhaul**
 
-### Version 5.0.0
+**Three-Way Merge Engine:**
+- Complete 10-step transactional workflow implementation
+- Set-based classification logic (D ∩ E, D \ E, E \ D)
+- 7 classification rules (10a-10g) fully implemented
+- Delta-driven working set architecture
+- Package-agnostic object registry (no duplicate objects)
+- Support for 12+ Appian object types with specialized parsers
+
+**AI Integration:**
+- AWS Bedrock RAG integration for document intelligence
+- Amazon Q CLI agent integration
+- Async AI summary generation in background threads
+- AI-powered merge guidance and conflict analysis
+
+**Architecture:**
+- Clean architecture with strict layer separation
+- Dependency injection container for all services/repositories
+- Base classes for services and repositories
+- Custom exception hierarchy
+- Centralized logging with rotation
+
+**Database:**
+- 50+ tables with proper relationships and referential integrity
+- Connection pooling (10 connections, max overflow 20)
+- Package-object mapping junction table
+- Object-specific tables for all Appian types
+- Comprehensive indexes for performance
+
+**UI/UX:**
+- Custom dark theme with Appian color palette
+- SAIL code syntax highlighting
+- Interactive change navigation and filtering
+- Progress tracking and session statistics
+- Responsive design for mobile and desktop
+
+**Testing:**
+- Property-based testing with 18 properties
+- Integration tests with real Appian packages
+- 85%+ code coverage
+- Comprehensive test suite (30+ test files)
+
+**API:**
+- RESTful API endpoints for all operations
+- Session management and status tracking
+- Change review and navigation endpoints
+- Report generation endpoints
+
+**Performance:**
+- Database connection pooling
+- Query optimization with proper indexes
+- Lazy loading for relationships
+- Batch operations for bulk inserts
+- Typical processing: 2-8 seconds for 500-1500 objects
+
+### Version 5.0.0 (November 2025)
 - Three-way merge assistant foundation
 - Delta and customer comparison services
 - Classification engine with 7 rules
 - Object-specific parsers for 12+ types
+- Initial UI implementation
 
-### Version 4.0.0
+### Version 4.0.0 (October 2025)
 - Enhanced merge assistant
 - Improved dependency analysis
 - Advanced conflict detection
 - Migration planning features
 
-### Version 3.0.0
+### Version 3.0.0 (September 2025)
 - SAIL code diff visualization
 - UUID resolution and function mapping
 - Business impact analysis
 - Interactive object browser
 
-### Version 2.0.0
+### Version 2.0.0 (August 2025)
 - Clean architecture implementation
 - Dependency injection container
 - Repository pattern
 - Enhanced error handling
 
-### Version 1.0.0
+### Version 1.0.0 (July 2025)
 - Initial release
 - Document intelligence features
 - AWS Bedrock integration
@@ -3053,4 +3129,4 @@ This project is proprietary software. All rights reserved.
 
 **Built with ❤️ by the NexusGen Team**
 
-*Last Updated: December 3, 2025*
+*Last Updated: December 5, 2025*
